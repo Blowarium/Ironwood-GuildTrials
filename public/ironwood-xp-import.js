@@ -218,14 +218,43 @@
     return level * 100000 + id;
   }
 
-  function readEffectiveSkillLevel() {
+  function readEffectiveSkillLevel(root) {
+    var cmp = findActionsComponentInstance(root);
+    var fromComponent = readComponentEffectiveLevel(cmp);
+    if (fromComponent != null) return fromComponent;
+
     var scopes = document.querySelectorAll(
-      "skill-page, actions-component, .page-title, [class*='skill']",
+      "skill-page .page-title, skill-page h1, skill-page header, .page-title",
     );
     for (var i = 0; i < scopes.length; i++) {
       var text = scopes[i].textContent || "";
       var match = text.match(/Lv\.\s*(\d+)(?:\s*\+\s*(\d+))?/);
       if (match) return Number(match[1]) + (match[2] ? Number(match[2]) : 0);
+    }
+    return null;
+  }
+
+  function findInNgContext(obj, seen, depth) {
+    if (!obj || depth > 10) return null;
+    if (typeof obj !== "object") return null;
+    if (seen.has(obj)) return null;
+    seen.add(obj);
+    if (obj.ACTION_DATA && obj.skillData !== undefined) return obj;
+    if (Array.isArray(obj)) {
+      for (var i = 0; i < obj.length; i++) {
+        var fromArray = findInNgContext(obj[i], seen, depth + 1);
+        if (fromArray) return fromArray;
+      }
+      return null;
+    }
+    var keys = Object.keys(obj);
+    for (var k = 0; k < keys.length; k++) {
+      try {
+        var fromKey = findInNgContext(obj[keys[k]], seen, depth + 1);
+        if (fromKey) return fromKey;
+      } catch (e) {
+        /* skip inaccessible properties */
+      }
     }
     return null;
   }
@@ -236,21 +265,16 @@
 
     if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
       try {
-        return window.ng.getComponent(el);
+        var fromNg = window.ng.getComponent(el);
+        if (fromNg && fromNg.ACTION_DATA) return fromNg;
       } catch (e) {
         /* fall through */
       }
     }
 
-    var context = el.__ngContext__;
-    if (!context) return null;
-
-    var items = Array.isArray(context) ? context : [context];
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i];
-      if (!item || typeof item !== "object") continue;
-      if (item.ACTION_DATA && item.skillData !== undefined) return item;
-      if (item.ACTION_DATA && item.SKILL_DATA) return item;
+    if (el.__ngContext__) {
+      var fromContext = findInNgContext(el.__ngContext__, new WeakSet(), 0);
+      if (fromContext) return fromContext;
     }
     return null;
   }
@@ -394,6 +418,47 @@
     return null;
   }
 
+  function getActiveActionId() {
+    var rows = document.querySelectorAll(
+      "actions-component button.row.active-link, actions-component a.row.active-link",
+    );
+    for (var i = 0; i < rows.length; i++) {
+      var id = parseActionId(rows[i]);
+      if (id > 0) return id;
+    }
+    var route = currentRoutePath();
+    var match = route.match(/\/action\/(\d+)/i);
+    return match ? Number(match[1]) : 0;
+  }
+
+  async function navigateToResolvedAction(root, resolved) {
+    if (!resolved || !resolved.actionId || !resolved.path) return false;
+
+    if (getActiveActionId() === resolved.actionId) return true;
+
+    var path = resolved.path;
+    if (path.charAt(0) !== "/") path = "/" + path;
+    location.assign(path);
+
+    try {
+      await waitFor(function () {
+        return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+      }, 12000);
+      await sleep(500);
+      return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+    } catch (e) {
+      /* fall through to row click */
+    }
+
+    var row = resolved.row || (await revealActionRow(root, resolved.actionId));
+    if (row && !isDisabled(row)) {
+      row.click();
+      await sleep(700);
+    }
+
+    return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+  }
+
   function isActiveActionRow(actionId) {
     if (!actionId) return false;
     var rows = document.querySelectorAll(
@@ -437,7 +502,8 @@
     if (path && path.charAt(0) !== "/") path = "/" + path;
     if (!path || path.indexOf("/skill/") < 0) path = location.pathname;
     var match = path.match(/\/action\/(\d+)/i);
-    var actionId = match ? Number(match[1]) : fallback && fallback.actionId;
+    var activeId = getActiveActionId();
+    var actionId = activeId || (match ? Number(match[1]) : 0) || (fallback && fallback.actionId);
     var cmp = findActionsComponentInstance();
     var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
 
@@ -584,38 +650,6 @@
     return found;
   }
 
-  async function navigateToResolvedAction(root, resolved) {
-    if (!resolved || !resolved.path) return null;
-
-    var previousRoute = currentRoutePath();
-    var actionId = resolved.actionId;
-    var row = resolved.row || (await revealActionRow(root, actionId));
-
-    if (row && !isDisabled(row)) {
-      row.click();
-      try {
-        await waitForActionReady(resolved, previousRoute);
-        return readCurrentActionInfo(resolved);
-      } catch (e) {
-        /* fall through to direct navigation */
-      }
-    }
-
-    var bestPath = resolved.path;
-    if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
-    if (currentRoutePath() !== bestPath) {
-      location.assign(bestPath);
-    }
-
-    try {
-      await waitForActionReady(resolved, previousRoute);
-      return readCurrentActionInfo(resolved);
-    } catch (e) {
-      if (actionReady(resolved, previousRoute)) return readCurrentActionInfo(resolved);
-      return buildActionInfo(resolved);
-    }
-  }
-
   function isActionRow(el) {
     if (!el || el.tagName !== "BUTTON" && el.tagName !== "A") return false;
     if (el.classList.contains("filter") || el.classList.contains("header")) return false;
@@ -711,7 +745,9 @@
     var bestPath = null;
     var bestRow = null;
     var bestScoreVal = -1;
-    var maxLevel = readEffectiveSkillLevel();
+    var cmp = findActionsComponentInstance(root);
+    var maxLevel = readComponentEffectiveLevel(cmp);
+    if (maxLevel == null) maxLevel = 9999;
 
     function consider() {
       var rows = actionRowCandidates(root);
@@ -780,16 +816,7 @@
     var resolved = await resolveBestAction(root);
     if (!resolved) return null;
 
-    if (resolved.row && !isDisabled(resolved.row)) {
-      resolved.row.click();
-      await sleep(700);
-    } else if (resolved.path) {
-      var path = resolved.path;
-      if (path.charAt(0) !== "/") path = "/" + path;
-      location.assign(path);
-      await sleep(800);
-    }
-
+    await navigateToResolvedAction(root, resolved);
     return readCurrentActionInfo(resolved);
   }
 
@@ -841,10 +868,19 @@
       var xp = null;
       try {
         xp = await waitFor(function () {
+          if (actionInfo && actionInfo.actionId && getActiveActionId() === actionInfo.actionId) {
+            return parseXpPerHour();
+          }
           return parseXpPerHour();
         }, 12000);
       } catch (e) {
         errors[target.skill] = "Could not read XP/h on this skill page.";
+      }
+
+      if (xp != null && actionInfo && actionInfo.actionId && getActiveActionId() !== actionInfo.actionId) {
+        errors[target.skill] =
+          "Selected action may not have updated (wanted #" + actionInfo.actionId +
+          ", active #" + getActiveActionId() + ").";
       }
 
       if (xp != null) {
