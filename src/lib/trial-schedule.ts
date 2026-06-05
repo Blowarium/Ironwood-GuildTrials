@@ -3,6 +3,22 @@ import type { TrialSignup } from "./types";
 import { parseISODate, toISODate } from "./weeks";
 
 export const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
+export const WEEK_DURATION_MS = 7 * TRIAL_DURATION_MS;
+
+export function weekBoundsLocal(weekStartIso: string): { start: Date; end: Date } {
+  const start = parseISODate(weekStartIso);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { start, end };
+}
+
+/** Map 0–1 position on the week bar to a local start timestamp (Mon 00:00 → next Mon 00:00). */
+export function buildStartAtFromWeekFraction(weekStartIso: string, fraction: number): string {
+  const clamped = Math.max(0, Math.min(1, fraction));
+  const { start } = weekBoundsLocal(weekStartIso);
+  return new Date(start.getTime() + Math.floor(clamped * WEEK_DURATION_MS)).toISOString();
+}
 
 /** Default trial start: 08:00 local on the chosen day. */
 export function defaultStartAtForDate(dateIso: string): string {
@@ -86,6 +102,92 @@ export function startPercentInDay(startIso: string): number {
 export function heightPercentInStartDay(startIso: string): number {
   const startPct = startPercentInDay(startIso);
   return Math.max(8, 100 - startPct);
+}
+
+export interface TrialDaySegment {
+  signup: TrialSignup;
+  plannedStartAt: string;
+  plannedEndAt: Date;
+  topPercent: number;
+  heightPercent: number;
+  isStartSegment: boolean;
+  isEndSegment: boolean;
+}
+
+function dayBoundsLocal(dateIso: string): { start: Date; end: Date } {
+  const start = parseISODate(dateIso);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
+/** Visual slice of a 24h trial within one calendar day column. */
+export function trialSegmentForDay(signup: TrialSignup, dayIso: string): TrialDaySegment | null {
+  const { planned_start_at } = normalizeSignupTiming(signup);
+  const start = new Date(planned_start_at);
+  const end = getTrialEndAt(planned_start_at);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const { start: dayStart, end: dayEnd } = dayBoundsLocal(dayIso);
+  if (end <= dayStart || start >= dayEnd) return null;
+
+  const segStart = start > dayStart ? start : dayStart;
+  const segEnd = end < dayEnd ? end : dayEnd;
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  const topPercent = ((segStart.getTime() - dayStart.getTime()) / dayMs) * 100;
+  const heightPercent = ((segEnd.getTime() - segStart.getTime()) / dayMs) * 100;
+
+  return {
+    signup,
+    plannedStartAt: planned_start_at,
+    plannedEndAt: end,
+    topPercent,
+    heightPercent: Math.max(4, heightPercent),
+    isStartSegment: start >= dayStart && start < dayEnd,
+    isEndSegment: end > dayStart && end <= dayEnd,
+  };
+}
+
+export function formatTrialWindowLabel(startIso: string): string {
+  const end = getTrialEndAt(startIso);
+  return `${formatDateTimeLabel(startIso)} → ${formatDateTimeLabel(end.toISOString())}`;
+}
+
+export interface TrialWeekSegment {
+  signup: TrialSignup;
+  plannedStartAt: string;
+  plannedEndAt: Date;
+  leftPercent: number;
+  widthPercent: number;
+}
+
+/** Horizontal slice of a 24h trial within one Mon–Sun week column. */
+export function trialSegmentInWeek(
+  signup: TrialSignup,
+  weekStartIso: string,
+): TrialWeekSegment | null {
+  const { planned_start_at } = normalizeSignupTiming(signup);
+  const start = new Date(planned_start_at);
+  const end = getTrialEndAt(planned_start_at);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const { start: weekStart, end: weekEnd } = weekBoundsLocal(weekStartIso);
+  if (end <= weekStart || start >= weekEnd) return null;
+
+  const visStart = start > weekStart ? start : weekStart;
+  const visEnd = end < weekEnd ? end : weekEnd;
+  const leftPercent = ((visStart.getTime() - weekStart.getTime()) / WEEK_DURATION_MS) * 100;
+  const widthPercent = ((visEnd.getTime() - visStart.getTime()) / WEEK_DURATION_MS) * 100;
+
+  return {
+    signup,
+    plannedStartAt: planned_start_at,
+    plannedEndAt: end,
+    leftPercent,
+    widthPercent: Math.max(0.35, widthPercent),
+  };
 }
 
 export function timeInputValue(iso: string): string {

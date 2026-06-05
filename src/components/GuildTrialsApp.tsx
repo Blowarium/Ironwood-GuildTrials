@@ -31,7 +31,7 @@ import { hasLocalStaffAuth } from "@/lib/staff-auth-client";
 import type { ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
-import { syncSignups, buildStartAtFromDayFraction } from "@/lib/trial-schedule";
+import { syncSignups, buildStartAtFromWeekFraction, dateFromStartAt } from "@/lib/trial-schedule";
 import { computeGuildStats } from "@/lib/stats";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
@@ -287,16 +287,24 @@ export function GuildTrialsApp() {
     const startAt =
       target.plannedStartAt ??
       (target.dayFraction != null
-        ? buildStartAtFromDayFraction(target.plannedDate, target.dayFraction)
+        ? buildStartAtFromWeekFraction(
+            weekStart,
+            (() => {
+              const dayIdx = weekDays.indexOf(target.plannedDate);
+              if (dayIdx < 0) return 0;
+              return (dayIdx + target.dayFraction) / 7;
+            })(),
+          )
         : signup.planned_start_at);
+    const plannedDate = dateFromStartAt(startAt);
     if (
       signup.skill === target.skill &&
-      signup.planned_date === target.plannedDate &&
+      signup.planned_date === plannedDate &&
       signup.planned_start_at === startAt
     ) {
       return;
     }
-    await assignToCell(signup.member_name, target.skill, target.plannedDate, startAt);
+    await assignToCell(signup.member_name, target.skill, plannedDate, startAt);
   }
 
   async function handleToggleSkillComplete(skill: Skill, completed: boolean) {
@@ -537,10 +545,11 @@ export function GuildTrialsApp() {
               {view === "planner" && (
                 <>
                   <p className="mb-2 text-xs text-slate-500">
-                    Click a time slot to schedule · drag trials to another skill/day/time · status
+                    Click the timeline to schedule · drag trials to another skill or time · status
                     updates automatically
                   </p>
                   <WeeklyTimeline
+                    weekStart={weekStart}
                     weekDays={weekDays}
                     signups={signups}
                     currentUser={currentUser}
