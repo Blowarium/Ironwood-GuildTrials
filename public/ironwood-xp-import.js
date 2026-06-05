@@ -515,12 +515,17 @@
 
     function walkGroup(group, withinSubGroup) {
       if (!group) return;
+      var groupMatchesSubgroup =
+        prefs && prefs.subGroup && group.name === prefs.subGroup;
+      var canConsiderDirectActions =
+        !prefs || !prefs.subGroup || withinSubGroup || groupMatchesSubgroup;
+
       if (group.actionGroups) {
         for (var s = 0; s < group.actionGroups.length; s++) {
           var sub = group.actionGroups[s];
-          var childWithin = withinSubGroup;
+          var childWithin = withinSubGroup || groupMatchesSubgroup;
           if (prefs && prefs.subGroup) {
-            childWithin = sub.name === prefs.subGroup;
+            childWithin = sub.name === prefs.subGroup || groupMatchesSubgroup;
           } else {
             childWithin = true;
           }
@@ -531,7 +536,7 @@
         }
         return;
       }
-      if (group.actions && (!prefs || !prefs.subGroup || withinSubGroup)) {
+      if (group.actions && canConsiderDirectActions) {
         for (var k = 0; k < group.actions.length; k++) considerAction(group.actions[k]);
       }
     }
@@ -1144,12 +1149,24 @@
       if (!root) return false;
       if (!expectedSkillId) return root;
       var cmp = findActionsComponentInstance(root);
-      if (!cmp || !cmp.skillData) return false;
-      var sid = cmp.skillId || cmp.skillData.id;
+      var skillData = readComponentSkillData(cmp);
+      if (!cmp || !skillData) return false;
+      var sid = cmp.skillId || skillData.id;
       return String(sid) === String(expectedSkillId) ? root : false;
     }, 12000);
     await sleep(500);
     return actionsComponentRoot();
+  }
+
+  function enrichResolvedFromComponent(root, resolved) {
+    if (!resolved || !resolved.actionId) return resolved;
+    var cmp = findActionsComponentInstance(root);
+    var data = lookupActionData(cmp, resolved.actionId);
+    if (data) {
+      resolved.name = data.name || resolved.name;
+      resolved.level = data.level != null ? data.level : resolved.level;
+    }
+    return resolved;
   }
 
   async function resolveBestAction(root, displayName) {
@@ -1164,6 +1181,11 @@
     if (fromComponent) {
       fromComponent.prefs = prefs;
       return fromComponent;
+    }
+    var fromDom = await findBestUnlockedActionPathFromDom(root, prefs);
+    if (fromDom) {
+      fromDom.prefs = prefs;
+      return enrichResolvedFromComponent(root, fromDom);
     }
     return null;
   }
