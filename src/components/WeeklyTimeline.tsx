@@ -25,8 +25,15 @@ import type { CellTarget } from "./CellAssignmentModal";
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TIMELINE_HEIGHT = 56;
-const LANE_HEIGHT = 26;
+const ROW_PAD = 2;
+const LANE_GAP = 2;
+const BLOCK_HEIGHT = TIMELINE_HEIGHT - ROW_PAD * 2;
 const TIMELINE_MIN_WIDTH = 720;
+
+function timelineHeightForLanes(laneCount: number): number {
+  if (laneCount <= 0) return TIMELINE_HEIGHT;
+  return ROW_PAD * 2 + laneCount * BLOCK_HEIGHT + (laneCount - 1) * LANE_GAP;
+}
 
 function slotTargetFromEvent(
   skill: Skill,
@@ -129,12 +136,8 @@ export function WeeklyTimeline({
                   .map((signup) => trialSegmentInWeek(signup, weekStart))
                   .filter((seg) => seg !== null),
               );
-              const timelineHeight = Math.max(
-                TIMELINE_HEIGHT,
-                segments.length > 0
-                  ? segments[0].laneCount * LANE_HEIGHT + 4
-                  : TIMELINE_HEIGHT,
-              );
+              const laneCount = segments.length > 0 ? segments[0].laneCount : 1;
+              const timelineHeight = timelineHeightForLanes(laneCount);
               const dimmed = cov?.weekState === "complete";
               const rowClass =
                 cov?.weekState === "complete"
@@ -201,10 +204,8 @@ export function WeeklyTimeline({
                         />
                       ))}
                       {segments.map((seg) => {
-                        const { signup, plannedStartAt, plannedEndAt, lane, laneCount } = seg;
-                        const laneHeight = (timelineHeight - 4) / laneCount;
-                        const topPx = 2 + lane * laneHeight;
-                        const blockHeight = laneHeight - 2;
+                        const { signup, plannedStartAt, plannedEndAt, lane } = seg;
+                        const topPx = ROW_PAD + lane * (BLOCK_HEIGHT + LANE_GAP);
                         const effective = getEffectiveStatus({
                           ...signup,
                           planned_start_at: plannedStartAt,
@@ -237,9 +238,9 @@ export function WeeklyTimeline({
                               left: `${seg.leftPercent}%`,
                               width: `${seg.widthPercent}%`,
                               top: topPx,
-                              height: blockHeight,
+                              height: BLOCK_HEIGHT,
                             }}
-                            className={`absolute z-[1] min-w-[2px] overflow-hidden rounded border px-1 py-0.5 text-left ${blockClass}`}
+                            className={`absolute z-[1] min-w-[2px] cursor-pointer overflow-hidden rounded border px-1 py-0.5 text-left ${blockClass}`}
                             title={formatTrialWindowLabel(plannedStartAt)}
                           >
                             <span className="block truncate text-[9px] font-semibold text-white">
