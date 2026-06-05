@@ -12,17 +12,19 @@ import { formatTimeLabel } from "@/lib/trial-schedule";
 import { GuildTrialHallSettings } from "./GuildTrialHallSettings";
 import { SkillIcon } from "./SkillIcon";
 
-function rankLabel(rank: 1 | 2 | 3 | null): string {
+function rankLabel(rank: number | null): string {
   if (rank === 1) return "1st choice";
   if (rank === 2) return "2nd choice";
   if (rank === 3) return "3rd choice";
+  if (rank != null) return `Pref rank ${rank}`;
   return "No pref match";
 }
 
-function rankClass(rank: 1 | 2 | 3 | null): string {
+function rankClass(rank: number | null): string {
   if (rank === 1) return "text-emerald-400";
   if (rank === 2) return "text-sky-300";
   if (rank === 3) return "text-slate-300";
+  if (rank != null && rank <= 8) return "text-slate-400";
   return "text-amber-400/90";
 }
 
@@ -88,10 +90,9 @@ export function SuggestionsView({
       <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
         <h2 className="text-lg font-semibold text-white">Smart schedule</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Suggests assignments for members not yet signed up this week. Covers all 16 skills when
-          possible, favors preferred picks, and uses each member&apos;s XP/h (5% of skill XP earned
-          in 24h counts as trial XP) to estimate completion (
-          {formatXp(plan.trialXpRequired)} trial XP per skill at hall level {plan.hallLevel}).
+          Suggests assignments for members not yet signed up this week. Priority: complete all
+          16 skill trials (coverage + trial XP at hall level {plan.hallLevel}), then seat members
+          on their highest-ranked preferred skills — XP/h only breaks ties when rank is equal.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Stat label="Suggested" value={String(plan.stats.totalSuggestions)} />
