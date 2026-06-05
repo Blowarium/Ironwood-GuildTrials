@@ -22,6 +22,8 @@ import { formatDayLabel } from "@/lib/weeks";
 import { SkillCompletionToggle } from "./SkillCompletionToggle";
 import { StatusBadge } from "./StatusBadge";
 import type { CellTarget } from "./CellAssignmentModal";
+import { GuildEventLegend, GuildEventWeekBar } from "./GuildEventWeekBar";
+import { guildEventForSkill } from "@/lib/guild-events";
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const TIMELINE_HEIGHT = 56;
@@ -107,10 +109,13 @@ export function WeeklyTimeline({
 
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36]">
-      <p className="border-b border-slate-700/50 px-3 py-2 text-[10px] text-slate-500">
-        One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · click to
-        assign · drag to move
-      </p>
+      <div className="space-y-1 border-b border-slate-700/50 px-3 py-2">
+        <GuildEventLegend />
+        <p className="text-[10px] text-slate-500">
+          One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · click to
+          assign · drag to move · faint row tint = matching Guild Event active
+        </p>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm" style={{ minWidth: TIMELINE_MIN_WIDTH + 220 }}>
           <thead>
@@ -127,6 +132,16 @@ export function WeeklyTimeline({
             </tr>
           </thead>
           <tbody>
+            <tr className="border-b border-slate-700/60 bg-slate-900/20">
+              <td className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 align-middle">
+                <span className="text-xs font-medium text-slate-300">Guild Events</span>
+                <p className="text-[9px] leading-tight text-slate-500">48h each</p>
+              </td>
+              <td className="p-1 align-middle">
+                <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+              </td>
+              <td className="sticky right-0 z-10 bg-[#131f36]" />
+            </tr>
             {SKILLS.map((skill) => {
               const cov = coverageBySkill.get(skill);
               const xp = xpBySkill.get(skill);
@@ -203,6 +218,15 @@ export function WeeklyTimeline({
                           style={{ left: `${((i + 1) / 7) * 100}%` }}
                         />
                       ))}
+                      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-md">
+                        <GuildEventWeekBar
+                          weekStart={weekStart}
+                          minWidth={TIMELINE_MIN_WIDTH}
+                          height={timelineHeight}
+                          matchType={guildEventForSkill(skill)}
+                          overlay
+                        />
+                      </div>
                       {segments.map((seg) => {
                         const { signup, plannedStartAt, plannedEndAt, lane } = seg;
                         const topPx = ROW_PAD + lane * (BLOCK_HEIGHT + LANE_GAP);
