@@ -245,11 +245,24 @@
       if (val.indexOf("action") >= 0 && val.indexOf(",") >= 0) {
         var parts = val.split(",");
         for (var i = 0; i < parts.length - 1; i++) {
-          if (parts[i].indexOf("action") >= 0 && /^\d+$/.test(parts[i + 1].trim())) {
-            return Number(parts[i + 1].trim());
+          var part = parts[i].replace(/"/g, "").trim();
+          var next = parts[i + 1].replace(/"/g, "").trim();
+          if (part.indexOf("action") >= 0 && /^\d+$/.test(next)) {
+            return Number(next);
           }
         }
+        var fromAttr = pathFromRouterSegments(parts);
+        if (fromAttr) {
+          var routeMatch = fromAttr.match(/\/action\/(\d+)/i);
+          if (routeMatch) return Number(routeMatch[1]);
+        }
       }
+    }
+    var cmp = findActionsComponentInstance();
+    var rowName = readActionNameFromRow(el);
+    if (rowName && cmp) {
+      var byName = lookupActionDataByName(cmp, rowName);
+      if (byName) return actionIdFromData(cmp, byName, 0);
     }
     return 0;
   }
@@ -367,7 +380,61 @@
     if (!cmp || !cmp.ACTION_DATA || actionId == null) return null;
     var id = normalizeActionId(actionId);
     if (!id) return null;
-    return cmp.ACTION_DATA[id] || cmp.ACTION_DATA[String(id)] || null;
+    var direct = cmp.ACTION_DATA[id] || cmp.ACTION_DATA[String(id)];
+    if (direct) return direct;
+    var keys = Object.keys(cmp.ACTION_DATA);
+    for (var i = 0; i < keys.length; i++) {
+      var entry = cmp.ACTION_DATA[keys[i]];
+      if (entry && normalizeActionId(entry.id) === id) return entry;
+    }
+    return null;
+  }
+
+  function lookupActionDataByName(cmp, name) {
+    if (!cmp || !cmp.ACTION_DATA || !name) return null;
+    var target = String(name).replace(/\s+/g, " ").trim().toLowerCase();
+    if (!target) return null;
+    var keys = Object.keys(cmp.ACTION_DATA);
+    for (var i = 0; i < keys.length; i++) {
+      var entry = cmp.ACTION_DATA[keys[i]];
+      if (!entry || !entry.name) continue;
+      if (entry.name.replace(/\s+/g, " ").trim().toLowerCase() === target) return entry;
+    }
+    return null;
+  }
+
+  function actionIdFromData(cmp, data, fallbackId) {
+    if (!data) return normalizeActionId(fallbackId);
+    var fromData = normalizeActionId(data.id);
+    if (fromData) return fromData;
+    if (!cmp || !cmp.ACTION_DATA) return normalizeActionId(fallbackId);
+    var keys = Object.keys(cmp.ACTION_DATA);
+    for (var i = 0; i < keys.length; i++) {
+      if (cmp.ACTION_DATA[keys[i]] === data) {
+        return normalizeActionId(keys[i]);
+      }
+    }
+    return normalizeActionId(fallbackId);
+  }
+
+  function resolveActionRecord(ref, cmp) {
+    var refId = actionRefId(ref);
+    var data = refId ? lookupActionData(cmp, refId) : null;
+    if (!data && ref && typeof ref === "object" && ref.name) {
+      data = lookupActionDataByName(cmp, ref.name) || ref;
+    }
+    if (!data && typeof ref === "number") {
+      data = lookupActionData(cmp, ref);
+    }
+    if (!data) return null;
+    var id = actionIdFromData(cmp, data, refId);
+    if (!id) return null;
+    return {
+      id: id,
+      name: data.name || "",
+      level: data.level || 0,
+      data: data,
+    };
   }
 
   function readComponentSkillData(cmp) {
@@ -499,17 +566,14 @@
     var candidates = [];
 
     function considerAction(ref) {
-      var id = actionRefId(ref);
-      if (!id) return;
-      var data = lookupActionData(cmp, id);
-      if (!data) return;
-      var level = data.level || 0;
-      if (level > effectiveLevel) return;
+      var record = resolveActionRecord(ref, cmp);
+      if (!record) return;
+      if (record.level > effectiveLevel) return;
       candidates.push({
-        id: id,
-        level: level,
-        name: data.name || "",
-        score: scoreActionCandidate(level, id, data.name, prefs),
+        id: record.id,
+        level: record.level,
+        name: record.name,
+        score: scoreActionCandidate(record.level, record.id, record.name, prefs),
       });
     }
 
@@ -573,10 +637,12 @@
 
     if (bestId == null) return null;
     var data = lookupActionData(cmp, bestId);
+    var actionId = actionIdFromData(cmp, data, bestId);
+    if (!actionId) return null;
     return {
-      path: "/skill/" + skillId + "/action/" + bestId,
-      actionId: bestId,
-      name: (data && data.name) || "Action " + bestId,
+      path: "/skill/" + skillId + "/action/" + actionId,
+      actionId: actionId,
+      name: (data && data.name) || "Action " + actionId,
       level: (data && data.level) || null,
       method: "component",
       prefs: prefs || null,
@@ -590,9 +656,14 @@
   }
 
   function actionInfoFromRow(row, method) {
-    var actionId = parseActionId(row);
     var cmp = findActionsComponentInstance();
+    var actionId = parseActionId(row);
     var data = lookupActionData(cmp, actionId);
+    if (!data) {
+      var rowName = readActionNameFromRow(row);
+      data = rowName ? lookupActionDataByName(cmp, rowName) : null;
+      if (data) actionId = actionIdFromData(cmp, data, actionId);
+    }
     var skillId = cmp && (cmp.skillId || (cmp.skillData && cmp.skillData.id));
     var path =
       actionId && skillId
@@ -1159,12 +1230,22 @@
   }
 
   function enrichResolvedFromComponent(root, resolved) {
-    if (!resolved || !resolved.actionId) return resolved;
+    if (!resolved) return resolved;
     var cmp = findActionsComponentInstance(root);
     var data = lookupActionData(cmp, resolved.actionId);
+    if (!data && resolved.name) {
+      data = lookupActionDataByName(cmp, resolved.name);
+    }
     if (data) {
+      resolved.actionId = actionIdFromData(cmp, data, resolved.actionId);
       resolved.name = data.name || resolved.name;
       resolved.level = data.level != null ? data.level : resolved.level;
+    }
+    if (resolved.actionId && cmp) {
+      var skillId = cmp.skillId || (readComponentSkillData(cmp) && readComponentSkillData(cmp).id);
+      if (skillId) {
+        resolved.path = "/skill/" + skillId + "/action/" + resolved.actionId;
+      }
     }
     return resolved;
   }
