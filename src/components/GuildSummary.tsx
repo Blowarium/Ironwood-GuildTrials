@@ -9,8 +9,10 @@ export function GuildSummary({
   stats: GuildStats;
   xpCoverage?: SkillXpCoverage[];
 }) {
-  const xpEnough = xpCoverage?.filter((x) => x.adequacy === "enough").length ?? 0;
-  const xpNeedsMore = xpCoverage?.filter((x) => x.adequacy === "needs_more").length ?? 0;
+  const inProgress = new Set(stats.skillsInProgress);
+  const inProgressXp = xpCoverage?.filter((x) => inProgress.has(x.skill)) ?? [];
+  const xpEnough = inProgressXp.filter((x) => x.adequacy === "enough").length;
+  const xpNeedsMore = inProgressXp.filter((x) => x.adequacy === "needs_more").length;
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

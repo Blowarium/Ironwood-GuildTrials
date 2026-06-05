@@ -160,7 +160,7 @@ export function WeeklyTimeline({
                             ({cov.contributorCount})
                           </span>
                         )}
-                        {xp && xp.adequacy !== "none" && (
+                        {xp && xp.adequacy !== "none" && cov?.weekState !== "complete" && (
                           <p className={`mt-0.5 text-[9px] leading-tight ${adequacyClass(xp.adequacy)}`}>
                             {adequacyLabel(xp.adequacy)}
                             {xp.adequacy !== "unknown" && (

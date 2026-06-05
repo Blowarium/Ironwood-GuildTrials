@@ -123,7 +123,7 @@ export function SkillCoverageList({
                   {row.contributorCount === 0
                     ? "No signups"
                     : `${row.contributorCount} signed up`}
-                  {xp && xp.adequacy !== "none" && (
+                  {xp && xp.adequacy !== "none" && row.weekState !== "complete" && (
                     <span className={` · ${adequacyClass(xp.adequacy)}`}>
                       {" "}
                       {adequacyLabel(xp.adequacy)}
