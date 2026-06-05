@@ -18,8 +18,14 @@ import { IronwoodXpImportGuide } from "./IronwoodXpImportGuide";
 import { IronwoodXpImportReport } from "./IronwoodXpImportReport";
 import {
   applyXpImportToRows,
+  buildIronwoodActionPlanFromRows,
   type IronwoodXpImportPayload,
 } from "@/lib/ironwood-xp-import";
+import {
+  formatCatalogActionLabel,
+  getCatalogActions,
+  resolveProfileActionId,
+} from "@/lib/ironwood-action-catalog";
 
 function sortForDisplay(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
   return [...rows].sort((a, b) => {
@@ -154,6 +160,7 @@ export function ProfileModal({
         skill: s.skill,
         xpPerHour: s.xp_per_hour,
         preferenceRank: s.preference_rank,
+        ironwoodActionId: resolveProfileActionId(s.skill, s.ironwood_action_id),
       })),
     });
     setSaving(false);
@@ -187,8 +194,8 @@ export function ProfileModal({
             {isSelf ? "Your profile" : `${targetMember}'s profile`}
           </h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Set XP/h for each skill and rank your preferences (1 = highest). Drag rows or type
-            ranks.
+            Set XP/h for each skill, pick the Ironwood action used for XP estimates, and rank your
+            preferences (1 = highest).
           </p>
           {initialProfile && (
             <LastEditedNote by={initialProfile.updated_by} at={initialProfile.updated_at} />
@@ -210,6 +217,7 @@ export function ProfileModal({
                     ? `${window.location.origin}${window.location.pathname}`
                     : ""
                 }
+                skillRows={skills}
               />
             </div>
           )}
@@ -221,9 +229,10 @@ export function ProfileModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
-          <div className="grid grid-cols-[24px_1fr_88px_56px] gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid-cols-[28px_1fr_100px_64px]">
+          <div className="grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px] gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px]">
             <span />
             <span>Skill</span>
+            <span>Ironwood action</span>
             <span>XP / hour</span>
             <span>Rank</span>
           </div>
@@ -235,7 +244,7 @@ export function ProfileModal({
                 onDragStart={() => setDragSkill(row.skill)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(row.skill)}
-                className={`grid grid-cols-[24px_1fr_88px_56px] items-center gap-x-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[28px_1fr_100px_64px] ${
+                className={`grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px] items-center gap-x-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px] ${
                   dragSkill === row.skill
                     ? "border-sky-500/50 bg-sky-950/30"
                     : "border-slate-700/50 bg-slate-900/40"
@@ -251,6 +260,26 @@ export function ProfileModal({
                   <SkillIcon skill={row.skill} size="xs" />
                   <span className="truncate">{row.skill}</span>
                 </span>
+                <select
+                  disabled={!canEdit}
+                  value={
+                    resolveProfileActionId(row.skill, row.ironwood_action_id) ?? ""
+                  }
+                  onChange={(e) =>
+                    updateSkill(row.skill, {
+                      ironwood_action_id: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    })
+                  }
+                  className="min-w-0 w-full rounded border border-slate-600 bg-slate-900 px-1 py-1 text-[11px] text-white disabled:opacity-50"
+                >
+                  {getCatalogActions(row.skill).map((action) => (
+                    <option key={action.actionId} value={action.actionId}>
+                      {formatCatalogActionLabel(action)}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="text"
                   inputMode="numeric"

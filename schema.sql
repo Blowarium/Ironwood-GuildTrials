@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS member_skill_profiles (
   skill TEXT NOT NULL,
   xp_per_hour INTEGER,
   preference_rank INTEGER,
+  ironwood_action_id INTEGER,
   PRIMARY KEY (member_name, skill)
 );
 

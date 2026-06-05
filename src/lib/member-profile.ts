@@ -1,11 +1,13 @@
 import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import type { MemberPreferences } from "./preferences";
 import { parseXp } from "./preferences";
+import { findCatalogAction } from "./ironwood-action-catalog";
 
 export interface MemberSkillProfileRow {
   skill: Skill;
   xp_per_hour: number | null;
   preference_rank: number | null;
+  ironwood_action_id: number | null;
 }
 
 export interface MemberProfile {
@@ -33,6 +35,7 @@ export function emptySkillRows(): MemberSkillProfileRow[] {
     skill,
     xp_per_hour: null,
     preference_rank: null,
+    ironwood_action_id: null,
   }));
 }
 
@@ -63,6 +66,7 @@ export function normalizeProfile(profile: MemberProfile): MemberProfile {
         skill,
         xp_per_hour: existing?.xp_per_hour ?? null,
         preference_rank: existing?.preference_rank ?? null,
+        ironwood_action_id: existing?.ironwood_action_id ?? null,
       };
     }),
   };
@@ -144,6 +148,7 @@ export interface ProfileSkillInput {
   skill: Skill;
   xpPerHour?: unknown;
   preferenceRank?: unknown;
+  ironwoodActionId?: unknown;
 }
 
 export function validateAndParseProfileSkills(
@@ -176,10 +181,22 @@ export function validateAndParseProfileSkills(
       ranks.add(n);
       preference_rank = n;
     }
+    let ironwood_action_id: number | null = null;
+    if (input.ironwoodActionId != null && input.ironwoodActionId !== "") {
+      const actionId = Number(input.ironwoodActionId);
+      if (!Number.isInteger(actionId) || actionId <= 0) {
+        return { error: `Ironwood action for ${input.skill} must be a positive integer.` };
+      }
+      if (!findCatalogAction(input.skill, actionId)) {
+        return { error: `Unknown Ironwood action #${actionId} for ${input.skill}.` };
+      }
+      ironwood_action_id = actionId;
+    }
     rows.push({
       skill: input.skill,
       xp_per_hour: xp,
       preference_rank,
+      ironwood_action_id,
     });
   }
 

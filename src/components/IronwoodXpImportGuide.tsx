@@ -1,15 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { MemberSkillProfileRow } from "@/lib/member-profile";
 import {
   TAMPERMONKEY_HOME_URL,
+  buildIronwoodActionPlanFromRows,
   buildIronwoodImportLaunchUrl,
   buildIronwoodXpImportConsoleSnippet,
   buildUserscriptInstallUrl,
   isXpImportHelperInstalled,
 } from "@/lib/ironwood-xp-import";
 
-export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
+export function IronwoodXpImportGuide({
+  returnUrl,
+  skillRows,
+}: {
+  returnUrl: string;
+  skillRows: MemberSkillProfileRow[];
+}) {
   const [helperReady, setHelperReady] = useState(false);
   const [copied, setCopied] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -28,17 +36,33 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
     [appOrigin],
   );
 
+  const actionPlan = useMemo(
+    () => buildIronwoodActionPlanFromRows(skillRows),
+    [skillRows],
+  );
+
+  const planSkillCount = Object.keys(actionPlan).length;
+
   const consoleSnippet = useMemo(
-    () => (appOrigin ? buildIronwoodXpImportConsoleSnippet(appOrigin, returnUrl) : ""),
-    [appOrigin, returnUrl],
+    () =>
+      appOrigin
+        ? buildIronwoodXpImportConsoleSnippet(appOrigin, returnUrl, actionPlan)
+        : "",
+    [appOrigin, returnUrl, actionPlan],
   );
 
   const launchImport = useCallback(() => {
     if (!returnUrl) return;
+    if (planSkillCount < 16) {
+      window.alert(
+        "Pick an Ironwood action for each skill in your profile first, then save before importing.",
+      );
+      return;
+    }
     setImporting(true);
-    window.open(buildIronwoodImportLaunchUrl(returnUrl), "_blank", "noopener,noreferrer");
+    window.open(buildIronwoodImportLaunchUrl(returnUrl, actionPlan), "_blank", "noopener,noreferrer");
     window.setTimeout(() => setImporting(false), 3000);
-  }, [returnUrl]);
+  }, [returnUrl, actionPlan, planSkillCount]);
 
   async function copySnippet() {
     try {
@@ -54,10 +78,16 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
     <div className="rounded-lg border border-orange-500/25 bg-orange-950/20 p-3 text-sm text-slate-300">
       <p className="font-medium text-orange-100">Import XP/h from Ironwood RPG</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-        Reads Estimates XP/h from every guild skill while you are logged in, then fills your
-        profile here. Enable <strong className="text-slate-300">Stats → Estimates</strong> in
+        Opens each skill page you selected in your profile, reads Estimates XP/h, then fills
+        values here. Enable <strong className="text-slate-300">Stats → Estimates</strong> in
         game if values are missing.
       </p>
+      {planSkillCount < 16 && (
+        <p className="mt-2 text-xs text-amber-300">
+          Choose an Ironwood action for all 16 skills below before importing ({planSkillCount}/16
+          ready).
+        </p>
+      )}
 
       {!helperReady ? (
         <div className="mt-3 space-y-2">
@@ -107,7 +137,7 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
         <button
           type="button"
           onClick={launchImport}
-          disabled={!returnUrl || importing}
+          disabled={!returnUrl || importing || planSkillCount < 16}
           className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
         >
           {importing ? "Opening Ironwood…" : "Import XP/h now"}

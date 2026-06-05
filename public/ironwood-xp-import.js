@@ -82,6 +82,9 @@
     (scriptUrl && scriptUrl.searchParams.get("return")) ||
     window.__IGT_XP_RETURN__ ||
     "";
+  const actionPlanEncoded =
+    (scriptUrl && scriptUrl.searchParams.get("actions")) ||
+    "";
 
   if (!returnUrl) {
     alert(
@@ -1033,7 +1036,113 @@
     return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
+  function decodeUserActionPlan(encoded) {
+    if (!encoded) return null;
+    try {
+      var b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var parsed = JSON.parse(atob(b64));
+      if (!parsed || parsed.v !== 1 || !parsed.plan) return null;
+      return parsed.plan;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function readUserActionPlan() {
+    return decodeUserActionPlan(actionPlanEncoded);
+  }
+
+  function routeHasAction(actionId) {
+    return location.pathname.indexOf("/action/" + actionId) >= 0;
+  }
+
+  async function importAllDirect(plan) {
+    var skills = Object.keys(plan);
+    if (!skills.length) {
+      throw new Error("No Ironwood actions were provided for import.");
+    }
+
+    var results = {};
+    var errors = {};
+    var actionSources = {};
+
+    for (var i = 0; i < skills.length; i++) {
+      var skill = skills[i];
+      var entry = plan[skill];
+      if (!entry || !entry.path || !entry.actionId) {
+        errors[skill] = "Missing action configuration.";
+        continue;
+      }
+
+      setStatus(
+        "Importing " + (i + 1) + " / " + skills.length + ": " + skill,
+        "Opening " + entry.name + "…",
+      );
+
+      var path = entry.path;
+      if (path.charAt(0) !== "/") path = "/" + path;
+      location.assign(path);
+
+      var xp = null;
+      try {
+        xp = await waitFor(function () {
+          if (!routeHasAction(entry.actionId)) return false;
+          return parseXpPerHour();
+        }, 8000);
+      } catch (e) {
+        errors[skill] = "Could not read XP/h on this action page.";
+      }
+
+      if (xp != null) {
+        results[skill] = xp;
+        actionSources[skill] = {
+          actionId: entry.actionId,
+          name: entry.name,
+          level: null,
+          url: location.origin + path,
+          method: "profile",
+          xpPerHour: xp,
+        };
+        setStatus(
+          "Importing " + (i + 1) + " / " + skills.length + ": " + skill,
+          entry.name + " → " + xp.toLocaleString() + " XP/h",
+        );
+      } else if (!errors[skill]) {
+        errors[skill] = "No XP/h estimate found (check Stats → Estimates).";
+      }
+
+      await sleep(250);
+    }
+
+    var payload = {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      skills: results,
+      actionSources: actionSources,
+    };
+    if (Object.keys(errors).length) payload.errors = errors;
+
+    var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
+    var destination = returnUrl + sep + "xpImport=" + encodeURIComponent(toBase64Url(payload));
+
+    setStatus("Done! Returning to Guild Trials…", Object.keys(results).length + " skills imported.");
+    await sleep(600);
+    location.href = destination;
+  }
+
   async function importAll() {
+    var plan = readUserActionPlan();
+    if (!plan || !Object.keys(plan).length) {
+      throw new Error(
+        "No Ironwood actions configured. Open your Guild Trials profile, pick an action for each skill, save, then run import again.",
+      );
+    }
+    return importAllDirect(plan);
+  }
+
+  /* Legacy auto-detect helpers remain below for reference but are no longer used. */
+  async function importAllLegacy_UNUSED() {
     await waitFor(function () {
       return skillNavButtons().length > 0;
     });

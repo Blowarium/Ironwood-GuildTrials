@@ -1,4 +1,8 @@
 import { SKILLS, type Skill } from "./constants";
+import {
+  findCatalogAction,
+  resolveProfileActionId,
+} from "./ironwood-action-catalog";
 
 export const IRONWOOD_ORIGIN = "https://ironwoodrpg.com";
 export const XP_IMPORT_RETURN_KEY = "ironwood-guild-trials-xp-import-return";
@@ -38,6 +42,56 @@ export type IronwoodXpImportActionSource = {
   xpPerHour?: number;
 };
 
+export type IronwoodActionPlanEntry = {
+  actionId: number;
+  path: string;
+  name: string;
+};
+
+export type IronwoodActionPlan = Partial<Record<Skill, IronwoodActionPlanEntry>>;
+
+export function buildIronwoodActionPlanFromRows(
+  rows: Array<{ skill: Skill; ironwood_action_id: number | null }>,
+): IronwoodActionPlan {
+  const plan: IronwoodActionPlan = {};
+  for (const row of rows) {
+    const actionId = resolveProfileActionId(row.skill, row.ironwood_action_id);
+    if (actionId == null) continue;
+    const action = findCatalogAction(row.skill, actionId);
+    if (!action?.path) continue;
+    plan[row.skill] = {
+      actionId: action.actionId,
+      path: action.path,
+      name: action.name,
+    };
+  }
+  return plan;
+}
+
+export function encodeIronwoodActionPlan(plan: IronwoodActionPlan): string {
+  const json = JSON.stringify({ v: 1, plan });
+  if (typeof btoa === "function") {
+    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  return Buffer.from(json, "utf8").toString("base64url");
+}
+
+export function decodeIronwoodActionPlan(encoded: string): IronwoodActionPlan | null {
+  try {
+    let b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const json =
+      typeof atob === "function"
+        ? atob(b64)
+        : Buffer.from(b64, "base64").toString("utf8");
+    const parsed = JSON.parse(json) as { v?: number; plan?: IronwoodActionPlan };
+    if (parsed?.v !== 1 || !parsed.plan) return null;
+    return parsed.plan;
+  } catch {
+    return null;
+  }
+}
+
 export type IronwoodXpImportPayload = {
   v: 1;
   importedAt: string;
@@ -76,16 +130,37 @@ export function decodeXpImportPayload(encoded: string): IronwoodXpImportPayload 
   }
 }
 
-export function buildIronwoodXpImportBookmarklet(appOrigin: string, returnUrl: string): string {
-  const code = buildIronwoodXpImportConsoleSnippet(appOrigin, returnUrl);
+export function buildIronwoodXpImportBookmarklet(
+  appOrigin: string,
+  returnUrl: string,
+  actionPlan?: IronwoodActionPlan,
+): string {
+  const code = buildIronwoodXpImportConsoleSnippet(appOrigin, returnUrl, actionPlan);
   return `javascript:${encodeURIComponent(code)}`;
+}
+
+export function buildIronwoodImportLaunchUrl(
+  returnUrl: string,
+  actionPlan?: IronwoodActionPlan,
+): string {
+  const url = new URL(IRONWOOD_ORIGIN);
+  url.searchParams.set("igtXpImport", "1");
+  url.searchParams.set("igtReturn", returnUrl);
+  if (actionPlan && Object.keys(actionPlan).length > 0) {
+    url.searchParams.set("igtActions", encodeIronwoodActionPlan(actionPlan));
+  }
+  return url.toString();
 }
 
 export function buildIronwoodXpImportConsoleSnippet(
   appOrigin: string,
   returnUrl: string,
+  actionPlan?: IronwoodActionPlan,
 ): string {
-  const src = `${appOrigin.replace(/\/$/, "")}${XP_IMPORT_SCRIPT_PATH}?return=${encodeURIComponent(returnUrl)}`;
+  let src = `${appOrigin.replace(/\/$/, "")}${XP_IMPORT_SCRIPT_PATH}?return=${encodeURIComponent(returnUrl)}`;
+  if (actionPlan && Object.keys(actionPlan).length > 0) {
+    src += `&actions=${encodeURIComponent(encodeIronwoodActionPlan(actionPlan))}`;
+  }
   return `(function(){var s=document.createElement('script');s.src='${src}';document.body.appendChild(s);})();`;
 }
 
@@ -97,13 +172,6 @@ export function buildUserscriptInstallUrl(appOrigin: string): string {
 /** @deprecated Use buildUserscriptInstallUrl — script_installation.php often shows a dead-end page. */
 export function buildTampermonkeyInstallUrl(appOrigin: string): string {
   return buildUserscriptInstallUrl(appOrigin);
-}
-
-export function buildIronwoodImportLaunchUrl(returnUrl: string): string {
-  const url = new URL(IRONWOOD_ORIGIN);
-  url.searchParams.set("igtXpImport", "1");
-  url.searchParams.set("igtReturn", returnUrl);
-  return url.toString();
 }
 
 export function isXpImportHelperInstalled(): boolean {

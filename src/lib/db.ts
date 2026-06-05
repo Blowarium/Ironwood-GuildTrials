@@ -98,8 +98,14 @@ export async function ensureSchema(): Promise<void> {
       skill TEXT NOT NULL,
       xp_per_hour INTEGER,
       preference_rank INTEGER,
+      ironwood_action_id INTEGER,
       PRIMARY KEY (member_name, skill)
     )
+  `;
+
+  await db`
+    ALTER TABLE member_skill_profiles
+    ADD COLUMN IF NOT EXISTS ironwood_action_id INTEGER
   `;
 
   await db`

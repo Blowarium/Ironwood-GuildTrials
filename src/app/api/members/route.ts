@@ -36,10 +36,15 @@ async function fetchProfileFromDb(
   `) as { updated_at: string; updated_by: Member | null }[];
 
   const skillRows = (await db`
-    SELECT skill, xp_per_hour, preference_rank
+    SELECT skill, xp_per_hour, preference_rank, ironwood_action_id
     FROM member_skill_profiles
     WHERE member_name = ${memberName}
-  `) as { skill: MemberProfile["skills"][0]["skill"]; xp_per_hour: number | null; preference_rank: number | null }[];
+  `) as {
+    skill: MemberProfile["skills"][0]["skill"];
+    xp_per_hour: number | null;
+    preference_rank: number | null;
+    ironwood_action_id: number | null;
+  }[];
 
   return normalizeProfile({
     member_name: memberName,
@@ -48,8 +53,14 @@ async function fetchProfileFromDb(
           skill: r.skill,
           xp_per_hour: r.xp_per_hour,
           preference_rank: r.preference_rank,
+          ironwood_action_id: r.ironwood_action_id,
         }))
-      : SKILLS.map((skill) => ({ skill, xp_per_hour: null, preference_rank: null })),
+      : SKILLS.map((skill) => ({
+          skill,
+          xp_per_hour: null,
+          preference_rank: null,
+          ironwood_action_id: null,
+        })),
     updated_at: metaRows[0]?.updated_at ?? new Date(0).toISOString(),
     updated_by: metaRows[0]?.updated_by ?? null,
   });
@@ -168,8 +179,8 @@ export async function PUT(request: NextRequest) {
   await db`DELETE FROM member_skill_profiles WHERE member_name = ${body.memberName}`;
   for (const row of parsed.rows) {
     await db`
-      INSERT INTO member_skill_profiles (member_name, skill, xp_per_hour, preference_rank)
-      VALUES (${body.memberName}, ${row.skill}, ${row.xp_per_hour}, ${row.preference_rank})
+      INSERT INTO member_skill_profiles (member_name, skill, xp_per_hour, preference_rank, ironwood_action_id)
+      VALUES (${body.memberName}, ${row.skill}, ${row.xp_per_hour}, ${row.preference_rank}, ${row.ironwood_action_id})
     `;
   }
   await db`
