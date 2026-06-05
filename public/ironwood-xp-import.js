@@ -102,6 +102,10 @@
     return null;
   }
 
+  function actionsComponentRoot() {
+    return document.querySelector("actions-component");
+  }
+
   function skillNavButtons() {
     return Array.prototype.slice.call(
       document.querySelectorAll("nav-component button.skill, nav button.skill"),
@@ -122,20 +126,140 @@
     );
   }
 
-  function actionLinks() {
-    var links = Array.prototype.slice.call(
-      document.querySelectorAll('a[href*="/action/"], [routerlink*="/action/"]'),
-    );
-    return links.filter(function (el) {
-      return !isDisabled(el) && el.offsetParent !== null;
+  function readRouterLink(el) {
+    var href = el.getAttribute("href");
+    if (href && /\/action\/\d+/i.test(href)) return href;
+
+    var reflect = el.getAttribute("ng-reflect-router-link");
+    if (reflect) {
+      if (reflect.charAt(0) === "/") return reflect;
+      var parts = reflect.split(",");
+      var actionIdx = -1;
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i] === "action" && parts[i + 1]) {
+          actionIdx = i;
+          break;
+        }
+      }
+      if (actionIdx > 0) {
+        return (
+          "/skill/" +
+          parts[actionIdx - 1] +
+          "/action/" +
+          parts[actionIdx + 1]
+        );
+      }
+    }
+
+    for (var a = 0; a < el.attributes.length; a++) {
+      var val = el.attributes[a].value || "";
+      if (/\/action\/\d+/i.test(val)) return val;
+    }
+    return null;
+  }
+
+  function parseActionId(el) {
+    var link = readRouterLink(el);
+    if (!link) return 0;
+    var match = link.match(/\/action\/(\d+)/i);
+    return match ? Number(match[1]) : 0;
+  }
+
+  function parseActionLevel(el) {
+    var levelEl = el.querySelector(".level");
+    if (!levelEl) return 0;
+    var num = Number((levelEl.textContent || "").replace(/[^\d]/g, ""));
+    return num > 0 ? num : 0;
+  }
+
+  function actionScore(el) {
+    var level = parseActionLevel(el);
+    var id = parseActionId(el);
+    return level * 100000 + id;
+  }
+
+  function unlockedActionRows(root) {
+    return Array.prototype.slice.call(
+      root.querySelectorAll("button.row, a.row"),
+    ).filter(function (el) {
+      if (isDisabled(el)) return false;
+      if (el.offsetParent === null) return false;
+      return parseActionId(el) > 0;
     });
   }
 
-  function clickBestAction() {
-    var links = actionLinks();
-    if (!links.length) return false;
-    links[links.length - 1].click();
-    return true;
+  function pickBestRow(rows) {
+    if (!rows.length) return null;
+    rows.sort(function (a, b) {
+      return actionScore(b) - actionScore(a);
+    });
+    return rows[0];
+  }
+
+  async function findBestUnlockedAction(root) {
+    var bestRow = null;
+    var bestScore = -1;
+
+    function considerRows() {
+      var row = pickBestRow(unlockedActionRows(root));
+      if (row && actionScore(row) > bestScore) {
+        bestScore = actionScore(row);
+        bestRow = row;
+      }
+    }
+
+    var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
+    if (!filterRows.length) {
+      considerRows();
+      return bestRow;
+    }
+
+    async function exploreFilterRow(rowIndex) {
+      var filters = Array.prototype.slice.call(
+        filterRows[rowIndex].querySelectorAll("button.filter"),
+      );
+
+      if (!filters.length) {
+        if (rowIndex === filterRows.length - 1) considerRows();
+        return;
+      }
+
+      for (var i = 0; i < filters.length; i++) {
+        if (!filters[i].disabled) {
+          filters[i].click();
+          await sleep(rowIndex === 0 ? 500 : 350);
+        }
+
+        if (rowIndex < filterRows.length - 1) {
+          await exploreFilterRow(rowIndex + 1);
+        } else {
+          considerRows();
+        }
+      }
+    }
+
+    await exploreFilterRow(0);
+    return bestRow;
+  }
+
+  async function openBestUnlockedAction() {
+    var root = await waitFor(function () {
+      return actionsComponentRoot();
+    }, 12000);
+
+    var bestRow = await findBestUnlockedAction(root);
+    if (!bestRow) return false;
+
+    var targetPath = readRouterLink(bestRow);
+    bestRow.click();
+    await sleep(700);
+
+    if (targetPath && location.pathname.indexOf("/action/") < 0) {
+      location.assign(targetPath);
+      await sleep(900);
+    }
+
+    return location.pathname.includes("/action/");
   }
 
   function toBase64Url(obj) {
@@ -171,18 +295,21 @@
       );
 
       target.btn.click();
-      await sleep(700);
+      await sleep(900);
 
-      if (!location.pathname.includes("/action/")) {
-        clickBestAction();
-        await sleep(900);
+      try {
+        await openBestUnlockedAction();
+      } catch (e) {
+        errors[target.skill] = "Could not open the highest unlocked action for this skill.";
+        continue;
       }
 
       if (!location.pathname.includes("/action/")) {
-        clickBestAction();
-        await sleep(900);
+        errors[target.skill] = "Could not navigate to an action page for this skill.";
+        continue;
       }
 
+      await sleep(400);
       var xp = null;
       try {
         xp = await waitFor(function () {
