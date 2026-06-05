@@ -51,29 +51,74 @@ function extractEnum(name) {
 }
 
 const skillIds = extractEnum("e");
-/** Route/action IDs — use z only; te uses different numbering and must not be merged. */
+/** Route/action IDs — z only; te uses a different numbering scheme. */
 const actionIds = extractEnum("z");
-
-const xvMetaRe = /\[n\.Xv\.(\w+)\]:\{id:n\.Xv\.\1,name:"([^"]+)",[^}]*level:(\d+)/g;
-const nAMetaRe =
-  /\[n\.nA\.(\w+)\]:\{id:n\.nA\.\1,name:"([^"]+)",[^}]*level:(\d+),skill:n\.AT\.(\w+)/g;
-
-const actionMeta = new Map();
-for (const m of s.matchAll(xvMetaRe)) {
-  if (!actionMeta.has(m[1])) {
-    actionMeta.set(m[1], { name: m[2], level: Number(m[3]) });
-  }
-}
-for (const m of s.matchAll(nAMetaRe)) {
-  actionMeta.set(m[1], { name: m[2], level: Number(m[3]), skillKey: m[4] });
-}
 
 function humanizeKey(key) {
   return key
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/([A-Za-z])(\d+)/g, "$1 $2")
+    .replace(/One/g, "1")
     .trim();
 }
+
+function buildItemNames() {
+  const names = new Map();
+  for (const m of s.matchAll(/\[n\.AM\.(\w+)\]:\{id:n\.AM\.\1,[^}]*name:"([^"]+)"/g)) {
+    names.set(m[1], m[2]);
+  }
+  return names;
+}
+
+function buildMonsterMeta() {
+  const monsters = new Map();
+  for (const m of s.matchAll(/\[n\.Aw\.(\w+)\]:\{id:n\.Aw\.\1,name:"([^"]+)",[^}]*level:(\d+)/g)) {
+    monsters.set(m[1], { name: m[2], level: Number(m[3]) });
+  }
+  return monsters;
+}
+
+function buildActionMeta(itemNames, monsters) {
+  const actionMeta = new Map();
+
+  const nARe =
+    /\[n\.nA\.(\w+)\]:\{id:n\.nA\.\1,name:(?:"([^"]+)"|\$\[n\.AM\.(\w+)\]\.name),[^}]*level:(\d+),skill:n\.AT\.(\w+)/g;
+  for (const m of s.matchAll(nARe)) {
+    actionMeta.set(m[1], {
+      name: m[2] || itemNames.get(m[3]) || humanizeKey(m[1]),
+      level: Number(m[4]),
+      skillKey: m[5],
+    });
+  }
+
+  const xvRe =
+    /\[n\.Xv\.(\w+)\]:\{id:n\.Xv\.\1,(?!monsterId)name:(?:"([^"]+)"|\$\[n\.AM\.(\w+)\]\.name),[^}]*level:(\d+)/g;
+  for (const m of s.matchAll(xvRe)) {
+    if (!actionMeta.has(m[1])) {
+      actionMeta.set(m[1], {
+        name: m[2] || itemNames.get(m[3]) || humanizeKey(m[1]),
+        level: Number(m[4]),
+      });
+    }
+  }
+
+  const xvCombatRe =
+    /\[n\.Xv\.(\w+)\]:\{id:n\.Xv\.\1,monsterId:n\.Aw\.(\w+),name:Mn\[n\.Aw\.\2\]\.name,[^}]*level:Mn\[n\.Aw\.\2\]\.level/g;
+  for (const m of s.matchAll(xvCombatRe)) {
+    const mon = monsters.get(m[2]);
+    actionMeta.set(m[1], {
+      name: mon?.name || humanizeKey(m[1]),
+      level: mon?.level ?? 1,
+      elite: m[1].startsWith("Elite"),
+    });
+  }
+
+  return actionMeta;
+}
+
+const itemNames = buildItemNames();
+const monsters = buildMonsterMeta();
+const actionMeta = buildActionMeta(itemNames, monsters);
 
 function metaForKey(key) {
   const meta = actionMeta.get(key);
@@ -140,16 +185,27 @@ function buildActionsFromKeys(keys, skillId, groupLabels) {
     if (actionId == null || seen.has(actionId)) continue;
     seen.add(actionId);
     const meta = metaForKey(key);
+    let group = groupLabels.get(key) || null;
+    const raw = actionMeta.get(key);
+    if (!group && raw?.elite) group = "Elite";
     actions.push({
       actionId,
       name: meta.name,
       level: meta.level,
-      group: groupLabels.get(key) || null,
+      group,
       path: skillId != null ? `/skill/${skillId}/action/${actionId}` : null,
     });
   }
   actions.sort((a, b) => b.level - a.level || a.name.localeCompare(b.name));
   return actions;
+}
+
+function keysForSkillBlock(block, enumKey) {
+  const keys = [...block.matchAll(/\{id:n\.Xv\.(\w+)\}/g)].map((x) => x[1]);
+  for (const [key, meta] of actionMeta) {
+    if (meta.skillKey === enumKey && !keys.includes(key)) keys.push(key);
+  }
+  return keys;
 }
 
 function extractSharedCombatActions() {
@@ -195,7 +251,7 @@ for (const [displayName, enumKey] of GUILD_SKILLS) {
     } else {
       const groupLabels = new Map();
       walkActionGroups(block, groupLabels, "");
-      const keys = [...block.matchAll(/\{id:n\.Xv\.(\w+)\}/g)].map((x) => x[1]);
+      const keys = keysForSkillBlock(block, enumKey);
       actions = buildActionsFromKeys(keys, skillId, groupLabels);
     }
   }

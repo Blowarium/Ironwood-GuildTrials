@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "generatedAt": "2026-06-05T12:25:09.457Z",
+  "generatedAt": "2026-06-05T12:57:25.645Z",
   "origin": "https://ironwoodrpg.com",
   "skills": {
     "Woodcutting": {
@@ -274,11 +274,25 @@
       "skillId": 4,
       "actions": [
         {
+          "actionId": 170,
+          "name": "Infernal Body",
+          "level": 100,
+          "group": "Armour",
+          "path": "/skill/4/action/170"
+        },
+        {
           "actionId": 279,
           "name": "Infernal Boomerang",
           "level": 100,
           "group": "Weapons",
           "path": "/skill/4/action/279"
+        },
+        {
+          "actionId": 171,
+          "name": "Infernal Boots",
+          "level": 100,
+          "group": "Armour",
+          "path": "/skill/4/action/171"
         },
         {
           "actionId": 276,
@@ -288,6 +302,104 @@
           "path": "/skill/4/action/276"
         },
         {
+          "actionId": 907,
+          "name": "Infernal Compass",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/907"
+        },
+        {
+          "actionId": 173,
+          "name": "Infernal Gloves",
+          "level": 100,
+          "group": "Armour",
+          "path": "/skill/4/action/173"
+        },
+        {
+          "actionId": 270,
+          "name": "Infernal Hammer",
+          "level": 100,
+          "group": "Weapons",
+          "path": "/skill/4/action/270"
+        },
+        {
+          "actionId": 271,
+          "name": "Infernal Hatchet",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/271"
+        },
+        {
+          "actionId": 172,
+          "name": "Infernal Helmet",
+          "level": 100,
+          "group": "Armour",
+          "path": "/skill/4/action/172"
+        },
+        {
+          "actionId": 287,
+          "name": "Infernal Lantern",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/287"
+        },
+        {
+          "actionId": 274,
+          "name": "Infernal Pickaxe",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/274"
+        },
+        {
+          "actionId": 273,
+          "name": "Infernal Rod",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/273"
+        },
+        {
+          "actionId": 278,
+          "name": "Infernal Scythe",
+          "level": 100,
+          "group": "Weapons",
+          "path": "/skill/4/action/278"
+        },
+        {
+          "actionId": 174,
+          "name": "Infernal Shield",
+          "level": 100,
+          "group": "Armour",
+          "path": "/skill/4/action/174"
+        },
+        {
+          "actionId": 275,
+          "name": "Infernal Spade",
+          "level": 100,
+          "group": "Tools",
+          "path": "/skill/4/action/275"
+        },
+        {
+          "actionId": 277,
+          "name": "Infernal Spear",
+          "level": 100,
+          "group": "Weapons",
+          "path": "/skill/4/action/277"
+        },
+        {
+          "actionId": 272,
+          "name": "Infernal Sword",
+          "level": 100,
+          "group": "Weapons",
+          "path": "/skill/4/action/272"
+        },
+        {
+          "actionId": 160,
+          "name": "Astral Body",
+          "level": 85,
+          "group": "Armour",
+          "path": "/skill/4/action/160"
+        },
+        {
           "actionId": 269,
           "name": "Astral Boomerang",
           "level": 85,
@@ -295,11 +407,109 @@
           "path": "/skill/4/action/269"
         },
         {
+          "actionId": 161,
+          "name": "Astral Boots",
+          "level": 85,
+          "group": "Armour",
+          "path": "/skill/4/action/161"
+        },
+        {
           "actionId": 266,
           "name": "Astral Bow",
           "level": 85,
           "group": "Weapons",
           "path": "/skill/4/action/266"
+        },
+        {
+          "actionId": 906,
+          "name": "Astral Compass",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/906"
+        },
+        {
+          "actionId": 163,
+          "name": "Astral Gloves",
+          "level": 85,
+          "group": "Armour",
+          "path": "/skill/4/action/163"
+        },
+        {
+          "actionId": 260,
+          "name": "Astral Hammer",
+          "level": 85,
+          "group": "Weapons",
+          "path": "/skill/4/action/260"
+        },
+        {
+          "actionId": 261,
+          "name": "Astral Hatchet",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/261"
+        },
+        {
+          "actionId": 162,
+          "name": "Astral Helmet",
+          "level": 85,
+          "group": "Armour",
+          "path": "/skill/4/action/162"
+        },
+        {
+          "actionId": 286,
+          "name": "Astral Lantern",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/286"
+        },
+        {
+          "actionId": 264,
+          "name": "Astral Pickaxe",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/264"
+        },
+        {
+          "actionId": 263,
+          "name": "Astral Rod",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/263"
+        },
+        {
+          "actionId": 268,
+          "name": "Astral Scythe",
+          "level": 85,
+          "group": "Weapons",
+          "path": "/skill/4/action/268"
+        },
+        {
+          "actionId": 164,
+          "name": "Astral Shield",
+          "level": 85,
+          "group": "Armour",
+          "path": "/skill/4/action/164"
+        },
+        {
+          "actionId": 265,
+          "name": "Astral Spade",
+          "level": 85,
+          "group": "Tools",
+          "path": "/skill/4/action/265"
+        },
+        {
+          "actionId": 267,
+          "name": "Astral Spear",
+          "level": 85,
+          "group": "Weapons",
+          "path": "/skill/4/action/267"
+        },
+        {
+          "actionId": 262,
+          "name": "Astral Sword",
+          "level": 85,
+          "group": "Weapons",
+          "path": "/skill/4/action/262"
         },
         {
           "actionId": 150,
@@ -316,6 +526,13 @@
           "path": "/skill/4/action/259"
         },
         {
+          "actionId": 151,
+          "name": "Obsidian Boots",
+          "level": 70,
+          "group": "Armour",
+          "path": "/skill/4/action/151"
+        },
+        {
           "actionId": 256,
           "name": "Obsidian Bow",
           "level": 70,
@@ -328,6 +545,13 @@
           "level": 70,
           "group": "Tools",
           "path": "/skill/4/action/905"
+        },
+        {
+          "actionId": 153,
+          "name": "Obsidian Gloves",
+          "level": 70,
+          "group": "Armour",
+          "path": "/skill/4/action/153"
         },
         {
           "actionId": 250,
@@ -421,6 +645,13 @@
           "path": "/skill/4/action/249"
         },
         {
+          "actionId": 141,
+          "name": "Cobalt Boots",
+          "level": 55,
+          "group": "Armour",
+          "path": "/skill/4/action/141"
+        },
+        {
           "actionId": 246,
           "name": "Cobalt Bow",
           "level": 55,
@@ -433,6 +664,13 @@
           "level": 55,
           "group": "Tools",
           "path": "/skill/4/action/904"
+        },
+        {
+          "actionId": 143,
+          "name": "Cobalt Gloves",
+          "level": 55,
+          "group": "Armour",
+          "path": "/skill/4/action/143"
         },
         {
           "actionId": 240,
@@ -526,6 +764,13 @@
           "path": "/skill/4/action/239"
         },
         {
+          "actionId": 131,
+          "name": "Gold Boots",
+          "level": 40,
+          "group": "Armour",
+          "path": "/skill/4/action/131"
+        },
+        {
           "actionId": 236,
           "name": "Gold Bow",
           "level": 40,
@@ -538,6 +783,13 @@
           "level": 40,
           "group": "Tools",
           "path": "/skill/4/action/903"
+        },
+        {
+          "actionId": 133,
+          "name": "Gold Gloves",
+          "level": 40,
+          "group": "Armour",
+          "path": "/skill/4/action/133"
         },
         {
           "actionId": 230,
@@ -631,6 +883,13 @@
           "path": "/skill/4/action/229"
         },
         {
+          "actionId": 121,
+          "name": "Silver Boots",
+          "level": 25,
+          "group": "Armour",
+          "path": "/skill/4/action/121"
+        },
+        {
           "actionId": 226,
           "name": "Silver Bow",
           "level": 25,
@@ -643,6 +902,13 @@
           "level": 25,
           "group": "Tools",
           "path": "/skill/4/action/902"
+        },
+        {
+          "actionId": 123,
+          "name": "Silver Gloves",
+          "level": 25,
+          "group": "Armour",
+          "path": "/skill/4/action/123"
         },
         {
           "actionId": 220,
@@ -736,6 +1002,13 @@
           "path": "/skill/4/action/219"
         },
         {
+          "actionId": 111,
+          "name": "Iron Boots",
+          "level": 10,
+          "group": "Armour",
+          "path": "/skill/4/action/111"
+        },
+        {
           "actionId": 216,
           "name": "Iron Bow",
           "level": 10,
@@ -748,6 +1021,13 @@
           "level": 10,
           "group": "Tools",
           "path": "/skill/4/action/901"
+        },
+        {
+          "actionId": 113,
+          "name": "Iron Gloves",
+          "level": 10,
+          "group": "Armour",
+          "path": "/skill/4/action/113"
         },
         {
           "actionId": 210,
@@ -825,125 +1105,6 @@
           "level": 10,
           "group": "Weapons",
           "path": "/skill/4/action/212"
-        },
-        {
-          "actionId": 160,
-          "name": "Astral Body",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/160"
-        },
-        {
-          "actionId": 161,
-          "name": "Astral Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/161"
-        },
-        {
-          "actionId": 906,
-          "name": "Astral Compass",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/906"
-        },
-        {
-          "actionId": 163,
-          "name": "Astral Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/163"
-        },
-        {
-          "actionId": 260,
-          "name": "Astral Hammer",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/260"
-        },
-        {
-          "actionId": 261,
-          "name": "Astral Hatchet",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/261"
-        },
-        {
-          "actionId": 162,
-          "name": "Astral Helmet",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/162"
-        },
-        {
-          "actionId": 286,
-          "name": "Astral Lantern",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/286"
-        },
-        {
-          "actionId": 264,
-          "name": "Astral Pickaxe",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/264"
-        },
-        {
-          "actionId": 263,
-          "name": "Astral Rod",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/263"
-        },
-        {
-          "actionId": 268,
-          "name": "Astral Scythe",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/268"
-        },
-        {
-          "actionId": 164,
-          "name": "Astral Shield",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/164"
-        },
-        {
-          "actionId": 265,
-          "name": "Astral Spade",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/265"
-        },
-        {
-          "actionId": 267,
-          "name": "Astral Spear",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/267"
-        },
-        {
-          "actionId": 262,
-          "name": "Astral Sword",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/262"
-        },
-        {
-          "actionId": 141,
-          "name": "Cobalt Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/141"
-        },
-        {
-          "actionId": 143,
-          "name": "Cobalt Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/143"
         },
         {
           "actionId": 102,
@@ -1063,167 +1224,6 @@
           "level": 1,
           "group": "Weapons",
           "path": "/skill/4/action/202"
-        },
-        {
-          "actionId": 131,
-          "name": "Gold Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/131"
-        },
-        {
-          "actionId": 133,
-          "name": "Gold Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/133"
-        },
-        {
-          "actionId": 170,
-          "name": "Infernal Body",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/170"
-        },
-        {
-          "actionId": 171,
-          "name": "Infernal Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/171"
-        },
-        {
-          "actionId": 907,
-          "name": "Infernal Compass",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/907"
-        },
-        {
-          "actionId": 173,
-          "name": "Infernal Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/173"
-        },
-        {
-          "actionId": 270,
-          "name": "Infernal Hammer",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/270"
-        },
-        {
-          "actionId": 271,
-          "name": "Infernal Hatchet",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/271"
-        },
-        {
-          "actionId": 172,
-          "name": "Infernal Helmet",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/172"
-        },
-        {
-          "actionId": 287,
-          "name": "Infernal Lantern",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/287"
-        },
-        {
-          "actionId": 274,
-          "name": "Infernal Pickaxe",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/274"
-        },
-        {
-          "actionId": 273,
-          "name": "Infernal Rod",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/273"
-        },
-        {
-          "actionId": 278,
-          "name": "Infernal Scythe",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/278"
-        },
-        {
-          "actionId": 174,
-          "name": "Infernal Shield",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/174"
-        },
-        {
-          "actionId": 275,
-          "name": "Infernal Spade",
-          "level": 1,
-          "group": "Tools",
-          "path": "/skill/4/action/275"
-        },
-        {
-          "actionId": 277,
-          "name": "Infernal Spear",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/277"
-        },
-        {
-          "actionId": 272,
-          "name": "Infernal Sword",
-          "level": 1,
-          "group": "Weapons",
-          "path": "/skill/4/action/272"
-        },
-        {
-          "actionId": 111,
-          "name": "Iron Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/111"
-        },
-        {
-          "actionId": 113,
-          "name": "Iron Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/113"
-        },
-        {
-          "actionId": 151,
-          "name": "Obsidian Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/151"
-        },
-        {
-          "actionId": 153,
-          "name": "Obsidian Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/153"
-        },
-        {
-          "actionId": 121,
-          "name": "Silver Boots",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/121"
-        },
-        {
-          "actionId": 123,
-          "name": "Silver Gloves",
-          "level": 1,
-          "group": "Armour",
-          "path": "/skill/4/action/123"
         }
       ]
     },
@@ -1577,53 +1577,312 @@
       "skillId": 7,
       "actions": [
         {
+          "actionId": 752,
+          "name": "Divine Combat XP Potion",
+          "level": 100,
+          "group": "Divine",
+          "path": "/skill/7/action/752"
+        },
+        {
+          "actionId": 742,
+          "name": "Divine Combat XP Potion",
+          "level": 100,
+          "group": null,
+          "path": "/skill/7/action/742"
+        },
+        {
+          "actionId": 758,
+          "name": "Divine Craft XP Potion",
+          "level": 100,
+          "group": "Divine",
+          "path": "/skill/7/action/758"
+        },
+        {
+          "actionId": 748,
+          "name": "Divine Craft XP Potion",
+          "level": 100,
+          "group": null,
+          "path": "/skill/7/action/748"
+        },
+        {
+          "actionId": 755,
+          "name": "Divine Gather XP Potion",
+          "level": 100,
+          "group": "Divine",
+          "path": "/skill/7/action/755"
+        },
+        {
+          "actionId": 745,
+          "name": "Divine Gather XP Potion",
+          "level": 100,
+          "group": null,
+          "path": "/skill/7/action/745"
+        },
+        {
+          "actionId": 732,
+          "name": "Super Combat XP Potion",
+          "level": 100,
+          "group": "Super",
+          "path": "/skill/7/action/732"
+        },
+        {
+          "actionId": 738,
+          "name": "Super Craft XP Potion",
+          "level": 100,
+          "group": "Super",
+          "path": "/skill/7/action/738"
+        },
+        {
+          "actionId": 735,
+          "name": "Super Gather XP Potion",
+          "level": 100,
+          "group": "Super",
+          "path": "/skill/7/action/735"
+        },
+        {
+          "actionId": 751,
+          "name": "Divine Combat Loot Potion",
+          "level": 85,
+          "group": "Divine",
+          "path": "/skill/7/action/751"
+        },
+        {
+          "actionId": 741,
+          "name": "Divine Combat Loot Potion",
+          "level": 85,
+          "group": null,
+          "path": "/skill/7/action/741"
+        },
+        {
+          "actionId": 754,
+          "name": "Divine Gather Yield Potion",
+          "level": 85,
+          "group": "Divine",
+          "path": "/skill/7/action/754"
+        },
+        {
+          "actionId": 744,
+          "name": "Divine Gather Yield Potion",
+          "level": 85,
+          "group": null,
+          "path": "/skill/7/action/744"
+        },
+        {
+          "actionId": 757,
+          "name": "Divine Multi Craft Potion",
+          "level": 85,
+          "group": "Divine",
+          "path": "/skill/7/action/757"
+        },
+        {
+          "actionId": 747,
+          "name": "Divine Multi Craft Potion",
+          "level": 85,
+          "group": null,
+          "path": "/skill/7/action/747"
+        },
+        {
+          "actionId": 731,
+          "name": "Super Combat Loot Potion",
+          "level": 85,
+          "group": "Super",
+          "path": "/skill/7/action/731"
+        },
+        {
+          "actionId": 734,
+          "name": "Super Gather Yield Potion",
+          "level": 85,
+          "group": "Super",
+          "path": "/skill/7/action/734"
+        },
+        {
+          "actionId": 737,
+          "name": "Super Multi Craft Potion",
+          "level": 85,
+          "group": "Super",
+          "path": "/skill/7/action/737"
+        },
+        {
+          "actionId": 756,
+          "name": "Divine Craft Level Potion",
+          "level": 70,
+          "group": "Divine",
+          "path": "/skill/7/action/756"
+        },
+        {
+          "actionId": 746,
+          "name": "Divine Craft Level Potion",
+          "level": 70,
+          "group": null,
+          "path": "/skill/7/action/746"
+        },
+        {
+          "actionId": 753,
+          "name": "Divine Gather Level Potion",
+          "level": 70,
+          "group": "Divine",
+          "path": "/skill/7/action/753"
+        },
+        {
+          "actionId": 743,
+          "name": "Divine Gather Level Potion",
+          "level": 70,
+          "group": null,
+          "path": "/skill/7/action/743"
+        },
+        {
+          "actionId": 750,
+          "name": "Divine Health Potion",
+          "level": 70,
+          "group": "Divine",
+          "path": "/skill/7/action/750"
+        },
+        {
+          "actionId": 740,
+          "name": "Divine Health Potion",
+          "level": 70,
+          "group": null,
+          "path": "/skill/7/action/740"
+        },
+        {
+          "actionId": 722,
+          "name": "Regular Combat XP Potion",
+          "level": 70,
+          "group": "Regular",
+          "path": "/skill/7/action/722"
+        },
+        {
+          "actionId": 728,
+          "name": "Regular Craft XP Potion",
+          "level": 70,
+          "group": "Regular",
+          "path": "/skill/7/action/728"
+        },
+        {
+          "actionId": 725,
+          "name": "Regular Gather XP Potion",
+          "level": 70,
+          "group": "Regular",
+          "path": "/skill/7/action/725"
+        },
+        {
+          "actionId": 736,
+          "name": "Super Craft Level Potion",
+          "level": 70,
+          "group": "Super",
+          "path": "/skill/7/action/736"
+        },
+        {
+          "actionId": 733,
+          "name": "Super Gather Level Potion",
+          "level": 70,
+          "group": "Super",
+          "path": "/skill/7/action/733"
+        },
+        {
+          "actionId": 730,
+          "name": "Super Health Potion",
+          "level": 70,
+          "group": "Super",
+          "path": "/skill/7/action/730"
+        },
+        {
+          "actionId": 721,
+          "name": "Regular Combat Loot Potion",
+          "level": 55,
+          "group": "Regular",
+          "path": "/skill/7/action/721"
+        },
+        {
+          "actionId": 724,
+          "name": "Regular Gather Yield Potion",
+          "level": 55,
+          "group": "Regular",
+          "path": "/skill/7/action/724"
+        },
+        {
+          "actionId": 727,
+          "name": "Regular Multi Craft Potion",
+          "level": 55,
+          "group": "Regular",
+          "path": "/skill/7/action/727"
+        },
+        {
           "actionId": 712,
-          "name": "Basic Combat Exp Potion",
-          "level": 1,
+          "name": "Basic Combat XP Potion",
+          "level": 40,
           "group": "Basic",
           "path": "/skill/7/action/712"
         },
         {
-          "actionId": 711,
-          "name": "Basic Combat Loot Potion",
-          "level": 1,
-          "group": "Basic",
-          "path": "/skill/7/action/711"
-        },
-        {
           "actionId": 718,
-          "name": "Basic Craft Exp Potion",
-          "level": 1,
+          "name": "Basic Craft XP Potion",
+          "level": 40,
           "group": "Basic",
           "path": "/skill/7/action/718"
         },
         {
-          "actionId": 716,
-          "name": "Basic Craft Level Potion",
-          "level": 1,
-          "group": "Basic",
-          "path": "/skill/7/action/716"
-        },
-        {
           "actionId": 715,
-          "name": "Basic Gather Exp Potion",
-          "level": 1,
+          "name": "Basic Gather XP Potion",
+          "level": 40,
           "group": "Basic",
           "path": "/skill/7/action/715"
         },
         {
-          "actionId": 713,
-          "name": "Basic Gather Level Potion",
-          "level": 1,
+          "actionId": 726,
+          "name": "Regular Craft Level Potion",
+          "level": 40,
+          "group": "Regular",
+          "path": "/skill/7/action/726"
+        },
+        {
+          "actionId": 723,
+          "name": "Regular Gather Level Potion",
+          "level": 40,
+          "group": "Regular",
+          "path": "/skill/7/action/723"
+        },
+        {
+          "actionId": 720,
+          "name": "Regular Health Potion",
+          "level": 40,
+          "group": "Regular",
+          "path": "/skill/7/action/720"
+        },
+        {
+          "actionId": 711,
+          "name": "Basic Combat Loot Potion",
+          "level": 25,
           "group": "Basic",
-          "path": "/skill/7/action/713"
+          "path": "/skill/7/action/711"
         },
         {
           "actionId": 714,
           "name": "Basic Gather Yield Potion",
-          "level": 1,
+          "level": 25,
           "group": "Basic",
           "path": "/skill/7/action/714"
+        },
+        {
+          "actionId": 717,
+          "name": "Basic Multi Craft Potion",
+          "level": 25,
+          "group": "Basic",
+          "path": "/skill/7/action/717"
+        },
+        {
+          "actionId": 716,
+          "name": "Basic Craft Level Potion",
+          "level": 10,
+          "group": "Basic",
+          "path": "/skill/7/action/716"
+        },
+        {
+          "actionId": 713,
+          "name": "Basic Gather Level Potion",
+          "level": 10,
+          "group": "Basic",
+          "path": "/skill/7/action/713"
         },
         {
           "actionId": 710,
@@ -1631,202 +1890,6 @@
           "level": 1,
           "group": "Basic",
           "path": "/skill/7/action/710"
-        },
-        {
-          "actionId": 717,
-          "name": "Basic Multi Craft Potion",
-          "level": 1,
-          "group": "Basic",
-          "path": "/skill/7/action/717"
-        },
-        {
-          "actionId": 722,
-          "name": "Combat Exp Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/722"
-        },
-        {
-          "actionId": 721,
-          "name": "Combat Loot Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/721"
-        },
-        {
-          "actionId": 728,
-          "name": "Craft Exp Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/728"
-        },
-        {
-          "actionId": 726,
-          "name": "Craft Level Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/726"
-        },
-        {
-          "actionId": 725,
-          "name": "Gather Exp Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/725"
-        },
-        {
-          "actionId": 723,
-          "name": "Gather Level Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/723"
-        },
-        {
-          "actionId": 724,
-          "name": "Gather Yield Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/724"
-        },
-        {
-          "actionId": 720,
-          "name": "Health Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/720"
-        },
-        {
-          "actionId": 727,
-          "name": "Multi Craft Potion",
-          "level": 1,
-          "group": "Regular",
-          "path": "/skill/7/action/727"
-        },
-        {
-          "actionId": 752,
-          "name": "New Divine Combat Exp Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/752"
-        },
-        {
-          "actionId": 751,
-          "name": "New Divine Combat Loot Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/751"
-        },
-        {
-          "actionId": 758,
-          "name": "New Divine Craft Exp Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/758"
-        },
-        {
-          "actionId": 756,
-          "name": "New Divine Craft Level Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/756"
-        },
-        {
-          "actionId": 755,
-          "name": "New Divine Gather Exp Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/755"
-        },
-        {
-          "actionId": 753,
-          "name": "New Divine Gather Level Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/753"
-        },
-        {
-          "actionId": 754,
-          "name": "New Divine Gather Yield Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/754"
-        },
-        {
-          "actionId": 750,
-          "name": "New Divine Health Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/750"
-        },
-        {
-          "actionId": 757,
-          "name": "New Divine Multi Craft Potion",
-          "level": 1,
-          "group": "Divine",
-          "path": "/skill/7/action/757"
-        },
-        {
-          "actionId": 732,
-          "name": "Super Combat Exp Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/732"
-        },
-        {
-          "actionId": 731,
-          "name": "Super Combat Loot Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/731"
-        },
-        {
-          "actionId": 738,
-          "name": "Super Craft Exp Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/738"
-        },
-        {
-          "actionId": 736,
-          "name": "Super Craft Level Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/736"
-        },
-        {
-          "actionId": 735,
-          "name": "Super Gather Exp Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/735"
-        },
-        {
-          "actionId": 733,
-          "name": "Super Gather Level Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/733"
-        },
-        {
-          "actionId": 734,
-          "name": "Super Gather Yield Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/734"
-        },
-        {
-          "actionId": 730,
-          "name": "Super Health Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/730"
-        },
-        {
-          "actionId": 737,
-          "name": "Super Multi Craft Potion",
-          "level": 1,
-          "group": "Super",
-          "path": "/skill/7/action/737"
         }
       ]
     },
@@ -2349,249 +2412,277 @@
       "skillId": 13,
       "actions": [
         {
-          "actionId": 320,
-          "name": "Blue Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/320"
-        },
-        {
-          "actionId": 318,
-          "name": "Coral Snail",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/318"
-        },
-        {
           "actionId": 325,
           "name": "Efreet",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/13/action/325"
         },
         {
-          "actionId": 430,
-          "name": "Elite Blue Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/430"
-        },
-        {
-          "actionId": 432,
-          "name": "Elite Coral Snail",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/432"
-        },
-        {
           "actionId": 425,
-          "name": "Elite Efreet",
-          "level": 1,
+          "name": "Efreet",
+          "level": 100,
           "group": "Elite",
           "path": "/skill/13/action/425"
         },
         {
-          "actionId": 435,
-          "name": "Elite Frost Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/435"
-        },
-        {
-          "actionId": 420,
-          "name": "Elite Goblin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/420"
-        },
-        {
-          "actionId": 421,
-          "name": "Elite Goblin Chief",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/421"
-        },
-        {
-          "actionId": 410,
-          "name": "Elite Green Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/410"
-        },
-        {
-          "actionId": 423,
-          "name": "Elite Grey Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/423"
-        },
-        {
-          "actionId": 424,
-          "name": "Elite Griffin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/424"
-        },
-        {
-          "actionId": 431,
-          "name": "Elite Ice Fairy",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/431"
-        },
-        {
-          "actionId": 433,
-          "name": "Elite Jellyfish",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/433"
-        },
-        {
-          "actionId": 411,
-          "name": "Elite Lady Beetle",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/411"
-        },
-        {
-          "actionId": 412,
-          "name": "Elite Leaf Hopper",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/412"
-        },
-        {
-          "actionId": 422,
-          "name": "Elite Ogre",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/422"
-        },
-        {
-          "actionId": 434,
-          "name": "Elite Rock Dweller",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/434"
-        },
-        {
-          "actionId": 415,
-          "name": "Elite Treant",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/415"
-        },
-        {
-          "actionId": 413,
-          "name": "Elite Tree Stump",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/413"
-        },
-        {
-          "actionId": 414,
-          "name": "Elite Venus Flytrap",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/13/action/414"
-        },
-        {
           "actionId": 326,
           "name": "Frost Wolf",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/13/action/326"
         },
         {
-          "actionId": 307,
-          "name": "Goblin",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/307"
+          "actionId": 435,
+          "name": "Frost Wolf",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/13/action/435"
         },
         {
-          "actionId": 315,
-          "name": "Goblin Chief",
-          "level": 1,
+          "actionId": 327,
+          "name": "Treant",
+          "level": 100,
           "group": "Normal",
-          "path": "/skill/13/action/315"
+          "path": "/skill/13/action/327"
         },
         {
-          "actionId": 309,
-          "name": "Green Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/309"
-        },
-        {
-          "actionId": 311,
-          "name": "Grey Wolf",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/311"
+          "actionId": 415,
+          "name": "Treant",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/13/action/415"
         },
         {
           "actionId": 324,
           "name": "Griffin",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/13/action/324"
         },
         {
-          "actionId": 317,
-          "name": "Hermit Crab",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/317"
-        },
-        {
-          "actionId": 322,
-          "name": "Ice Fairy",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/322"
-        },
-        {
-          "actionId": 321,
-          "name": "Jellyfish",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/321"
-        },
-        {
-          "actionId": 312,
-          "name": "Lady Beetle",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/312"
-        },
-        {
-          "actionId": 301,
-          "name": "Leaf Hopper",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/301"
-        },
-        {
-          "actionId": 306,
-          "name": "Ogre",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/306"
-        },
-        {
-          "actionId": 300,
-          "name": "Red Frog",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/300"
+          "actionId": 424,
+          "name": "Griffin",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/13/action/424"
         },
         {
           "actionId": 323,
           "name": "Rock Dweller",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/13/action/323"
+        },
+        {
+          "actionId": 434,
+          "name": "Rock Dweller",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/13/action/434"
+        },
+        {
+          "actionId": 310,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Normal",
+          "path": "/skill/13/action/310"
+        },
+        {
+          "actionId": 414,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/13/action/414"
+        },
+        {
+          "actionId": 311,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/13/action/311"
+        },
+        {
+          "actionId": 423,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/13/action/423"
+        },
+        {
+          "actionId": 321,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/13/action/321"
+        },
+        {
+          "actionId": 433,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/13/action/433"
+        },
+        {
+          "actionId": 305,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/13/action/305"
+        },
+        {
+          "actionId": 413,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/13/action/413"
+        },
+        {
+          "actionId": 318,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/13/action/318"
+        },
+        {
+          "actionId": 432,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/13/action/432"
+        },
+        {
+          "actionId": 301,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/13/action/301"
+        },
+        {
+          "actionId": 412,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/13/action/412"
+        },
+        {
+          "actionId": 306,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/13/action/306"
+        },
+        {
+          "actionId": 422,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/13/action/422"
+        },
+        {
+          "actionId": 315,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/13/action/315"
+        },
+        {
+          "actionId": 421,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/13/action/421"
+        },
+        {
+          "actionId": 322,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/13/action/322"
+        },
+        {
+          "actionId": 431,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/13/action/431"
+        },
+        {
+          "actionId": 312,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/13/action/312"
+        },
+        {
+          "actionId": 411,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/13/action/411"
+        },
+        {
+          "actionId": 320,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/13/action/320"
+        },
+        {
+          "actionId": 430,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/13/action/430"
+        },
+        {
+          "actionId": 307,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/13/action/307"
+        },
+        {
+          "actionId": 420,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/13/action/420"
+        },
+        {
+          "actionId": 309,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/13/action/309"
+        },
+        {
+          "actionId": 410,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/13/action/410"
+        },
+        {
+          "actionId": 317,
+          "name": "Hermit Crab",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/13/action/317"
+        },
+        {
+          "actionId": 300,
+          "name": "Red Frog",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/13/action/300"
+        },
+        {
+          "actionId": 304,
+          "name": "Skeleton",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/13/action/304"
         },
         {
           "actionId": 319,
@@ -2599,13 +2690,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/13/action/319"
-        },
-        {
-          "actionId": 304,
-          "name": "Skeleton",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/304"
         },
         {
           "actionId": 308,
@@ -2620,27 +2704,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/13/action/302"
-        },
-        {
-          "actionId": 327,
-          "name": "Treant",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/327"
-        },
-        {
-          "actionId": 305,
-          "name": "Tree Stump",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/305"
-        },
-        {
-          "actionId": 310,
-          "name": "Venus Flytrap",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/13/action/310"
         }
       ]
     },
@@ -2648,249 +2711,277 @@
       "skillId": 14,
       "actions": [
         {
-          "actionId": 320,
-          "name": "Blue Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/320"
-        },
-        {
-          "actionId": 318,
-          "name": "Coral Snail",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/318"
-        },
-        {
           "actionId": 325,
           "name": "Efreet",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/14/action/325"
         },
         {
-          "actionId": 430,
-          "name": "Elite Blue Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/430"
-        },
-        {
-          "actionId": 432,
-          "name": "Elite Coral Snail",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/432"
-        },
-        {
           "actionId": 425,
-          "name": "Elite Efreet",
-          "level": 1,
+          "name": "Efreet",
+          "level": 100,
           "group": "Elite",
           "path": "/skill/14/action/425"
         },
         {
-          "actionId": 435,
-          "name": "Elite Frost Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/435"
-        },
-        {
-          "actionId": 420,
-          "name": "Elite Goblin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/420"
-        },
-        {
-          "actionId": 421,
-          "name": "Elite Goblin Chief",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/421"
-        },
-        {
-          "actionId": 410,
-          "name": "Elite Green Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/410"
-        },
-        {
-          "actionId": 423,
-          "name": "Elite Grey Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/423"
-        },
-        {
-          "actionId": 424,
-          "name": "Elite Griffin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/424"
-        },
-        {
-          "actionId": 431,
-          "name": "Elite Ice Fairy",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/431"
-        },
-        {
-          "actionId": 433,
-          "name": "Elite Jellyfish",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/433"
-        },
-        {
-          "actionId": 411,
-          "name": "Elite Lady Beetle",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/411"
-        },
-        {
-          "actionId": 412,
-          "name": "Elite Leaf Hopper",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/412"
-        },
-        {
-          "actionId": 422,
-          "name": "Elite Ogre",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/422"
-        },
-        {
-          "actionId": 434,
-          "name": "Elite Rock Dweller",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/434"
-        },
-        {
-          "actionId": 415,
-          "name": "Elite Treant",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/415"
-        },
-        {
-          "actionId": 413,
-          "name": "Elite Tree Stump",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/413"
-        },
-        {
-          "actionId": 414,
-          "name": "Elite Venus Flytrap",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/14/action/414"
-        },
-        {
           "actionId": 326,
           "name": "Frost Wolf",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/14/action/326"
         },
         {
-          "actionId": 307,
-          "name": "Goblin",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/307"
+          "actionId": 435,
+          "name": "Frost Wolf",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/14/action/435"
         },
         {
-          "actionId": 315,
-          "name": "Goblin Chief",
-          "level": 1,
+          "actionId": 327,
+          "name": "Treant",
+          "level": 100,
           "group": "Normal",
-          "path": "/skill/14/action/315"
+          "path": "/skill/14/action/327"
         },
         {
-          "actionId": 309,
-          "name": "Green Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/309"
-        },
-        {
-          "actionId": 311,
-          "name": "Grey Wolf",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/311"
+          "actionId": 415,
+          "name": "Treant",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/14/action/415"
         },
         {
           "actionId": 324,
           "name": "Griffin",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/14/action/324"
         },
         {
-          "actionId": 317,
-          "name": "Hermit Crab",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/317"
-        },
-        {
-          "actionId": 322,
-          "name": "Ice Fairy",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/322"
-        },
-        {
-          "actionId": 321,
-          "name": "Jellyfish",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/321"
-        },
-        {
-          "actionId": 312,
-          "name": "Lady Beetle",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/312"
-        },
-        {
-          "actionId": 301,
-          "name": "Leaf Hopper",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/301"
-        },
-        {
-          "actionId": 306,
-          "name": "Ogre",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/306"
-        },
-        {
-          "actionId": 300,
-          "name": "Red Frog",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/300"
+          "actionId": 424,
+          "name": "Griffin",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/14/action/424"
         },
         {
           "actionId": 323,
           "name": "Rock Dweller",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/14/action/323"
+        },
+        {
+          "actionId": 434,
+          "name": "Rock Dweller",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/14/action/434"
+        },
+        {
+          "actionId": 310,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Normal",
+          "path": "/skill/14/action/310"
+        },
+        {
+          "actionId": 414,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/14/action/414"
+        },
+        {
+          "actionId": 311,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/14/action/311"
+        },
+        {
+          "actionId": 423,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/14/action/423"
+        },
+        {
+          "actionId": 321,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/14/action/321"
+        },
+        {
+          "actionId": 433,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/14/action/433"
+        },
+        {
+          "actionId": 305,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/14/action/305"
+        },
+        {
+          "actionId": 413,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/14/action/413"
+        },
+        {
+          "actionId": 318,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/14/action/318"
+        },
+        {
+          "actionId": 432,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/14/action/432"
+        },
+        {
+          "actionId": 301,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/14/action/301"
+        },
+        {
+          "actionId": 412,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/14/action/412"
+        },
+        {
+          "actionId": 306,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/14/action/306"
+        },
+        {
+          "actionId": 422,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/14/action/422"
+        },
+        {
+          "actionId": 315,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/14/action/315"
+        },
+        {
+          "actionId": 421,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/14/action/421"
+        },
+        {
+          "actionId": 322,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/14/action/322"
+        },
+        {
+          "actionId": 431,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/14/action/431"
+        },
+        {
+          "actionId": 312,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/14/action/312"
+        },
+        {
+          "actionId": 411,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/14/action/411"
+        },
+        {
+          "actionId": 320,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/14/action/320"
+        },
+        {
+          "actionId": 430,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/14/action/430"
+        },
+        {
+          "actionId": 307,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/14/action/307"
+        },
+        {
+          "actionId": 420,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/14/action/420"
+        },
+        {
+          "actionId": 309,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/14/action/309"
+        },
+        {
+          "actionId": 410,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/14/action/410"
+        },
+        {
+          "actionId": 317,
+          "name": "Hermit Crab",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/14/action/317"
+        },
+        {
+          "actionId": 300,
+          "name": "Red Frog",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/14/action/300"
+        },
+        {
+          "actionId": 304,
+          "name": "Skeleton",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/14/action/304"
         },
         {
           "actionId": 319,
@@ -2898,13 +2989,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/14/action/319"
-        },
-        {
-          "actionId": 304,
-          "name": "Skeleton",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/304"
         },
         {
           "actionId": 308,
@@ -2919,27 +3003,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/14/action/302"
-        },
-        {
-          "actionId": 327,
-          "name": "Treant",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/327"
-        },
-        {
-          "actionId": 305,
-          "name": "Tree Stump",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/305"
-        },
-        {
-          "actionId": 310,
-          "name": "Venus Flytrap",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/14/action/310"
         }
       ]
     },
@@ -2947,249 +3010,277 @@
       "skillId": 15,
       "actions": [
         {
-          "actionId": 320,
-          "name": "Blue Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/320"
-        },
-        {
-          "actionId": 318,
-          "name": "Coral Snail",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/318"
-        },
-        {
           "actionId": 325,
           "name": "Efreet",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/15/action/325"
         },
         {
-          "actionId": 430,
-          "name": "Elite Blue Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/430"
-        },
-        {
-          "actionId": 432,
-          "name": "Elite Coral Snail",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/432"
-        },
-        {
           "actionId": 425,
-          "name": "Elite Efreet",
-          "level": 1,
+          "name": "Efreet",
+          "level": 100,
           "group": "Elite",
           "path": "/skill/15/action/425"
         },
         {
-          "actionId": 435,
-          "name": "Elite Frost Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/435"
-        },
-        {
-          "actionId": 420,
-          "name": "Elite Goblin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/420"
-        },
-        {
-          "actionId": 421,
-          "name": "Elite Goblin Chief",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/421"
-        },
-        {
-          "actionId": 410,
-          "name": "Elite Green Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/410"
-        },
-        {
-          "actionId": 423,
-          "name": "Elite Grey Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/423"
-        },
-        {
-          "actionId": 424,
-          "name": "Elite Griffin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/424"
-        },
-        {
-          "actionId": 431,
-          "name": "Elite Ice Fairy",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/431"
-        },
-        {
-          "actionId": 433,
-          "name": "Elite Jellyfish",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/433"
-        },
-        {
-          "actionId": 411,
-          "name": "Elite Lady Beetle",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/411"
-        },
-        {
-          "actionId": 412,
-          "name": "Elite Leaf Hopper",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/412"
-        },
-        {
-          "actionId": 422,
-          "name": "Elite Ogre",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/422"
-        },
-        {
-          "actionId": 434,
-          "name": "Elite Rock Dweller",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/434"
-        },
-        {
-          "actionId": 415,
-          "name": "Elite Treant",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/415"
-        },
-        {
-          "actionId": 413,
-          "name": "Elite Tree Stump",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/413"
-        },
-        {
-          "actionId": 414,
-          "name": "Elite Venus Flytrap",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/15/action/414"
-        },
-        {
           "actionId": 326,
           "name": "Frost Wolf",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/15/action/326"
         },
         {
-          "actionId": 307,
-          "name": "Goblin",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/307"
+          "actionId": 435,
+          "name": "Frost Wolf",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/15/action/435"
         },
         {
-          "actionId": 315,
-          "name": "Goblin Chief",
-          "level": 1,
+          "actionId": 327,
+          "name": "Treant",
+          "level": 100,
           "group": "Normal",
-          "path": "/skill/15/action/315"
+          "path": "/skill/15/action/327"
         },
         {
-          "actionId": 309,
-          "name": "Green Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/309"
-        },
-        {
-          "actionId": 311,
-          "name": "Grey Wolf",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/311"
+          "actionId": 415,
+          "name": "Treant",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/15/action/415"
         },
         {
           "actionId": 324,
           "name": "Griffin",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/15/action/324"
         },
         {
-          "actionId": 317,
-          "name": "Hermit Crab",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/317"
-        },
-        {
-          "actionId": 322,
-          "name": "Ice Fairy",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/322"
-        },
-        {
-          "actionId": 321,
-          "name": "Jellyfish",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/321"
-        },
-        {
-          "actionId": 312,
-          "name": "Lady Beetle",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/312"
-        },
-        {
-          "actionId": 301,
-          "name": "Leaf Hopper",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/301"
-        },
-        {
-          "actionId": 306,
-          "name": "Ogre",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/306"
-        },
-        {
-          "actionId": 300,
-          "name": "Red Frog",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/300"
+          "actionId": 424,
+          "name": "Griffin",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/15/action/424"
         },
         {
           "actionId": 323,
           "name": "Rock Dweller",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/15/action/323"
+        },
+        {
+          "actionId": 434,
+          "name": "Rock Dweller",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/15/action/434"
+        },
+        {
+          "actionId": 310,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Normal",
+          "path": "/skill/15/action/310"
+        },
+        {
+          "actionId": 414,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/15/action/414"
+        },
+        {
+          "actionId": 311,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/15/action/311"
+        },
+        {
+          "actionId": 423,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/15/action/423"
+        },
+        {
+          "actionId": 321,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/15/action/321"
+        },
+        {
+          "actionId": 433,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/15/action/433"
+        },
+        {
+          "actionId": 305,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/15/action/305"
+        },
+        {
+          "actionId": 413,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/15/action/413"
+        },
+        {
+          "actionId": 318,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/15/action/318"
+        },
+        {
+          "actionId": 432,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/15/action/432"
+        },
+        {
+          "actionId": 301,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/15/action/301"
+        },
+        {
+          "actionId": 412,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/15/action/412"
+        },
+        {
+          "actionId": 306,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/15/action/306"
+        },
+        {
+          "actionId": 422,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/15/action/422"
+        },
+        {
+          "actionId": 315,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/15/action/315"
+        },
+        {
+          "actionId": 421,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/15/action/421"
+        },
+        {
+          "actionId": 322,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/15/action/322"
+        },
+        {
+          "actionId": 431,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/15/action/431"
+        },
+        {
+          "actionId": 312,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/15/action/312"
+        },
+        {
+          "actionId": 411,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/15/action/411"
+        },
+        {
+          "actionId": 320,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/15/action/320"
+        },
+        {
+          "actionId": 430,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/15/action/430"
+        },
+        {
+          "actionId": 307,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/15/action/307"
+        },
+        {
+          "actionId": 420,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/15/action/420"
+        },
+        {
+          "actionId": 309,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/15/action/309"
+        },
+        {
+          "actionId": 410,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/15/action/410"
+        },
+        {
+          "actionId": 317,
+          "name": "Hermit Crab",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/15/action/317"
+        },
+        {
+          "actionId": 300,
+          "name": "Red Frog",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/15/action/300"
+        },
+        {
+          "actionId": 304,
+          "name": "Skeleton",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/15/action/304"
         },
         {
           "actionId": 319,
@@ -3197,13 +3288,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/15/action/319"
-        },
-        {
-          "actionId": 304,
-          "name": "Skeleton",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/304"
         },
         {
           "actionId": 308,
@@ -3218,27 +3302,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/15/action/302"
-        },
-        {
-          "actionId": 327,
-          "name": "Treant",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/327"
-        },
-        {
-          "actionId": 305,
-          "name": "Tree Stump",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/305"
-        },
-        {
-          "actionId": 310,
-          "name": "Venus Flytrap",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/15/action/310"
         }
       ]
     },
@@ -3246,249 +3309,277 @@
       "skillId": 16,
       "actions": [
         {
-          "actionId": 320,
-          "name": "Blue Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/320"
-        },
-        {
-          "actionId": 318,
-          "name": "Coral Snail",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/318"
-        },
-        {
           "actionId": 325,
           "name": "Efreet",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/16/action/325"
         },
         {
-          "actionId": 430,
-          "name": "Elite Blue Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/430"
-        },
-        {
-          "actionId": 432,
-          "name": "Elite Coral Snail",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/432"
-        },
-        {
           "actionId": 425,
-          "name": "Elite Efreet",
-          "level": 1,
+          "name": "Efreet",
+          "level": 100,
           "group": "Elite",
           "path": "/skill/16/action/425"
         },
         {
-          "actionId": 435,
-          "name": "Elite Frost Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/435"
-        },
-        {
-          "actionId": 420,
-          "name": "Elite Goblin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/420"
-        },
-        {
-          "actionId": 421,
-          "name": "Elite Goblin Chief",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/421"
-        },
-        {
-          "actionId": 410,
-          "name": "Elite Green Slime",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/410"
-        },
-        {
-          "actionId": 423,
-          "name": "Elite Grey Wolf",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/423"
-        },
-        {
-          "actionId": 424,
-          "name": "Elite Griffin",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/424"
-        },
-        {
-          "actionId": 431,
-          "name": "Elite Ice Fairy",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/431"
-        },
-        {
-          "actionId": 433,
-          "name": "Elite Jellyfish",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/433"
-        },
-        {
-          "actionId": 411,
-          "name": "Elite Lady Beetle",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/411"
-        },
-        {
-          "actionId": 412,
-          "name": "Elite Leaf Hopper",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/412"
-        },
-        {
-          "actionId": 422,
-          "name": "Elite Ogre",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/422"
-        },
-        {
-          "actionId": 434,
-          "name": "Elite Rock Dweller",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/434"
-        },
-        {
-          "actionId": 415,
-          "name": "Elite Treant",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/415"
-        },
-        {
-          "actionId": 413,
-          "name": "Elite Tree Stump",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/413"
-        },
-        {
-          "actionId": 414,
-          "name": "Elite Venus Flytrap",
-          "level": 1,
-          "group": "Elite",
-          "path": "/skill/16/action/414"
-        },
-        {
           "actionId": 326,
           "name": "Frost Wolf",
-          "level": 1,
+          "level": 100,
           "group": "Normal",
           "path": "/skill/16/action/326"
         },
         {
-          "actionId": 307,
-          "name": "Goblin",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/307"
+          "actionId": 435,
+          "name": "Frost Wolf",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/16/action/435"
         },
         {
-          "actionId": 315,
-          "name": "Goblin Chief",
-          "level": 1,
+          "actionId": 327,
+          "name": "Treant",
+          "level": 100,
           "group": "Normal",
-          "path": "/skill/16/action/315"
+          "path": "/skill/16/action/327"
         },
         {
-          "actionId": 309,
-          "name": "Green Slime",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/309"
-        },
-        {
-          "actionId": 311,
-          "name": "Grey Wolf",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/311"
+          "actionId": 415,
+          "name": "Treant",
+          "level": 100,
+          "group": "Elite",
+          "path": "/skill/16/action/415"
         },
         {
           "actionId": 324,
           "name": "Griffin",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/16/action/324"
         },
         {
-          "actionId": 317,
-          "name": "Hermit Crab",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/317"
-        },
-        {
-          "actionId": 322,
-          "name": "Ice Fairy",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/322"
-        },
-        {
-          "actionId": 321,
-          "name": "Jellyfish",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/321"
-        },
-        {
-          "actionId": 312,
-          "name": "Lady Beetle",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/312"
-        },
-        {
-          "actionId": 301,
-          "name": "Leaf Hopper",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/301"
-        },
-        {
-          "actionId": 306,
-          "name": "Ogre",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/306"
-        },
-        {
-          "actionId": 300,
-          "name": "Red Frog",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/300"
+          "actionId": 424,
+          "name": "Griffin",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/16/action/424"
         },
         {
           "actionId": 323,
           "name": "Rock Dweller",
-          "level": 1,
+          "level": 85,
           "group": "Normal",
           "path": "/skill/16/action/323"
+        },
+        {
+          "actionId": 434,
+          "name": "Rock Dweller",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/16/action/434"
+        },
+        {
+          "actionId": 310,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Normal",
+          "path": "/skill/16/action/310"
+        },
+        {
+          "actionId": 414,
+          "name": "Venus Flytrap",
+          "level": 85,
+          "group": "Elite",
+          "path": "/skill/16/action/414"
+        },
+        {
+          "actionId": 311,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/16/action/311"
+        },
+        {
+          "actionId": 423,
+          "name": "Grey Wolf",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/16/action/423"
+        },
+        {
+          "actionId": 321,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/16/action/321"
+        },
+        {
+          "actionId": 433,
+          "name": "Jellyfish",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/16/action/433"
+        },
+        {
+          "actionId": 305,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Normal",
+          "path": "/skill/16/action/305"
+        },
+        {
+          "actionId": 413,
+          "name": "Tree Stump",
+          "level": 70,
+          "group": "Elite",
+          "path": "/skill/16/action/413"
+        },
+        {
+          "actionId": 318,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/16/action/318"
+        },
+        {
+          "actionId": 432,
+          "name": "Coral Snail",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/16/action/432"
+        },
+        {
+          "actionId": 301,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/16/action/301"
+        },
+        {
+          "actionId": 412,
+          "name": "Leaf Hopper",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/16/action/412"
+        },
+        {
+          "actionId": 306,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Normal",
+          "path": "/skill/16/action/306"
+        },
+        {
+          "actionId": 422,
+          "name": "Ogre",
+          "level": 55,
+          "group": "Elite",
+          "path": "/skill/16/action/422"
+        },
+        {
+          "actionId": 315,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/16/action/315"
+        },
+        {
+          "actionId": 421,
+          "name": "Goblin Chief",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/16/action/421"
+        },
+        {
+          "actionId": 322,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/16/action/322"
+        },
+        {
+          "actionId": 431,
+          "name": "Ice Fairy",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/16/action/431"
+        },
+        {
+          "actionId": 312,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Normal",
+          "path": "/skill/16/action/312"
+        },
+        {
+          "actionId": 411,
+          "name": "Lady Beetle",
+          "level": 40,
+          "group": "Elite",
+          "path": "/skill/16/action/411"
+        },
+        {
+          "actionId": 320,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/16/action/320"
+        },
+        {
+          "actionId": 430,
+          "name": "Blue Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/16/action/430"
+        },
+        {
+          "actionId": 307,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/16/action/307"
+        },
+        {
+          "actionId": 420,
+          "name": "Goblin",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/16/action/420"
+        },
+        {
+          "actionId": 309,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Normal",
+          "path": "/skill/16/action/309"
+        },
+        {
+          "actionId": 410,
+          "name": "Green Slime",
+          "level": 25,
+          "group": "Elite",
+          "path": "/skill/16/action/410"
+        },
+        {
+          "actionId": 317,
+          "name": "Hermit Crab",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/16/action/317"
+        },
+        {
+          "actionId": 300,
+          "name": "Red Frog",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/16/action/300"
+        },
+        {
+          "actionId": 304,
+          "name": "Skeleton",
+          "level": 10,
+          "group": "Normal",
+          "path": "/skill/16/action/304"
         },
         {
           "actionId": 319,
@@ -3496,13 +3587,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/16/action/319"
-        },
-        {
-          "actionId": 304,
-          "name": "Skeleton",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/304"
         },
         {
           "actionId": 308,
@@ -3517,27 +3601,6 @@
           "level": 1,
           "group": "Normal",
           "path": "/skill/16/action/302"
-        },
-        {
-          "actionId": 327,
-          "name": "Treant",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/327"
-        },
-        {
-          "actionId": 305,
-          "name": "Tree Stump",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/305"
-        },
-        {
-          "actionId": 310,
-          "name": "Venus Flytrap",
-          "level": 1,
-          "group": "Normal",
-          "path": "/skill/16/action/310"
         }
       ]
     }

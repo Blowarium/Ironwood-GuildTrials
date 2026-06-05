@@ -31,7 +31,7 @@ export const DEFAULT_IRONWOOD_ACTION_IDS: Partial<Record<Skill, number>> = {
   Smithing: 272,
   Enchanting: 95,
   Farming: 1041,
-  Alchemy: 92,
+  Alchemy: 752,
   Fishing: 1025,
   Cooking: 67,
   Delving: 1055,

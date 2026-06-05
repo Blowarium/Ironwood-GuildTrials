@@ -1082,6 +1082,31 @@
     return location.pathname.indexOf("/action/" + actionId) >= 0;
   }
 
+  function waitForXpOnAction(entry, timeoutMs) {
+    var timeout = timeoutMs || 15000;
+    var start = Date.now();
+    return new Promise(function (resolve, reject) {
+      (function tick() {
+        try {
+          if (actionSelectionMatches({ actionId: entry.actionId, path: entry.path })) {
+            var xp = parseXpPerHour();
+            if (xp) {
+              resolve(xp);
+              return;
+            }
+          }
+        } catch (e) {
+          /* keep polling */
+        }
+        if (Date.now() - start > timeout) {
+          reject(new Error("Timed out waiting for XP/h on the selected action."));
+          return;
+        }
+        setTimeout(tick, 350);
+      })();
+    });
+  }
+
   function loadImportState() {
     try {
       var raw = sessionStorage.getItem(IMPORT_STATE_KEY);
@@ -1187,11 +1212,11 @@
         "Reading Estimates XP/h for " + entry.name + "…",
       );
 
+      await sleep(400);
+
       var xp = null;
       try {
-        xp = await waitFor(function () {
-          return parseXpPerHour();
-        }, 10000);
+        xp = await waitForXpOnAction(entry, 15000);
       } catch (e) {
         state.errors[skill] = "Could not read XP/h on this action page.";
       }
