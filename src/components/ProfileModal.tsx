@@ -14,7 +14,11 @@ import { canEditProfileFor } from "@/lib/permissions";
 import type { RolesMap } from "@/lib/roles";
 import { SkillIcon } from "./SkillIcon";
 import { LastEditedNote } from "./LastEditedNote";
-import { XpPerHourGuidePanel } from "./XpPerHourGuide";
+import { IronwoodXpImportGuide } from "./IronwoodXpImportGuide";
+import {
+  applyXpImportToRows,
+  type IronwoodXpImportPayload,
+} from "@/lib/ironwood-xp-import";
 
 function sortForDisplay(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
   return [...rows].sort((a, b) => {
@@ -34,6 +38,8 @@ export function ProfileModal({
   rolesMap,
   staffUnlocked,
   onSaved,
+  pendingXpImport,
+  onXpImportApplied,
 }: {
   open: boolean;
   onClose: () => void;
@@ -43,13 +49,15 @@ export function ProfileModal({
   rolesMap: RolesMap;
   staffUnlocked: boolean;
   onSaved: (profile: MemberProfile) => void;
+  pendingXpImport: IronwoodXpImportPayload | null;
+  onXpImportApplied: () => void;
 }) {
   const [skills, setSkills] = useState<MemberSkillProfileRow[]>(emptyProfile(targetMember).skills);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [dragSkill, setDragSkill] = useState<Skill | null>(null);
-  const [showXpGuide, setShowXpGuide] = useState(false);
+  const [showImportGuide, setShowImportGuide] = useState(false);
 
   const canEdit = canEditProfileFor(currentUser, targetMember, rolesMap, staffUnlocked);
   const isSelf = currentUser === targetMember;
@@ -60,7 +68,23 @@ export function ProfileModal({
     setSkills(normalizeProfile(base).skills);
     setError(null);
     setMessage(null);
+    setShowImportGuide(false);
   }, [open, initialProfile, targetMember]);
+
+  useEffect(() => {
+    if (!open || !pendingXpImport) return;
+    setSkills((prev) => applyXpImportToRows(prev, pendingXpImport));
+    const count = Object.keys(pendingXpImport.skills).length;
+    const errCount = pendingXpImport.errors
+      ? Object.keys(pendingXpImport.errors).length
+      : 0;
+    setMessage(
+      errCount > 0
+        ? `Imported XP/h for ${count} skills from Ironwood (${errCount} skipped). Review and save.`
+        : `Imported XP/h for ${count} skills from Ironwood. Review and save.`,
+    );
+    onXpImportApplied();
+  }, [open, pendingXpImport, onXpImportApplied]);
 
   const displayRows = useMemo(() => sortForDisplay(skills), [skills]);
 
@@ -153,16 +177,24 @@ export function ProfileModal({
           {initialProfile && (
             <LastEditedNote by={initialProfile.updated_by} at={initialProfile.updated_at} />
           )}
-          <button
-            type="button"
-            onClick={() => setShowXpGuide((v) => !v)}
-            className="mt-1 text-xs text-sky-400 hover:underline"
-          >
-            {showXpGuide ? "Hide XP/h guide" : "Where to find XP/h in game?"}
-          </button>
-          {showXpGuide && (
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setShowImportGuide((v) => !v)}
+              className="mt-1 text-xs text-sky-400 hover:underline"
+            >
+              {showImportGuide ? "Hide import guide" : "Import XP/h from Ironwood RPG"}
+            </button>
+          )}
+          {canEdit && showImportGuide && (
             <div className="mt-2">
-              <XpPerHourGuidePanel />
+              <IronwoodXpImportGuide
+                returnUrl={
+                  typeof window !== "undefined"
+                    ? `${window.location.origin}${window.location.pathname}`
+                    : ""
+                }
+              />
             </div>
           )}
         </div>

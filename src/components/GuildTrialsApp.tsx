@@ -33,6 +33,11 @@ import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
 import { syncSignups, buildStartAtFromWeekFraction, dateFromStartAt } from "@/lib/trial-schedule";
 import { computeGuildStats } from "@/lib/stats";
+import {
+  readXpImportFromLocation,
+  markXpImportHelperInstalled,
+  type IronwoodXpImportPayload,
+} from "@/lib/ironwood-xp-import";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
   formatWeekRange,
@@ -85,6 +90,7 @@ export function GuildTrialsApp() {
   const [profileTarget, setProfileTarget] = useState<Member | "">("");
   const [staffAuthTick, setStaffAuthTick] = useState(0);
   const [staffPasswordOpen, setStaffPasswordOpen] = useState(false);
+  const [pendingXpImport, setPendingXpImport] = useState<IronwoodXpImportPayload | null>(null);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
   const dbRole = currentUser ? getMemberRole(rolesMap, currentUser) : null;
@@ -120,6 +126,22 @@ export function GuildTrialsApp() {
       setMemberSelectOpen(true);
     }
   }, []);
+
+  useEffect(() => {
+    const payload = readXpImportFromLocation(window.location.search);
+    if (!payload) return;
+    setPendingXpImport(payload);
+    markXpImportHelperInstalled();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("xpImport");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingXpImport || !identityReady || !currentUser) return;
+    openProfile(currentUser);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only reopen profile when import arrives
+  }, [pendingXpImport, identityReady, currentUser]);
 
   useEffect(() => {
     if (identityReady && currentUser && !isGuideDismissed()) {
@@ -164,6 +186,10 @@ export function GuildTrialsApp() {
     setProfileTarget(member);
     setProfileOpen(true);
   }
+
+  const handleXpImportApplied = useCallback(() => {
+    setPendingXpImport(null);
+  }, []);
 
   const canEditSignup = useCallback(
     (target: Member) => {
@@ -607,6 +633,8 @@ export function GuildTrialsApp() {
             );
           });
         }}
+        pendingXpImport={pendingXpImport}
+        onXpImportApplied={handleXpImportApplied}
       />
 
       <CellAssignmentModal
