@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GAME_ICON_SRC } from "@/lib/skill-icons";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,8 +17,9 @@ export const metadata: Metadata = {
   title: "Ironwood Guild Trials",
   description: "Coordinate weekly Guild Trials signups for Ironwood RPG",
   icons: {
-    icon: "/icons/alliance-logo.png",
-    apple: "/icons/alliance-logo.png",
+    icon: [{ url: GAME_ICON_SRC, type: "image/png" }],
+    apple: [{ url: GAME_ICON_SRC, type: "image/png" }],
+    shortcut: GAME_ICON_SRC,
   },
 };
 
