@@ -16,31 +16,40 @@ function RecapBox({
   title,
   tone,
   skills,
+  skillTitles,
 }: {
   title: string;
-  tone: "emerald" | "amber";
+  tone: "emerald" | "amber" | "sky";
   skills: Skill[];
+  skillTitles?: Record<string, string>;
 }) {
-  if (skills.length === 0) return null;
   const styles =
     tone === "emerald"
       ? "border-emerald-500/30 bg-emerald-950/20 text-emerald-200"
-      : "border-amber-500/30 bg-amber-950/20 text-amber-200";
+      : tone === "sky"
+        ? "border-sky-500/30 bg-sky-950/20 text-sky-300"
+        : "border-amber-500/30 bg-amber-950/20 text-amber-200";
+  const chipText = tone === "sky" ? "text-sky-200" : undefined;
+
   return (
     <div className={`rounded-lg border px-2 py-1.5 ${styles}`}>
       <p className="text-[10px] font-semibold uppercase tracking-wide">{title}</p>
-      <ul className="mt-1 flex flex-wrap gap-1">
-        {skills.map((skill) => (
-          <li
-            key={skill}
-            className="flex items-center gap-0.5 rounded bg-black/20 px-1 py-0.5 text-[10px]"
-            title={skill}
-          >
-            <SkillIcon skill={skill} size="xs" />
-            <span className="hidden sm:inline">{skill}</span>
-          </li>
-        ))}
-      </ul>
+      {skills.length === 0 ? (
+        <p className="mt-1 text-[10px] opacity-70">None</p>
+      ) : (
+        <ul className="mt-1 flex flex-wrap gap-1">
+          {skills.map((skill) => (
+            <li
+              key={skill}
+              className={`flex items-center gap-0.5 rounded bg-black/20 px-1 py-0.5 text-[10px] ${chipText ?? ""}`}
+              title={skillTitles?.[skill] ?? skill}
+            >
+              <SkillIcon skill={skill} size="xs" />
+              <span className="hidden sm:inline">{skill}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -65,38 +74,34 @@ export function SkillCoverageList({
 
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3">
-      <h3 className="text-sm font-semibold text-white">All 16 skills</h3>
+      <h3 className="text-sm font-semibold text-white">Skill status</h3>
       <p className="text-[10px] text-slate-500">Mark done when the guild trial is finished</p>
 
       <div className="mt-2 space-y-2">
-        <RecapBox title={`Done (${done.length})`} tone="emerald" skills={done.map((s) => s.skill)} />
         <RecapBox
           title={`Needs signup (${needsSignup.length})`}
           tone="amber"
           skills={needsSignup.map((s) => s.skill)}
         />
-        {inProgress.length > 0 && (
-          <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 px-2 py-1.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-300">
-              In progress ({inProgress.length})
-            </p>
-            <ul className="mt-1 flex flex-wrap gap-1">
-              {inProgress.map(({ skill, contributorCount }) => (
-                <li
-                  key={skill}
-                  className="flex items-center gap-0.5 rounded bg-black/20 px-1 py-0.5 text-[10px] text-sky-200"
-                  title={`${skill} — ${contributorCount} signed up`}
-                >
-                  <SkillIcon skill={skill} size="xs" />
-                  <span className="hidden sm:inline">{skill}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <RecapBox
+          title={`In progress (${inProgress.length})`}
+          tone="sky"
+          skills={inProgress.map((s) => s.skill)}
+          skillTitles={Object.fromEntries(
+            inProgress.map((s) => [s.skill, `${s.skill} — ${s.contributorCount} signed up`]),
+          )}
+        />
+        <RecapBox
+          title={`Done (${done.length})`}
+          tone="emerald"
+          skills={done.map((s) => s.skill)}
+        />
       </div>
 
-      <ul className="mt-2 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-1">
+      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+        All skills
+      </p>
+      <ul className="mt-1.5 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-1">
         {stats.skillCoverage.map((row) => {
           const xp = xpBySkill.get(row.skill);
           return (
