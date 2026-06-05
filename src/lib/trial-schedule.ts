@@ -163,6 +163,48 @@ export interface TrialWeekSegment {
   widthPercent: number;
 }
 
+export interface StackedTrialWeekSegment extends TrialWeekSegment {
+  lane: number;
+  laneCount: number;
+}
+
+function segmentsOverlap(a: TrialWeekSegment, b: TrialWeekSegment): boolean {
+  return (
+    a.leftPercent < b.leftPercent + b.widthPercent &&
+    b.leftPercent < a.leftPercent + a.widthPercent
+  );
+}
+
+/** Assign vertical lanes so overlapping trials on the same skill row do not cover each other. */
+export function stackTrialWeekSegments(segments: TrialWeekSegment[]): StackedTrialWeekSegment[] {
+  if (segments.length === 0) return [];
+
+  const sorted = [...segments].sort(
+    (a, b) =>
+      a.leftPercent - b.leftPercent ||
+      b.widthPercent - a.widthPercent ||
+      a.plannedStartAt.localeCompare(b.plannedStartAt),
+  );
+  const lanes: TrialWeekSegment[][] = [];
+
+  for (const seg of sorted) {
+    let placed = false;
+    for (const lane of lanes) {
+      if (!lane.some((existing) => segmentsOverlap(seg, existing))) {
+        lane.push(seg);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) lanes.push([seg]);
+  }
+
+  const laneCount = lanes.length;
+  return lanes.flatMap((lane, laneIndex) =>
+    lane.map((seg) => ({ ...seg, lane: laneIndex, laneCount })),
+  );
+}
+
 /** Horizontal slice of a 24h trial within one Mon–Sun week column. */
 export function trialSegmentInWeek(
   signup: TrialSignup,
