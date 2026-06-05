@@ -1,6 +1,8 @@
 import { MEMBERS, type Member, type Skill } from "@/lib/constants";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
+import { formatTimeLabel, getEffectiveStatus } from "@/lib/trial-schedule";
+import { LastEditedNote } from "./LastEditedNote";
 import { SkillIcon } from "./SkillIcon";
 import { StatusBadge } from "./StatusBadge";
 
@@ -21,6 +23,7 @@ export function MemberView({
             <th className="px-4 py-3 font-medium">Member</th>
             <th className="px-4 py-3 font-medium">Week assignment</th>
             <th className="px-4 py-3 font-medium">Status</th>
+            <th className="px-4 py-3 font-medium">Last change</th>
           </tr>
         </thead>
         <tbody>
@@ -43,7 +46,8 @@ export function MemberView({
                     >
                       <SkillIcon skill={s.skill as Skill} size="sm" />
                       <span>
-                        {s.skill} — {formatDayLabel(s.planned_date)}
+                        {s.skill} — {formatDayLabel(s.planned_date)}{" "}
+                        {formatTimeLabel(s.planned_start_at)}
                       </span>
                     </button>
                   ) : (
@@ -51,7 +55,14 @@ export function MemberView({
                   )}
                 </td>
                 <td className="px-4 py-2.5">
-                  {s ? <StatusBadge status={s.status} /> : "—"}
+                  {s ? <StatusBadge status={getEffectiveStatus(s)} /> : "—"}
+                </td>
+                <td className="px-4 py-2.5">
+                  {s ? (
+                    <LastEditedNote by={s.last_edited_by} at={s.updated_at} compact />
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             );

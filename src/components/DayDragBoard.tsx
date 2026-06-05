@@ -1,6 +1,6 @@
 "use client";
 
-import type { Skill } from "@/lib/constants";
+import type { Member, Skill } from "@/lib/constants";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { SkillIcon } from "./SkillIcon";
@@ -11,12 +11,14 @@ export function DayDragBoard({
   weekDays,
   signupsByDay,
   currentUser,
+  canDragSignup,
   onDropOnDay,
   onCardClick,
 }: {
   weekDays: string[];
   signupsByDay: Map<string, TrialSignup[]>;
-  currentUser: string;
+  currentUser: Member | "";
+  canDragSignup: (signup: TrialSignup) => boolean;
   onDropOnDay: (day: string, signup: TrialSignup) => void;
   onCardClick: (target: CellTarget, signup: TrialSignup) => void;
 }) {
@@ -48,12 +50,18 @@ export function DayDragBoard({
                   Drop a trial here
                 </li>
               ) : (
-                list.map((s) => (
+                list.map((s) => {
+                  const draggable = canDragSignup(s);
+                  return (
                   <li key={s.id}>
                     <button
                       type="button"
-                      draggable
+                      draggable={draggable}
                       onDragStart={(e) => {
+                        if (!draggable) {
+                          e.preventDefault();
+                          return;
+                        }
                         e.dataTransfer.setData(
                           "application/json",
                           JSON.stringify(s),
@@ -83,7 +91,8 @@ export function DayDragBoard({
                       <StatusBadge status={s.status} small />
                     </button>
                   </li>
-                ))
+                  );
+                })
               )}
             </ul>
           </div>

@@ -20,4 +20,4 @@ export const SKILL_ICON_SRC: Record<Skill, string> = {
   Defense: "/icons/skills/defense.png",
 };
 
-export const GAME_ICON_SRC = "/icons/game-icon.png";
+export const GAME_ICON_SRC = "/icons/alliance-logo.png";

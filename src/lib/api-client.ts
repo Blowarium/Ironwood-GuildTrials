@@ -1,7 +1,45 @@
 import type { Member, Skill, TrialStatus } from "./constants";
 import type { GuildConfig } from "./guild-config";
-import type { MemberPreferences } from "./preferences";
+import type {
+  MemberProfile,
+  MemberRosterEntry,
+  ProfileSkillInput,
+} from "./member-profile";
+import type { GuildRole, MemberRoleRow } from "./roles";
+import { getStaffAuthToken, storeStaffAuth, removeStaffAuth } from "./staff-auth-client";
+import { defaultStartAtForDate, normalizeSignupTiming } from "./trial-schedule";
 import type { SkillWeekCompletion, TrialSignup } from "./types";
+
+function withStaffAuth<T extends { actorMember: Member }>(
+  payload: T,
+): T & { staffAuthToken?: string } {
+  const token = getStaffAuthToken(payload.actorMember);
+  return token ? { ...payload, staffAuthToken: token } : payload;
+}
+
+export async function loginStaff(
+  memberName: Member,
+  password: string,
+): Promise<{ error?: string }> {
+  const res = await fetch("/api/staff-auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ memberName, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? "Could not verify password." };
+  storeStaffAuth({
+    member: data.member,
+    role: data.role,
+    token: data.token,
+    expiresAt: data.expiresAt,
+  });
+  return {};
+}
+
+export async function logoutStaff(memberName: Member): Promise<void> {
+  removeStaffAuth(memberName);
+}
 
 export async function fetchWeekData(weekStart: string): Promise<{
   signups: TrialSignup[];
@@ -12,10 +50,18 @@ export async function fetchWeekData(weekStart: string): Promise<{
   if (!res.ok) throw new Error("Failed to load week data");
   const data = await res.json();
   return {
-    signups: data.signups,
+    signups: (data.signups ?? []).map(normalizeSignup),
     completions: data.completions ?? [],
     mode: data.mode,
   };
+}
+
+function normalizeSignup(s: TrialSignup): TrialSignup {
+  const timing = normalizeSignupTiming({
+    planned_date: s.planned_date,
+    planned_start_at: s.planned_start_at || defaultStartAtForDate(s.planned_date),
+  });
+  return { ...s, ...timing, last_edited_by: s.last_edited_by ?? null };
 }
 
 export async function saveSignup(payload: {
@@ -23,16 +69,17 @@ export async function saveSignup(payload: {
   memberName: Member;
   skill: Skill;
   plannedDate: string;
-  status?: TrialStatus;
+  plannedStartAt?: string;
+  actorMember: Member;
 }): Promise<{ signup?: TrialSignup; error?: string }> {
   const res = await fetch("/api/signups", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(withStaffAuth(payload)),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not save." };
-  return { signup: data.signup };
+  return { signup: data.signup ? normalizeSignup(data.signup) : undefined };
 }
 
 export async function setSkillWeekComplete(payload: {
@@ -51,56 +98,75 @@ export async function setSkillWeekComplete(payload: {
   return { completion: data.completion };
 }
 
-export async function patchSignupStatus(
-  id: number,
-  memberName: Member,
-  status: TrialStatus,
-): Promise<{ signup?: TrialSignup; error?: string }> {
+export async function patchSignupStatus(payload: {
+  id: number;
+  memberName: Member;
+  status: TrialStatus;
+  actorMember: Member;
+}): Promise<{ signup?: TrialSignup; error?: string }> {
   const res = await fetch("/api/signups", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, memberName, status }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not update status." };
-  return { signup: data.signup };
+  return { signup: data.signup ? normalizeSignup(data.signup) : undefined };
 }
 
-export async function fetchAllPreferences(): Promise<{
-  preferences: MemberPreferences[];
+export async function fetchMembersData(): Promise<{
+  roles: MemberRoleRow[];
+  profiles: MemberProfile[];
   mode: "dev" | "database";
 }> {
-  const res = await fetch("/api/preferences");
-  if (!res.ok) throw new Error("Failed to load preferences");
+  const res = await fetch("/api/members");
+  if (!res.ok) throw new Error("Failed to load members");
   const data = await res.json();
-  return { preferences: data.preferences ?? [], mode: data.mode };
+  return { roles: data.roles ?? [], profiles: data.profiles ?? [], mode: data.mode };
 }
 
-export async function saveMemberPreferences(payload: {
+export async function saveMemberProfile(payload: {
+  actorMember: Member;
   memberName: Member;
-  pref1: Skill | null;
-  pref2: Skill | null;
-  pref3: Skill | null;
-  xp1?: string | null;
-  xp2?: string | null;
-  xp3?: string | null;
-}): Promise<{ preferences?: MemberPreferences; error?: string }> {
-  const res = await fetch("/api/preferences", {
+  skills: ProfileSkillInput[];
+}): Promise<{ profile?: MemberProfile; error?: string }> {
+  const res = await fetch("/api/members", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      memberName: payload.memberName,
-      pref1: payload.pref1,
-      pref2: payload.pref2,
-      pref3: payload.pref3,
-      xp1: payload.xp1,
-      xp2: payload.xp2,
-      xp3: payload.xp3,
-    }),
+    body: JSON.stringify(withStaffAuth(payload)),
   });
   const data = await res.json();
-  if (!res.ok) return { error: data.error ?? "Could not save preferences." };
-  return { preferences: data.preferences };
+  if (!res.ok) return { error: data.error ?? "Could not save profile." };
+  return { profile: data.profile };
+}
+
+export async function saveMemberRole(payload: {
+  actorMember: Member;
+  memberName: Member;
+  role: GuildRole;
+}): Promise<{ role?: MemberRoleRow; error?: string }> {
+  const res = await fetch("/api/members", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(withStaffAuth(payload)),
+  });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? "Could not update role." };
+  return { role: data.role };
+}
+
+export async function fetchMemberRoster(actorMember: Member): Promise<{
+  roster: MemberRosterEntry[];
+  mode: "dev" | "database";
+}> {
+  const res = await fetch("/api/members", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(withStaffAuth({ actorMember })),
+  });
+  if (!res.ok) throw new Error("Failed to load roster");
+  const data = await res.json();
+  return { roster: data.roster ?? [], mode: data.mode };
 }
 
 export async function fetchGuildConfig(): Promise<{
@@ -115,23 +181,27 @@ export async function fetchGuildConfig(): Promise<{
 
 export async function saveGuildConfig(
   trialHallLevel: number,
+  actorMember: Member,
 ): Promise<{ config?: GuildConfig; error?: string }> {
   const res = await fetch("/api/guild-config", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ trialHallLevel }),
+    body: JSON.stringify(withStaffAuth({ trialHallLevel, actorMember })),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not save guild config." };
   return { config: data.config };
 }
 
-export async function deleteSignup(
-  id: number,
-  memberName: Member,
-): Promise<{ error?: string }> {
+export async function deleteSignup(payload: {
+  id: number;
+  memberName: Member;
+  actorMember: Member;
+}): Promise<{ error?: string }> {
+  const token = getStaffAuthToken(payload.actorMember);
+  const tokenParam = token ? `&staffAuthToken=${encodeURIComponent(token)}` : "";
   const res = await fetch(
-    `/api/signups?id=${id}&memberName=${encodeURIComponent(memberName)}`,
+    `/api/signups?id=${payload.id}&memberName=${encodeURIComponent(payload.memberName)}&actorMember=${encodeURIComponent(payload.actorMember)}${tokenParam}`,
     { method: "DELETE" },
   );
   const data = await res.json();

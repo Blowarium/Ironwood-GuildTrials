@@ -20,8 +20,15 @@ Weekly planner for **Guild Trials** in Ironwood RPG. Guild members pick one skil
 - **Members** — who’s assigned vs unassigned; click to edit
 - **Smart suggestions** — optimal assignments using top-3 skills, in-game **XP/h**, and **Guild Trial Hall level** (trial XP required = `8,000 × (level + 1)`; each member contributes **5%** of skill XP earned during their 24h trial)
 
-### Member preferences (header)
-- Top 3 preferred skills plus **XP per hour** from each skill’s Stats → Estimates in game (screenshot guide in the UI)
+### Member profile & roles
+- **Guild Leader**, **Guild Officer**, **Guild Member** (Blowarium defaults to Leader)
+- **My profile** — XP/h and priority rank (1–16) for all skills; drag rows or type ranks
+- **Guild roster** tab (Leaders/Officers) — track profile completion; Leader assigns roles
+- Members edit only their own signups; Leaders/Officers can edit/move/remove anyone’s trials
+- **Apply all suggestions** and **Trial Hall level** — Leaders and Officers only
+
+### Member preferences (legacy)
+- Old top-3 prefs API remains for compatibility; smart suggestions use full profiles
 
 ### Rules
 - **All 16 skills** should be completed each week — use **Mark done** when that skill’s guild trial is finished (separate from individual signups)

@@ -6,7 +6,9 @@ export interface TrialSignup {
   member_name: Member;
   skill: Skill;
   planned_date: string;
+  planned_start_at: string;
   status: TrialStatus;
+  last_edited_by: Member | null;
   created_at: string;
   updated_at: string;
 }
@@ -16,13 +18,18 @@ export interface SignupPayload {
   memberName: Member;
   skill: Skill;
   plannedDate: string;
+  plannedStartAt?: string;
   status?: TrialStatus;
+  actorMember?: Member;
+  staffAuthToken?: string;
 }
 
 export interface PatchSignupPayload {
   id: number;
   memberName: Member;
   status: TrialStatus;
+  actorMember?: Member;
+  staffAuthToken?: string;
 }
 
 export interface SkillWeekCompletion {

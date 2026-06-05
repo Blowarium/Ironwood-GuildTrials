@@ -1,14 +1,14 @@
 import type { Skill } from "./constants";
-import { getXpPerHourForPreference, type MemberPreferences } from "./preferences";
-
-/** Share of skill XP earned during a trial that counts toward the guild trial bar. */
-export const TRIAL_XP_FROM_SKILL_XP_RATE = 0.05;
+import { getXpPerHourForSkill, type MemberProfile } from "./member-profile";
 
 /** XP required to complete one skill trial for the week. */
 export function trialXpRequired(hallLevel: number): number {
   const level = Math.max(0, Math.floor(hallLevel));
   return 8000 * (level + 1);
 }
+
+/** Share of skill XP earned during a trial that counts toward the guild trial bar. */
+export const TRIAL_XP_FROM_SKILL_XP_RATE = 0.05;
 
 /** Skill XP earned in one 24h trial at the given hourly rate. */
 export function skillXpIn24h(xpPerHour: number | null | undefined): number {
@@ -24,10 +24,10 @@ export function trialXpContribution(xpPerHour: number | null | undefined): numbe
 }
 
 export function memberContributionForSkill(
-  prefs: MemberPreferences | undefined,
+  profile: MemberProfile | undefined,
   skill: Skill,
 ): number {
-  return trialXpContribution(getXpPerHourForPreference(prefs, skill));
+  return trialXpContribution(getXpPerHourForSkill(profile, skill));
 }
 
 export function formatXp(n: number): string {

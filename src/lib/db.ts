@@ -1,4 +1,5 @@
 import { neon, NeonQueryFunction } from "@neondatabase/serverless";
+import { DEFAULT_GUILD_LEADER } from "./roles";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -21,22 +22,23 @@ export async function ensureSchema(): Promise<void> {
       skill TEXT NOT NULL,
       planned_date DATE NOT NULL,
       status TEXT NOT NULL DEFAULT 'planned',
+      last_edited_by TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (week_start, member_name)
     )
   `;
 
+  await db`ALTER TABLE trial_signups ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned'`;
+  await db`ALTER TABLE trial_signups ADD COLUMN IF NOT EXISTS last_edited_by TEXT`;
+  await db`ALTER TABLE trial_signups ADD COLUMN IF NOT EXISTS planned_start_at TIMESTAMPTZ`;
   await db`
-    ALTER TABLE trial_signups
-    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'planned'
+    UPDATE trial_signups
+    SET planned_start_at = (planned_date + TIME '08:00:00') AT TIME ZONE 'UTC'
+    WHERE planned_start_at IS NULL
   `;
 
-  await db`
-    CREATE INDEX IF NOT EXISTS idx_trial_signups_week
-    ON trial_signups (week_start)
-  `;
-
+  await db`CREATE INDEX IF NOT EXISTS idx_trial_signups_week ON trial_signups (week_start)`;
   await db`
     CREATE INDEX IF NOT EXISTS idx_trial_signups_week_skill
     ON trial_signups (week_start, skill)
@@ -75,7 +77,42 @@ export async function ensureSchema(): Promise<void> {
       id INTEGER PRIMARY KEY DEFAULT 1,
       trial_hall_level INTEGER NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by TEXT,
       CONSTRAINT guild_config_singleton CHECK (id = 1)
     )
+  `;
+  await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS updated_by TEXT`;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS guild_member_roles (
+      member_name TEXT PRIMARY KEY,
+      role TEXT NOT NULL DEFAULT 'guild_member',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by TEXT
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS member_skill_profiles (
+      member_name TEXT NOT NULL,
+      skill TEXT NOT NULL,
+      xp_per_hour INTEGER,
+      preference_rank INTEGER,
+      PRIMARY KEY (member_name, skill)
+    )
+  `;
+
+  await db`
+    CREATE TABLE IF NOT EXISTS member_profile_meta (
+      member_name TEXT PRIMARY KEY,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by TEXT
+    )
+  `;
+
+  await db`
+    INSERT INTO guild_member_roles (member_name, role)
+    VALUES (${DEFAULT_GUILD_LEADER}, 'guild_leader')
+    ON CONFLICT (member_name) DO NOTHING
   `;
 }

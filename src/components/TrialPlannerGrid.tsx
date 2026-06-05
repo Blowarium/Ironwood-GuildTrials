@@ -23,6 +23,8 @@ export function TrialPlannerGrid({
   onSignupClick,
   onDragStart,
   onDrop,
+  canDragSignup,
+  canOpenSignup,
 }: {
   weekDays: string[];
   signups: TrialSignup[];
@@ -34,6 +36,8 @@ export function TrialPlannerGrid({
   onSignupClick: (signup: TrialSignup) => void;
   onDragStart: (signup: TrialSignup) => void;
   onDrop: (target: CellTarget) => void;
+  canDragSignup: (signup: TrialSignup) => boolean;
+  canOpenSignup: (signup: TrialSignup) => boolean;
 }) {
   const cellMap = buildCellMap(signups);
   const coverageBySkill = new Map(skillCoverage.map((c) => [c.skill, c]));
@@ -110,12 +114,18 @@ export function TrialPlannerGrid({
                             : "border-dashed border-slate-700/60 bg-slate-900/20"
                         }`}
                       >
-                        {inCell.slice(0, MAX_NAMES_VISIBLE).map((signup) => (
+                        {inCell.slice(0, MAX_NAMES_VISIBLE).map((signup) => {
+                          const draggable = canDragSignup(signup);
+                          return (
                           <button
                             key={signup.id}
                             type="button"
-                            draggable
+                            draggable={draggable}
                             onDragStart={(e) => {
+                              if (!draggable) {
+                                e.preventDefault();
+                                return;
+                              }
                               e.stopPropagation();
                               e.dataTransfer.setData(
                                 "application/json",
@@ -125,7 +135,7 @@ export function TrialPlannerGrid({
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onSignupClick(signup);
+                              if (canOpenSignup(signup)) onSignupClick(signup);
                             }}
                             className={`w-full rounded px-1 py-0.5 text-left ${
                               signup.member_name === currentUser
@@ -138,7 +148,8 @@ export function TrialPlannerGrid({
                             </span>
                             <StatusBadge status={signup.status} small />
                           </button>
-                        ))}
+                          );
+                        })}
                         {inCell.length > MAX_NAMES_VISIBLE && (
                           <button
                             type="button"

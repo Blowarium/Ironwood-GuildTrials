@@ -11,10 +11,10 @@ export function GameIcon({
   return (
     <Image
       src={GAME_ICON_SRC}
-      alt="Ironwood RPG"
+      alt="The Alliance"
       width={size}
       height={size}
-      className={`shrink-0 pixel-icon ${className}`}
+      className={`shrink-0 rounded-full ${className}`}
       priority
     />
   );

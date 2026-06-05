@@ -1,7 +1,16 @@
 import type { GuildStats } from "@/lib/stats";
+import type { SkillXpCoverage } from "@/lib/skill-xp-coverage";
 import { SkillIcon } from "./SkillIcon";
 
-export function GuildSummary({ stats }: { stats: GuildStats }) {
+export function GuildSummary({
+  stats,
+  xpCoverage,
+}: {
+  stats: GuildStats;
+  xpCoverage?: SkillXpCoverage[];
+}) {
+  const xpEnough = xpCoverage?.filter((x) => x.adequacy === "enough").length ?? 0;
+  const xpNeedsMore = xpCoverage?.filter((x) => x.adequacy === "needs_more").length ?? 0;
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -27,8 +36,21 @@ export function GuildSummary({ stats }: { stats: GuildStats }) {
           {stats.skillsInProgress.length > 0 ? (
             <>
               <p className="mt-1 text-xs text-sky-200/80">
-                Not marked done —{" "}
-                <span className="text-amber-300">may need more members</span>
+                {xpNeedsMore > 0 ? (
+                  <>
+                    <span className="text-amber-300">{xpNeedsMore} may need more members</span>
+                    {xpEnough > 0 && (
+                      <span className="text-emerald-400"> · {xpEnough} XP looks enough</span>
+                    )}
+                  </>
+                ) : xpEnough > 0 ? (
+                  <span className="text-emerald-400">XP math looks sufficient for signed-up skills</span>
+                ) : (
+                  <>
+                    Not marked done —{" "}
+                    <span className="text-amber-300">may need more members</span>
+                  </>
+                )}
               </p>
               <ul className="mt-1.5 flex flex-wrap gap-1">
                 {stats.skillsInProgress.map((skill) => (

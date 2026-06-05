@@ -3,11 +3,12 @@
 import { useMemo } from "react";
 import type { Member, Skill } from "@/lib/constants";
 import type { GuildConfig } from "@/lib/guild-config";
-import { buildPreferencesMap, membersWithAnyPreference, type PreferencesMap } from "@/lib/preferences";
+import { buildProfilesMap, membersWithRankedProfiles, type ProfilesMap } from "@/lib/member-profile";
 import { buildOptimalSchedule, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import { formatXp, TRIAL_XP_FROM_SKILL_XP_RATE } from "@/lib/trial-xp";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
+import { formatTimeLabel } from "@/lib/trial-schedule";
 import { GuildTrialHallSettings } from "./GuildTrialHallSettings";
 import { SkillIcon } from "./SkillIcon";
 
@@ -39,43 +40,50 @@ function soloClass(solo: boolean | null): string {
 
 export function SuggestionsView({
   signups,
-  preferenceRows,
+  profiles,
   weekDays,
   guildConfig,
   onGuildConfigSaved,
   currentUser,
+  canUseStaffTools,
   saving,
   onApplySuggestion,
   onApplyAllUnassigned,
 }: {
   signups: TrialSignup[];
-  preferenceRows: import("@/lib/preferences").MemberPreferences[];
+  profiles: import("@/lib/member-profile").MemberProfile[];
   weekDays: string[];
   guildConfig: GuildConfig | null;
   onGuildConfigSaved: (config: GuildConfig) => void;
-  currentUser: Member | "";
+  currentUser: Member;
+  canUseStaffTools: boolean;
   saving: boolean;
   onApplySuggestion: (s: ScheduleSuggestion) => Promise<void>;
   onApplyAllUnassigned: (items: ScheduleSuggestion[]) => Promise<void>;
 }) {
-  const preferencesMap: PreferencesMap = useMemo(
-    () => buildPreferencesMap(preferenceRows),
-    [preferenceRows],
+  const profilesMap: ProfilesMap = useMemo(
+    () => buildProfilesMap(profiles),
+    [profiles],
   );
 
   const hallLevel = guildConfig?.trial_hall_level ?? 0;
 
   const plan = useMemo(
-    () => buildOptimalSchedule(preferencesMap, signups, weekDays, hallLevel),
-    [preferencesMap, signups, weekDays, hallLevel],
+    () => buildOptimalSchedule(profilesMap, signups, weekDays, hallLevel),
+    [profilesMap, signups, weekDays, hallLevel],
   );
 
-  const prefsCount = membersWithAnyPreference(preferencesMap);
+  const prefsCount = membersWithRankedProfiles(profilesMap);
   const mySuggestion = plan.suggestions.find((s) => s.member === currentUser);
 
   return (
     <div className="space-y-4">
-      <GuildTrialHallSettings config={guildConfig} onSaved={onGuildConfigSaved} />
+      <GuildTrialHallSettings
+        config={guildConfig}
+        actorMember={currentUser}
+        canEdit={canUseStaffTools}
+        onSaved={onGuildConfigSaved}
+      />
 
       <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
         <h2 className="text-lg font-semibold text-white">Smart schedule</h2>
@@ -95,7 +103,7 @@ export function SuggestionsView({
           <Stat label="Solo 24h completes" value={String(plan.stats.soloCompletesCount)} />
           <Stat label="Got 1st choice" value={String(plan.stats.gotFirstChoice)} />
         </div>
-        {plan.suggestions.length > 0 && (
+        {plan.suggestions.length > 0 && canUseStaffTools && (
           <button
             type="button"
             disabled={saving}
@@ -104,6 +112,12 @@ export function SuggestionsView({
           >
             Apply all suggestions to planner
           </button>
+        )}
+        {plan.suggestions.length > 0 && !canUseStaffTools && (
+          <p className="mt-4 text-xs text-slate-500">
+            Apply all is available to Guild Leaders and Officers. You can still apply your own row
+            below.
+          </p>
         )}
       </div>
 
@@ -198,7 +212,7 @@ export function SuggestionsView({
                 <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Member</th>
                   <th className="px-3 py-2">Skill</th>
-                  <th className="px-3 py-2">Day</th>
+                  <th className="px-3 py-2">When</th>
                 </tr>
               </thead>
               <tbody>
@@ -212,7 +226,8 @@ export function SuggestionsView({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-400">
-                      {formatDayLabel(s.planned_date, true)}
+                      {formatDayLabel(s.planned_date, true)}{" "}
+                      {s.planned_start_at ? formatTimeLabel(s.planned_start_at, true) : ""}
                     </td>
                   </tr>
                 ))}
@@ -235,8 +250,7 @@ export function SuggestionsView({
                 <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Member</th>
                   <th className="px-3 py-2">Skill</th>
-                  <th className="px-3 py-2">Day</th>
-                  <th className="px-3 py-2">Match</th>
+                  <th className="px-3 py-2">When</th>
                   <th className="px-3 py-2">Trial XP (5%)</th>
                   <th className="px-3 py-2" />
                 </tr>
@@ -257,7 +271,8 @@ export function SuggestionsView({
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-400">
-                      {formatDayLabel(s.plannedDate, true)}
+                      {formatDayLabel(s.plannedDate, true)}{" "}
+                      {formatTimeLabel(s.plannedStartAt, true)}
                     </td>
                     <td className={`px-3 py-2 text-xs ${rankClass(s.preferenceRank)}`}>
                       {rankLabel(s.preferenceRank)}

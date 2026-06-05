@@ -67,18 +67,17 @@ export function WelcomeGuideModal({
                 this browser).
               </li>
               <li>
-                Set your <strong className="text-white">top 3 preferred skills</strong> and your{" "}
-                <strong className="text-white">XP/h</strong> for each (from the skill page in-game —
-                use the XP/h link in the bar for a screenshot).
-              </li>
-              <li>
-                Click <strong className="text-white">Save prefs</strong> so smart suggestions and
-                the guild can use your data.
+                Open <strong className="text-white">My profile</strong> and set XP/h plus skill
+                priority for all 16 skills (drag rows or type ranks 1–16).
               </li>
               <li>
                 Officers: on <strong className="text-white">Smart suggestions</strong>, set the{" "}
                 <strong className="text-white">Guild Trial Hall level</strong> once (trial XP bar =
                 8,000 × (level + 1); each run adds 5% of skill XP earned in 24h).
+              </li>
+              <li>
+                Guild Leader can assign roles and edit any member&apos;s profile from{" "}
+                <strong className="text-white">Guild roster</strong>.
               </li>
             </ol>
           </section>

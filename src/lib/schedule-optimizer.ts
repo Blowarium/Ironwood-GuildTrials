@@ -1,11 +1,12 @@
 import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import {
-  getPreferenceRank,
-  getPreferenceScore,
-  getXpPerHourForPreference,
-  type MemberPreferences,
-  type PreferencesMap,
-} from "./preferences";
+  getPreferenceRankFromProfile,
+  getPreferenceScoreFromProfile,
+  getXpPerHourForSkill,
+  membersWithRankedProfiles,
+  type MemberProfile,
+  type ProfilesMap,
+} from "./member-profile";
 import {
   memberContributionForSkill,
   skillXpIn24h,
@@ -14,12 +15,14 @@ import {
   trialXpRequired,
   type SkillXpProgress,
 } from "./trial-xp";
+import { buildStartAt } from "./trial-schedule";
 import type { TrialSignup } from "./types";
 
 export interface ScheduleSuggestion {
   member: Member;
   skill: Skill;
   plannedDate: string;
+  plannedStartAt: string;
   preferenceRank: 1 | 2 | 3 | null;
   preferenceScore: number;
   xpPerHour: number | null;
@@ -63,9 +66,24 @@ function pickDay(weekDays: string[], dayLoad: Map<string, number>): string {
   return best;
 }
 
+/** Stagger start times within a day (every 2h) to reduce overlap on the timeline. */
+function pickStartAt(day: string, dayLoad: Map<string, number>): string {
+  const count = dayLoad.get(day) ?? 0;
+  const hour = Math.min(22, 6 + (count % 9) * 2);
+  return buildStartAt(day, hour, 0);
+}
+
+function topPreferenceRank(profile: MemberProfile | undefined, skill: Skill): 1 | 2 | 3 | null {
+  const rank = getPreferenceRankFromProfile(profile, skill);
+  if (rank === 1) return 1;
+  if (rank === 2) return 2;
+  if (rank === 3) return 3;
+  return null;
+}
+
 function initSkillState(
   existingSignups: TrialSignup[],
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
 ): Map<Skill, SkillState> {
   const map = new Map<Skill, SkillState>();
   for (const sk of SKILLS) map.set(sk, { contributed: 0, memberCount: 0 });
@@ -73,10 +91,7 @@ function initSkillState(
     const skill = s.skill as Skill;
     const st = map.get(skill)!;
     st.memberCount += 1;
-    st.contributed += memberContributionForSkill(
-      preferences.get(s.member_name),
-      skill,
-    );
+    st.contributed += memberContributionForSkill(profiles.get(s.member_name), skill);
   }
   return map;
 }
@@ -100,24 +115,23 @@ function buildSkillProgress(
   });
 }
 
-function memberPreferredSkills(prefs: MemberPreferences | undefined): Skill[] {
-  if (!prefs) return [];
-  const out: Skill[] = [];
-  if (prefs.pref_1) out.push(prefs.pref_1);
-  if (prefs.pref_2) out.push(prefs.pref_2);
-  if (prefs.pref_3) out.push(prefs.pref_3);
-  return out;
+function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
+  if (!profile) return [];
+  return [...profile.skills]
+    .filter((s) => s.preference_rank != null && s.preference_rank > 0)
+    .sort((a, b) => (a.preference_rank ?? 99) - (b.preference_rank ?? 99))
+    .map((s) => s.skill);
 }
 
-/** Don't pull members onto off-pref skills while a listed pref still needs coverage or XP. */
+/** Don't pull members onto off-pref skills while a ranked pref still needs coverage or XP. */
 function canAssignMemberToSkill(
   member: Member,
   skill: Skill,
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
 ): boolean {
-  const preferred = memberPreferredSkills(preferences.get(member));
+  const preferred = memberPreferredSkills(profiles.get(member));
   if (preferred.length === 0) return true;
   if (preferred.includes(skill)) return true;
 
@@ -131,14 +145,14 @@ function canAssignMemberToSkill(
 function scoreMemberForSkill(
   member: Member,
   skill: Skill,
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
   remainingXp: number,
 ): number {
-  const prefs = preferences.get(member);
-  const rank = getPreferenceRank(prefs, skill);
+  const profile = profiles.get(member);
+  const rank = topPreferenceRank(profile, skill);
   const pref =
     rank === 1 ? 1_000_000 : rank === 2 ? 500_000 : rank === 3 ? 250_000 : 0;
-  const contrib = memberContributionForSkill(prefs, skill);
+  const contrib = memberContributionForSkill(profile, skill);
   const xpFill = remainingXp > 0 ? Math.min(contrib, remainingXp) : contrib;
   return pref + xpFill;
 }
@@ -146,16 +160,16 @@ function scoreMemberForSkill(
 function pickMemberForSkill(
   pool: Member[],
   skill: Skill,
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
   remainingXp: number,
   skillState: Map<Skill, SkillState>,
   required: number,
 ): Member | null {
   const eligible = pool.filter((m) =>
-    canAssignMemberToSkill(m, skill, preferences, skillState, required),
+    canAssignMemberToSkill(m, skill, profiles, skillState, required),
   );
   const withPref = eligible.filter(
-    (m) => getPreferenceRank(preferences.get(m), skill) !== null,
+    (m) => getPreferenceRankFromProfile(profiles.get(m), skill) != null,
   );
   const candidates = withPref.length > 0 ? withPref : eligible;
   if (candidates.length === 0) return null;
@@ -163,7 +177,7 @@ function pickMemberForSkill(
   let best: Member | null = null;
   let bestScore = -1;
   for (const member of candidates) {
-    const score = scoreMemberForSkill(member, skill, preferences, remainingXp);
+    const score = scoreMemberForSkill(member, skill, profiles, remainingXp);
     if (score > bestScore || (score === bestScore && best && member.localeCompare(best) < 0)) {
       bestScore = score;
       best = member;
@@ -174,15 +188,12 @@ function pickMemberForSkill(
 
 function pickBestSkillForMember(
   member: Member,
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
 ): Skill | null {
-  const prefs = preferences.get(member);
-  const ranked: Skill[] = [];
-  if (prefs?.pref_1) ranked.push(prefs.pref_1);
-  if (prefs?.pref_2) ranked.push(prefs.pref_2);
-  if (prefs?.pref_3) ranked.push(prefs.pref_3);
+  const profile = profiles.get(member);
+  const ranked = memberPreferredSkills(profile);
 
   for (const skill of ranked) {
     const st = skillState.get(skill)!;
@@ -192,15 +203,15 @@ function pickBestSkillForMember(
   let bestSkill: Skill | null = null;
   let bestScore = -Infinity;
   for (const skill of SKILLS) {
-    if (!canAssignMemberToSkill(member, skill, preferences, skillState, required)) continue;
+    if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) continue;
     const st = skillState.get(skill)!;
     const remaining = Math.max(0, required - st.contributed);
     const needMembers = st.memberCount === 0 ? 50_000 : 0;
     const score =
       needMembers +
       remaining * 2 +
-      getPreferenceScore(prefs, skill) * 10_000 +
-      memberContributionForSkill(prefs, skill);
+      getPreferenceScoreFromProfile(profile, skill) * 10_000 +
+      memberContributionForSkill(profile, skill);
     if (score > bestScore) {
       bestScore = score;
       bestSkill = skill;
@@ -214,17 +225,19 @@ function pushSuggestion(
   member: Member,
   skill: Skill,
   plannedDate: string,
-  preferences: PreferencesMap,
+  plannedStartAt: string,
+  profiles: ProfilesMap,
   required: number,
 ): void {
-  const prefs = preferences.get(member);
-  const xpPerHour = getXpPerHourForPreference(prefs, skill);
+  const profile = profiles.get(member);
+  const xpPerHour = getXpPerHourForSkill(profile, skill);
   suggestions.push({
     member,
     skill,
     plannedDate,
-    preferenceRank: getPreferenceRank(prefs, skill),
-    preferenceScore: getPreferenceScore(prefs, skill),
+    plannedStartAt,
+    preferenceRank: topPreferenceRank(profile, skill),
+    preferenceScore: getPreferenceScoreFromProfile(profile, skill),
     xpPerHour,
     skillXp24h: skillXpIn24h(xpPerHour),
     trialXpContribution: computeTrialXpContribution(xpPerHour),
@@ -236,15 +249,15 @@ function applyAssignment(
   member: Member,
   skill: Skill,
   skillState: Map<Skill, SkillState>,
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
 ): void {
   const st = skillState.get(skill)!;
   st.memberCount += 1;
-  st.contributed += memberContributionForSkill(preferences.get(member), skill);
+  st.contributed += memberContributionForSkill(profiles.get(member), skill);
 }
 
 export function buildOptimalSchedule(
-  preferences: PreferencesMap,
+  profiles: ProfilesMap,
   existingSignups: TrialSignup[],
   weekDays: string[],
   hallLevel: number,
@@ -252,7 +265,7 @@ export function buildOptimalSchedule(
   const required = trialXpRequired(hallLevel);
   const alreadyScheduled = [...existingSignups];
   const scheduledMembers = new Set(existingSignups.map((s) => s.member_name));
-  const skillState = initSkillState(existingSignups, preferences);
+  const skillState = initSkillState(existingSignups, profiles);
 
   const dayLoad = new Map<string, number>();
   for (const d of weekDays) dayLoad.set(d, 0);
@@ -265,8 +278,9 @@ export function buildOptimalSchedule(
 
   function assign(member: Member, skill: Skill) {
     const plannedDate = pickDay(weekDays, dayLoad);
-    pushSuggestion(suggestions, member, skill, plannedDate, preferences, required);
-    applyAssignment(member, skill, skillState, preferences);
+    const plannedStartAt = pickStartAt(plannedDate, dayLoad);
+    pushSuggestion(suggestions, member, skill, plannedDate, plannedStartAt, profiles, required);
+    applyAssignment(member, skill, skillState, profiles);
     pool = pool.filter((m) => m !== member);
   }
 
@@ -280,11 +294,10 @@ export function buildOptimalSchedule(
 
   // Phase 0: seat members on their top preferences when those skills still need help
   for (const member of [...pool]) {
-    const skill = pickBestSkillForMember(member, preferences, skillState, required);
+    const skill = pickBestSkillForMember(member, profiles, skillState, required);
     if (!skill) continue;
-    const prefs = preferences.get(member);
-    const isListedPref =
-      skill === prefs?.pref_1 || skill === prefs?.pref_2 || skill === prefs?.pref_3;
+    const ranked = memberPreferredSkills(profiles.get(member));
+    const isListedPref = ranked.slice(0, 3).includes(skill);
     const st = skillState.get(skill)!;
     const skillNeedsHelp = st.memberCount === 0 || st.contributed < required;
     if (isListedPref && skillNeedsHelp) assign(member, skill);
@@ -296,7 +309,7 @@ export function buildOptimalSchedule(
     const member = pickMemberForSkill(
       pool,
       skill,
-      preferences,
+      profiles,
       required,
       skillState,
       required,
@@ -317,7 +330,7 @@ export function buildOptimalSchedule(
     const member = pickMemberForSkill(
       pool,
       skill,
-      preferences,
+      profiles,
       remaining,
       skillState,
       required,
@@ -328,15 +341,11 @@ export function buildOptimalSchedule(
 
   // Phase 3: remaining members
   for (const member of [...pool]) {
-    const skill = pickBestSkillForMember(member, preferences, skillState, required);
+    const skill = pickBestSkillForMember(member, profiles, skillState, required);
     if (skill) assign(member, skill);
   }
 
-  let membersWithPreferences = 0;
-  for (const m of MEMBERS) {
-    const p = preferences.get(m);
-    if (p?.pref_1 || p?.pref_2 || p?.pref_3) membersWithPreferences++;
-  }
+  const membersWithPreferences = membersWithRankedProfiles(profiles);
 
   const skillProgress = buildSkillProgress(skillState, required);
   const skillsCoveredAfterPlan = skillProgress.filter((s) => s.memberCount > 0).length;

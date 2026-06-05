@@ -16,8 +16,8 @@ export const metadata: Metadata = {
   title: "Ironwood Guild Trials",
   description: "Coordinate weekly Guild Trials signups for Ironwood RPG",
   icons: {
-    icon: "/icons/game-icon.png",
-    apple: "/icons/game-icon.png",
+    icon: "/icons/alliance-logo.png",
+    apple: "/icons/alliance-logo.png",
   },
 };
 
