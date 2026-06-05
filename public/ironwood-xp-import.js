@@ -250,7 +250,59 @@
     walkGroups(skillData.actionGroups);
 
     if (bestId == null) return null;
-    return "/skill/" + skillId + "/action/" + bestId;
+    var data = cmp.ACTION_DATA[bestId];
+    return {
+      path: "/skill/" + skillId + "/action/" + bestId,
+      actionId: bestId,
+      name: (data && data.name) || "Action " + bestId,
+      level: (data && data.level) || null,
+      method: "component",
+    };
+  }
+
+  function readActionNameFromRow(row) {
+    if (!row) return "";
+    var nameEl = row.querySelector(".text, .name");
+    return nameEl ? nameEl.textContent.replace(/\s+/g, " ").trim() : "";
+  }
+
+  function actionInfoFromPath(path, row, method) {
+    var match = path.match(/\/action\/(\d+)/i);
+    var actionId = match ? Number(match[1]) : 0;
+    var cmp = findActionsComponentInstance();
+    var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
+    return {
+      path: path,
+      actionId: actionId,
+      name: (data && data.name) || readActionNameFromRow(row) || "Action " + actionId,
+      level: (data && data.level) || (row ? parseActionLevel(row) : null),
+      method: method,
+    };
+  }
+
+  function readCurrentActionInfo(fallback) {
+    var path = location.pathname;
+    var match = path.match(/\/action\/(\d+)/i);
+    var actionId = match ? Number(match[1]) : fallback && fallback.actionId;
+    var cmp = findActionsComponentInstance();
+    var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
+
+    var active = document.querySelector(
+      "actions-component button.row.active-link, actions-component a.row.active-link",
+    );
+    var name =
+      (data && data.name) ||
+      readActionNameFromRow(active) ||
+      (fallback && fallback.name) ||
+      (actionId ? "Action " + actionId : "Unknown action");
+
+    return {
+      actionId: actionId || (fallback && fallback.actionId) || 0,
+      name: name,
+      level: (data && data.level) || (active ? parseActionLevel(active) : null) || (fallback && fallback.level),
+      url: location.origin + path,
+      method: (fallback && fallback.method) || "dom",
+    };
   }
 
   function isActionRow(el) {
@@ -345,19 +397,21 @@
     await ensureActionsExpanded(root);
 
     var bestPath = null;
+    var bestRow = null;
     var bestScoreVal = -1;
     var maxLevel = readEffectiveSkillLevel();
 
     function consider() {
       var rows = actionRowCandidates(root);
-      var bestRow = pickBestRow(rows, maxLevel);
-      if (!bestRow) bestRow = pickBestRow(unlockedActionRows(root), maxLevel);
-      if (!bestRow) return;
-      var score = actionScore(parseActionLevel(bestRow), parseActionId(bestRow));
-      var path = readRouterLink(bestRow);
+      var row = pickBestRow(rows, maxLevel);
+      if (!row) row = pickBestRow(unlockedActionRows(root), maxLevel);
+      if (!row) return;
+      var score = actionScore(parseActionLevel(row), parseActionId(row));
+      var path = readRouterLink(row);
       if (path && score > bestScoreVal) {
         bestScoreVal = score;
         bestPath = path;
+        bestRow = row;
       }
     }
 
@@ -368,7 +422,8 @@
     if (!tierFilters.length) {
       await exploreSubFilterContainers(root, consider);
       consider();
-      return bestPath;
+      if (!bestPath) return null;
+      return actionInfoFromPath(bestPath, bestRow, "dom");
     }
 
     for (var t = 0; t < tierFilters.length; t++) {
@@ -377,10 +432,11 @@
       consider();
     }
 
-    return bestPath;
+    if (!bestPath) return null;
+    return actionInfoFromPath(bestPath, bestRow, "dom");
   }
 
-  async function resolveBestActionPath(root) {
+  async function resolveBestAction(root) {
     var fromComponent = resolveBestActionPathFromComponent(root);
     if (fromComponent) return fromComponent;
     return findBestUnlockedActionPathFromDom(root);
@@ -391,9 +447,10 @@
       return actionsComponentRoot();
     }, 12000);
 
-    var bestPath = await resolveBestActionPath(root);
-    if (!bestPath) return false;
+    var resolved = await resolveBestAction(root);
+    if (!resolved || !resolved.path) return null;
 
+    var bestPath = resolved.path;
     if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
     location.assign(bestPath);
 
@@ -401,7 +458,7 @@
       return location.pathname.indexOf("/action/") >= 0;
     }, 12000);
     await sleep(700);
-    return true;
+    return readCurrentActionInfo(resolved);
   }
 
   function toBase64Url(obj) {
@@ -428,6 +485,7 @@
 
     var results = {};
     var errors = {};
+    var actionSources = {};
 
     for (var i = 0; i < targets.length; i++) {
       var target = targets[i];
@@ -439,14 +497,15 @@
       target.btn.click();
       await sleep(1000);
 
+      var actionInfo = null;
       try {
-        await openBestUnlockedAction();
+        actionInfo = await openBestUnlockedAction();
       } catch (e) {
         errors[target.skill] = "Could not open the highest unlocked action for this skill.";
         continue;
       }
 
-      if (!location.pathname.includes("/action/")) {
+      if (!actionInfo || !location.pathname.includes("/action/")) {
         errors[target.skill] = "Could not navigate to an action page for this skill.";
         continue;
       }
@@ -464,6 +523,19 @@
 
       if (xp != null) {
         results[target.skill] = xp;
+        actionSources[target.skill] = {
+          actionId: actionInfo.actionId,
+          name: actionInfo.name,
+          level: actionInfo.level,
+          url: actionInfo.url,
+          method: actionInfo.method,
+          xpPerHour: xp,
+        };
+        setStatus(
+          "Importing " + (i + 1) + " / " + targets.length + ": " + target.displayName,
+          actionInfo.name + (actionInfo.level ? " (Lv. " + actionInfo.level + ")" : "") +
+            " → " + xp.toLocaleString() + " XP/h",
+        );
       } else if (!errors[target.skill]) {
         errors[target.skill] = "No XP/h estimate found (check Stats → Estimates).";
       }
@@ -473,6 +545,7 @@
       v: 1,
       importedAt: new Date().toISOString(),
       skills: results,
+      actionSources: actionSources,
     };
     if (Object.keys(errors).length) payload.errors = errors;
 

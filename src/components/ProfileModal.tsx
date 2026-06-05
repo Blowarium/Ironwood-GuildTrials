@@ -15,6 +15,7 @@ import type { RolesMap } from "@/lib/roles";
 import { SkillIcon } from "./SkillIcon";
 import { LastEditedNote } from "./LastEditedNote";
 import { IronwoodXpImportGuide } from "./IronwoodXpImportGuide";
+import { IronwoodXpImportReport } from "./IronwoodXpImportReport";
 import {
   applyXpImportToRows,
   type IronwoodXpImportPayload,
@@ -58,6 +59,9 @@ export function ProfileModal({
   const [message, setMessage] = useState<string | null>(null);
   const [dragSkill, setDragSkill] = useState<Skill | null>(null);
   const [showImportGuide, setShowImportGuide] = useState(false);
+  const [lastImportReport, setLastImportReport] = useState<IronwoodXpImportPayload | null>(
+    null,
+  );
   const skipProfileResetRef = useRef(false);
 
   const canEdit = canEditProfileFor(currentUser, targetMember, rolesMap, staffUnlocked);
@@ -75,6 +79,7 @@ export function ProfileModal({
     setError(null);
     setMessage(null);
     setShowImportGuide(false);
+    setLastImportReport(null);
   }, [open, initialProfile, targetMember]);
 
   useEffect(() => {
@@ -93,6 +98,7 @@ export function ProfileModal({
         : `Imported XP/h for ${count} skills from Ironwood. Review and save.`,
     );
     setShowImportGuide(true);
+    setLastImportReport(pendingXpImport);
     onXpImportApplied();
   }, [open, pendingXpImport, initialProfile, targetMember, onXpImportApplied]);
 
@@ -205,6 +211,11 @@ export function ProfileModal({
                     : ""
                 }
               />
+            </div>
+          )}
+          {lastImportReport && (
+            <div className="mt-2">
+              <IronwoodXpImportReport payload={lastImportReport} />
             </div>
           )}
         </div>

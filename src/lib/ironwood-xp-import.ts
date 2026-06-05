@@ -29,11 +29,22 @@ export const IRONWOOD_SKILL_NAME_MAP: Record<string, Skill> = {
 
 export const GUILD_TRIAL_SKILLS = SKILLS;
 
+export type IronwoodXpImportActionSource = {
+  actionId: number;
+  name: string;
+  level?: number | null;
+  url: string;
+  method?: "component" | "dom";
+  xpPerHour?: number;
+};
+
 export type IronwoodXpImportPayload = {
   v: 1;
   importedAt: string;
   skills: Partial<Record<Skill, number>>;
   errors?: Partial<Record<Skill, string>>;
+  /** Debug: which Ironwood action was used per skill. */
+  actionSources?: Partial<Record<Skill, IronwoodXpImportActionSource>>;
 };
 
 export function mapIronwoodSkillName(name: string): Skill | null {
