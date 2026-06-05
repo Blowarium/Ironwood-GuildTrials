@@ -10,6 +10,7 @@ import {
   formatTimeLabel,
   getEffectiveStatus,
   heightPercentInStartDay,
+  normalizeSignupTiming,
   startPercentInDay,
 } from "@/lib/trial-schedule";
 import { SkillIcon } from "./SkillIcon";
@@ -23,15 +24,16 @@ import type { CellTarget } from "./CellAssignmentModal";
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const BAR_HEIGHT = 128;
 
-function clickToTarget(
+function slotTargetFromEvent(
   skill: Skill,
   day: string,
-  e: React.MouseEvent<HTMLDivElement>,
+  el: HTMLDivElement,
+  clientY: number,
 ): CellTarget {
-  const rect = e.currentTarget.getBoundingClientRect();
-  const fraction = (e.clientY - rect.top) / rect.height;
-  const clamped = Math.max(0, Math.min(0.98, fraction));
-  return { skill, plannedDate: day, dayFraction: clamped };
+  const rect = el.getBoundingClientRect();
+  const fraction =
+    rect.height > 0 ? Math.max(0, Math.min(0.98, (clientY - rect.top) / rect.height)) : 0;
+  return { skill, plannedDate: day, dayFraction: fraction };
 }
 
 export function WeeklyTimeline({
@@ -69,8 +71,8 @@ export function WeeklyTimeline({
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36]">
       <p className="border-b border-slate-700/50 px-3 py-2 text-[10px] text-slate-500">
-        Each column is one day (24h). Click a time slot to assign · trials auto-update to Active /
-        Completed
+        Each column is one day (24h). Click to assign · drag trials to move skill, day, or time ·
+        trials auto-update to Active / Completed
       </p>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] border-collapse text-sm">
@@ -145,11 +147,15 @@ export function WeeklyTimeline({
                           onDragOver={(e) => e.preventDefault()}
                           onDrop={(e) => {
                             e.preventDefault();
-                            onDrop(clickToTarget(skill, day, e));
+                            onDrop(
+                              slotTargetFromEvent(skill, day, e.currentTarget, e.clientY),
+                            );
                           }}
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest("[data-trial-block]")) return;
-                            onSlotClick(clickToTarget(skill, day, e));
+                            onSlotClick(
+                              slotTargetFromEvent(skill, day, e.currentTarget, e.clientY),
+                            );
                           }}
                           className={`relative w-full cursor-crosshair rounded-md border bg-gradient-to-b from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 ${
                             dimmed ? "opacity-60" : ""
@@ -167,9 +173,13 @@ export function WeeklyTimeline({
                             />
                           ))}
                           {inDay.map((signup) => {
-                            const top = startPercentInDay(signup.planned_start_at);
-                            const height = heightPercentInStartDay(signup.planned_start_at);
-                            const effective = getEffectiveStatus(signup);
+                            const startAt = normalizeSignupTiming(signup).planned_start_at;
+                            const top = startPercentInDay(startAt);
+                            const height = heightPercentInStartDay(startAt);
+                            const effective = getEffectiveStatus({
+                              ...signup,
+                              planned_start_at: startAt,
+                            });
                             const draggable = canDragSignup(signup);
                             return (
                               <button
@@ -198,13 +208,13 @@ export function WeeklyTimeline({
                                     ? "border-sky-400/60 bg-sky-900/70"
                                     : "border-orange-500/40 bg-orange-950/50 hover:bg-orange-950/70"
                                 }`}
-                                title={`${signup.member_name} · ${formatTimeLabel(signup.planned_start_at)}`}
+                                title={`${signup.member_name} · ${formatTimeLabel(startAt)}`}
                               >
                                 <span className="block truncate text-[9px] font-semibold text-white">
                                   {signup.member_name}
                                 </span>
                                 <span className="block text-[8px] text-slate-300">
-                                  {formatTimeLabel(signup.planned_start_at, true)}
+                                  {formatTimeLabel(startAt, true)}
                                 </span>
                                 <StatusBadge status={effective} small />
                               </button>

@@ -7,12 +7,19 @@ export const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 /** Default trial start: 08:00 local on the chosen day. */
 export function defaultStartAtForDate(dateIso: string): string {
   const d = parseISODate(dateIso);
+  if (Number.isNaN(d.getTime())) {
+    const fallback = parseISODate(new Date().toISOString().slice(0, 10));
+    fallback.setHours(8, 0, 0, 0);
+    return fallback.toISOString();
+  }
   d.setHours(8, 0, 0, 0);
   return d.toISOString();
 }
 
 export function buildStartAt(dateIso: string, hours: number, minutes: number): string {
+  if (!dateIso) return defaultStartAtForDate(new Date().toISOString().slice(0, 10));
   const d = parseISODate(dateIso);
+  if (Number.isNaN(d.getTime())) return defaultStartAtForDate(dateIso);
   d.setHours(hours, minutes, 0, 0);
   return d.toISOString();
 }

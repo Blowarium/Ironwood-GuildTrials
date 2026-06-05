@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ALREADY_ASSIGNED_MSG,
   MEMBERS,
@@ -29,8 +29,22 @@ export interface CellTarget {
   plannedStartAt?: string;
 }
 
-export function CellAssignmentModal({
-  open,
+function initialTimeValue(
+  target: CellTarget,
+  editingSignup: TrialSignup | null,
+): string {
+  if (editingSignup) return timeInputValue(editingSignup.planned_start_at);
+  if (target.plannedStartAt) return timeInputValue(target.plannedStartAt);
+  if (target.dayFraction != null) {
+    const totalMin = Math.floor(target.dayFraction * 24 * 60);
+    const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
+    const m = String(totalMin % 60).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+  return "08:00";
+}
+
+function CellAssignmentForm({
   target,
   signups,
   currentUser,
@@ -42,8 +56,7 @@ export function CellAssignmentModal({
   onDelete,
   saving,
 }: {
-  open: boolean;
-  target: CellTarget | null;
+  target: CellTarget;
   signups: TrialSignup[];
   currentUser: Member | "";
   editingSignup: TrialSignup | null;
@@ -59,37 +72,17 @@ export function CellAssignmentModal({
   onDelete: (signup: TrialSignup) => Promise<string | null>;
   saving: boolean;
 }) {
-  const [skill, setSkill] = useState<Skill>("Farming");
-  const [member, setMember] = useState<Member | "">("");
-  const [plannedDate, setPlannedDate] = useState("");
-  const [timeValue, setTimeValue] = useState("08:00");
-
-  useEffect(() => {
-    if (!open || !target) return;
-    setSkill(target.skill);
-    setPlannedDate(target.plannedDate);
-    if (editingSignup) {
-      setMember(editingSignup.member_name);
-      setPlannedDate(editingSignup.planned_date);
-      setTimeValue(timeInputValue(editingSignup.planned_start_at));
-    } else {
-      setMember(currentUser || "");
-      if (target.plannedStartAt) {
-        setTimeValue(timeInputValue(target.plannedStartAt));
-      } else if (target.dayFraction != null) {
-        const totalMin = Math.floor(target.dayFraction * 24 * 60);
-        const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
-        const m = String(totalMin % 60).padStart(2, "0");
-        setTimeValue(`${h}:${m}`);
-      } else {
-        setTimeValue("08:00");
-      }
-    }
-  }, [open, target, editingSignup, currentUser]);
-
-  if (!open || !target) return null;
+  const [skill, setSkill] = useState<Skill>(target.skill);
+  const [member, setMember] = useState<Member | "">(
+    editingSignup?.member_name ?? currentUser ?? "",
+  );
+  const [plannedDate, setPlannedDate] = useState(
+    editingSignup?.planned_date ?? target.plannedDate,
+  );
+  const [timeValue, setTimeValue] = useState(() => initialTimeValue(target, editingSignup));
 
   const plannedStartAt = applyTimeToDate(plannedDate, timeValue);
+
   const previewStatus = getEffectiveStatus({
     id: 0,
     week_start: "",
@@ -276,5 +269,56 @@ export function CellAssignmentModal({
         </div>
       </div>
     </div>
+  );
+}
+
+export function CellAssignmentModal({
+  open,
+  target,
+  signups,
+  currentUser,
+  editingSignup,
+  canEditSignup,
+  canAssignOthers,
+  onClose,
+  onSave,
+  onDelete,
+  saving,
+}: {
+  open: boolean;
+  target: CellTarget | null;
+  signups: TrialSignup[];
+  currentUser: Member | "";
+  editingSignup: TrialSignup | null;
+  canEditSignup: (member: Member) => boolean;
+  canAssignOthers: boolean;
+  onClose: () => void;
+  onSave: (
+    member: Member,
+    skill: Skill,
+    plannedDate: string,
+    plannedStartAt: string,
+  ) => Promise<string | null>;
+  onDelete: (signup: TrialSignup) => Promise<string | null>;
+  saving: boolean;
+}) {
+  if (!open || !target) return null;
+
+  const formKey = `${target.skill}|${target.plannedDate}|${target.dayFraction ?? ""}|${editingSignup?.id ?? "new"}`;
+
+  return (
+    <CellAssignmentForm
+      key={formKey}
+      target={target}
+      signups={signups}
+      currentUser={currentUser}
+      editingSignup={editingSignup}
+      canEditSignup={canEditSignup}
+      canAssignOthers={canAssignOthers}
+      onClose={onClose}
+      onSave={onSave}
+      onDelete={onDelete}
+      saving={saving}
+    />
   );
 }

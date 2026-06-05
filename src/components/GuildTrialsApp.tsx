@@ -31,7 +31,7 @@ import { hasLocalStaffAuth } from "@/lib/staff-auth-client";
 import type { ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
-import { syncSignups } from "@/lib/trial-schedule";
+import { syncSignups, buildStartAtFromDayFraction } from "@/lib/trial-schedule";
 import { computeGuildStats } from "@/lib/stats";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
@@ -42,7 +42,6 @@ import {
   TRIAL_WINDOW_NOTE,
 } from "@/lib/weeks";
 import { CellAssignmentModal, type CellTarget } from "./CellAssignmentModal";
-import { DayDragBoard } from "./DayDragBoard";
 import { GameIcon } from "./GameIcon";
 import { GuildSummary } from "./GuildSummary";
 import { MemberRosterView } from "./MemberRosterView";
@@ -56,7 +55,7 @@ import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
 
-type ViewTab = "planner" | "board" | "members" | "suggestions" | "roster";
+type ViewTab = "planner" | "members" | "suggestions" | "roster";
 
 export function GuildTrialsApp() {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -111,15 +110,6 @@ export function GuildTrialsApp() {
     () => computeSkillXpCoverage(signups, profilesMap, hallLevel),
     [signups, profilesMap, hallLevel],
   );
-
-  const signupsByDay = useMemo(() => {
-    const map = new Map<string, TrialSignup[]>();
-    for (const d of weekDays) map.set(d, []);
-    for (const s of signups) {
-      map.get(s.planned_date)?.push(s);
-    }
-    return map;
-  }, [signups, weekDays]);
 
   useEffect(() => {
     const saved = localStorage.getItem(MEMBER_STORAGE_KEY);
@@ -297,10 +287,7 @@ export function GuildTrialsApp() {
     const startAt =
       target.plannedStartAt ??
       (target.dayFraction != null
-        ? new Date(
-            new Date(`${target.plannedDate}T00:00:00`).getTime() +
-              target.dayFraction * 24 * 60 * 60 * 1000,
-          ).toISOString()
+        ? buildStartAtFromDayFraction(target.plannedDate, target.dayFraction)
         : signup.planned_start_at);
     if (
       signup.skill === target.skill &&
@@ -310,15 +297,6 @@ export function GuildTrialsApp() {
       return;
     }
     await assignToCell(signup.member_name, target.skill, target.plannedDate, startAt);
-  }
-
-  async function handleDropOnDay(day: string, signup: TrialSignup) {
-    if (!currentUser || !canDragSignup(currentUser, signup.member_name, rolesMap, staffUnlocked)) return;
-    if (signup.planned_date === day) return;
-    const d = new Date(signup.planned_start_at);
-    const timePart = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    const newStart = new Date(`${day}T${timePart}:00`).toISOString();
-    await assignToCell(signup.member_name, signup.skill as Skill, day, newStart);
   }
 
   async function handleToggleSkillComplete(skill: Skill, completed: boolean) {
@@ -401,7 +379,6 @@ export function GuildTrialsApp() {
 
   const tabItems: [ViewTab, string][] = [
     ["planner", "Weekly planner"],
-    ["board", "Drag & drop"],
     ["members", "Members"],
     ["suggestions", "Smart suggestions"],
   ];
@@ -560,7 +537,7 @@ export function GuildTrialsApp() {
               {view === "planner" && (
                 <>
                   <p className="mb-2 text-xs text-slate-500">
-                    Click a time slot on a skill row to schedule · drag trials to move · status
+                    Click a time slot to schedule · drag trials to another skill/day/time · status
                     updates automatically
                   </p>
                   <WeeklyTimeline
@@ -579,23 +556,6 @@ export function GuildTrialsApp() {
                       canDragSignup(currentUser, s.member_name, rolesMap, staffUnlocked)
                     }
                     canOpenSignup={(s) => canEditSignup(s.member_name)}
-                  />
-                </>
-              )}
-              {view === "board" && (
-                <>
-                  <p className="mb-2 text-xs text-slate-500">
-                    Drag your trial between days (staff can drag any member)
-                  </p>
-                  <DayDragBoard
-                    weekDays={weekDays}
-                    signupsByDay={signupsByDay}
-                    currentUser={currentUser}
-                    canDragSignup={(s) =>
-                      canDragSignup(currentUser, s.member_name, rolesMap, staffUnlocked)
-                    }
-                    onDropOnDay={handleDropOnDay}
-                    onCardClick={(target, signup) => openSignup(signup)}
                   />
                 </>
               )}
