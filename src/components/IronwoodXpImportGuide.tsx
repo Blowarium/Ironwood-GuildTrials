@@ -5,9 +5,8 @@ import {
   TAMPERMONKEY_HOME_URL,
   buildIronwoodImportLaunchUrl,
   buildIronwoodXpImportConsoleSnippet,
-  buildTampermonkeyInstallUrl,
+  buildUserscriptInstallUrl,
   isXpImportHelperInstalled,
-  markXpImportHelperInstalled,
 } from "@/lib/ironwood-xp-import";
 
 export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
@@ -24,8 +23,8 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
     setHelperReady(isXpImportHelperInstalled());
   }, []);
 
-  const tampermonkeyInstallUrl = useMemo(
-    () => (appOrigin ? buildTampermonkeyInstallUrl(appOrigin) : ""),
+  const userscriptInstallUrl = useMemo(
+    () => (appOrigin ? buildUserscriptInstallUrl(appOrigin) : ""),
     [appOrigin],
   );
 
@@ -40,13 +39,6 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
     window.open(buildIronwoodImportLaunchUrl(returnUrl), "_blank", "noopener,noreferrer");
     window.setTimeout(() => setImporting(false), 3000);
   }, [returnUrl]);
-
-  function installHelper() {
-    if (!tampermonkeyInstallUrl) return;
-    window.open(tampermonkeyInstallUrl, "_blank", "noopener,noreferrer");
-    markXpImportHelperInstalled();
-    setHelperReady(true);
-  }
 
   async function copySnippet() {
     try {
@@ -86,18 +78,24 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
               for your browser (Chrome, Edge, or Firefox).
             </li>
             <li>
-              Click below — Tampermonkey opens an install prompt. Confirm once with{" "}
-              <strong className="text-slate-300">Install</strong>.
+              Click below — Tampermonkey should pop up its own install dialog. Click{" "}
+              <strong className="text-slate-300">Install</strong> there (not in the browser
+              tab).
             </li>
           </ol>
-          <button
-            type="button"
-            onClick={installHelper}
-            disabled={!tampermonkeyInstallUrl}
-            className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-500 disabled:opacity-50"
+          <a
+            href={userscriptInstallUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-500 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            aria-disabled={!userscriptInstallUrl}
           >
             Add import helper to Tampermonkey
-          </button>
+          </a>
+          <p className="text-[11px] text-slate-500">
+            If you only see a page of code, Tampermonkey is not installed or not enabled on this
+            site.
+          </p>
         </div>
       ) : (
         <p className="mt-2 text-xs text-emerald-400/90">
@@ -115,13 +113,14 @@ export function IronwoodXpImportGuide({ returnUrl }: { returnUrl: string }) {
           {importing ? "Opening Ironwood…" : "Import XP/h now"}
         </button>
         {helperReady && (
-          <button
-            type="button"
-            onClick={installHelper}
+          <a
+            href={userscriptInstallUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:border-slate-500"
           >
             Reinstall helper
-          </button>
+          </a>
         )}
       </div>
 

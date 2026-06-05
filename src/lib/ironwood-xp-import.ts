@@ -6,8 +6,6 @@ export const XP_IMPORT_SCRIPT_PATH = "/ironwood-xp-import.js";
 export const XP_IMPORT_USERSCRIPT_PATH = "/ironwood-xp-import.user.js";
 export const XP_IMPORT_HELPER_STORAGE_KEY = "igt-xp-import-helper-installed";
 export const TAMPERMONKEY_HOME_URL = "https://www.tampermonkey.net/";
-export const TAMPERMONKEY_INSTALL_URL =
-  "https://www.tampermonkey.net/script_installation.php";
 
 /** Ironwood sidebar display name → guild trials skill. */
 export const IRONWOOD_SKILL_NAME_MAP: Record<string, Skill> = {
@@ -80,9 +78,14 @@ export function buildIronwoodXpImportConsoleSnippet(
   return `(function(){var s=document.createElement('script');s.src='${src}';document.body.appendChild(s);})();`;
 }
 
+/** Direct .user.js URL — Tampermonkey intercepts this and shows its install dialog. */
+export function buildUserscriptInstallUrl(appOrigin: string): string {
+  return `${appOrigin.replace(/\/$/, "")}${XP_IMPORT_USERSCRIPT_PATH}`;
+}
+
+/** @deprecated Use buildUserscriptInstallUrl — script_installation.php often shows a dead-end page. */
 export function buildTampermonkeyInstallUrl(appOrigin: string): string {
-  const source = `${appOrigin.replace(/\/$/, "")}${XP_IMPORT_USERSCRIPT_PATH}`;
-  return `${TAMPERMONKEY_INSTALL_URL}?source=${encodeURIComponent(source)}`;
+  return buildUserscriptInstallUrl(appOrigin);
 }
 
 export function buildIronwoodImportLaunchUrl(returnUrl: string): string {
