@@ -66,6 +66,13 @@ export const STATUS_STYLES: Record<TrialStatus, string> = {
   completed: "bg-emerald-600/30 text-emerald-200 ring-1 ring-emerald-500/40",
 };
 
+/** Weekly planner trial block colors by effective status. */
+export const TRIAL_BLOCK_STYLES: Record<TrialStatus, string> = {
+  planned: "border-slate-600/60 bg-slate-800/90 hover:bg-slate-700/90",
+  active: "border-sky-400/60 bg-sky-900/85 hover:bg-sky-900",
+  completed: "border-emerald-500/50 bg-emerald-900/75 hover:bg-emerald-900/85",
+};
+
 export const SKILL_COLORS: Record<Skill, string> = {
   Woodcutting: "#4ade80",
   Mining: "#a78bfa",

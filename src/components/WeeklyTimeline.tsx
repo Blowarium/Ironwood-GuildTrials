@@ -1,6 +1,6 @@
 "use client";
 
-import { SKILLS, type Member, type Skill } from "@/lib/constants";
+import { SKILLS, TRIAL_BLOCK_STYLES, type Member, type Skill } from "@/lib/constants";
 import {
   adequacyClass,
   adequacyLabel,
@@ -235,10 +235,7 @@ export function WeeklyTimeline({
                           planned_start_at: plannedStartAt,
                         });
                         const draggable = canDragSignup(signup);
-                        const isMine = signup.member_name === currentUser;
-                        const blockClass = isMine
-                          ? "border-sky-400/60 bg-sky-900/80"
-                          : "border-orange-500/40 bg-orange-950/60 hover:bg-orange-950/80";
+                        const blockClass = TRIAL_BLOCK_STYLES[effective];
 
                         return (
                           <button
