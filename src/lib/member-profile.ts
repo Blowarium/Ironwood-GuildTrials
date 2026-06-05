@@ -30,12 +30,38 @@ export interface MemberRosterEntry {
 
 export type ProfilesMap = Map<Member, MemberProfile>;
 
+/** Default rank follows SKILLS order (Woodcutting = 1 … Defense = 16). */
+export function defaultPreferenceRank(skill: Skill): number {
+  const index = SKILLS.indexOf(skill);
+  return index >= 0 ? index + 1 : 1;
+}
+
+/** Lower rank number = higher priority; ties keep SKILLS list order. */
+export function compareSkillsByPreferenceRank(
+  a: { skill: Skill; preference_rank: number | null },
+  b: { skill: Skill; preference_rank: number | null },
+): number {
+  const ar = a.preference_rank ?? 999;
+  const br = b.preference_rank ?? 999;
+  if (ar !== br) return ar - br;
+  return SKILLS.indexOf(a.skill) - SKILLS.indexOf(b.skill);
+}
+
 export function emptySkillRows(): MemberSkillProfileRow[] {
   return SKILLS.map((skill) => ({
     skill,
     xp_per_hour: null,
-    preference_rank: null,
+    preference_rank: defaultPreferenceRank(skill),
     ironwood_action_id: null,
+  }));
+}
+
+function applyDefaultRanksIfEmpty(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
+  const hasRank = rows.some((s) => s.preference_rank != null && s.preference_rank > 0);
+  if (hasRank) return rows;
+  return rows.map((row) => ({
+    ...row,
+    preference_rank: defaultPreferenceRank(row.skill),
   }));
 }
 
@@ -60,22 +86,24 @@ export function normalizeProfile(profile: MemberProfile): MemberProfile {
   const bySkill = new Map(profile.skills.map((s) => [s.skill, s]));
   return {
     ...profile,
-    skills: SKILLS.map((skill) => {
-      const existing = bySkill.get(skill);
-      return {
-        skill,
-        xp_per_hour: existing?.xp_per_hour ?? null,
-        preference_rank: existing?.preference_rank ?? null,
-        ironwood_action_id: existing?.ironwood_action_id ?? null,
-      };
-    }),
+    skills: applyDefaultRanksIfEmpty(
+      SKILLS.map((skill) => {
+        const existing = bySkill.get(skill);
+        return {
+          skill,
+          xp_per_hour: existing?.xp_per_hour ?? null,
+          preference_rank: existing?.preference_rank ?? null,
+          ironwood_action_id: existing?.ironwood_action_id ?? null,
+        };
+      }),
+    ),
   };
 }
 
 export function profileToLegacyPreferences(profile: MemberProfile): MemberPreferences {
   const ranked = [...profile.skills]
     .filter((s) => s.preference_rank != null && s.preference_rank > 0)
-    .sort((a, b) => (a.preference_rank ?? 99) - (b.preference_rank ?? 99));
+    .sort(compareSkillsByPreferenceRank);
 
   return {
     member_name: profile.member_name,
@@ -159,7 +187,6 @@ export function validateAndParseProfileSkills(
   }
 
   const rows: MemberSkillProfileRow[] = [];
-  const ranks = new Set<number>();
 
   for (const input of skills) {
     if (!(SKILLS as readonly string[]).includes(input.skill)) {
@@ -175,10 +202,6 @@ export function validateAndParseProfileSkills(
       if (!Number.isInteger(n) || n < 1 || n > SKILLS.length) {
         return { error: `Preference rank for ${input.skill} must be 1–${SKILLS.length}.` };
       }
-      if (ranks.has(n)) {
-        return { error: "Each preference rank can only be used once." };
-      }
-      ranks.add(n);
       preference_rank = n;
     }
     let ironwood_action_id: number | null = null;
@@ -201,18 +224,6 @@ export function validateAndParseProfileSkills(
   }
 
   return { rows: rows.sort((a, b) => a.skill.localeCompare(b.skill)) };
-}
-
-export function applyRankOrder(skills: MemberSkillProfileRow[], orderedSkills: Skill[]): MemberSkillProfileRow[] {
-  const bySkill = new Map(skills.map((s) => [s.skill, { ...s }]));
-  orderedSkills.forEach((skill, index) => {
-    const row = bySkill.get(skill);
-    if (row) row.preference_rank = index + 1;
-  });
-  for (const row of bySkill.values()) {
-    if (!orderedSkills.includes(row.skill)) row.preference_rank = null;
-  }
-  return SKILLS.map((skill) => bySkill.get(skill)!);
 }
 
 export function membersWithRankedProfiles(map: ProfilesMap): number {

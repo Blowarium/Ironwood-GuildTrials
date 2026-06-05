@@ -1,5 +1,6 @@
 import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import {
+  compareSkillsByPreferenceRank,
   getPreferenceRankFromProfile,
   getXpPerHourForSkill,
   membersWithRankedProfiles,
@@ -116,7 +117,7 @@ function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
   if (!profile) return [];
   return [...profile.skills]
     .filter((s) => s.preference_rank != null && s.preference_rank > 0)
-    .sort((a, b) => (a.preference_rank ?? 99) - (b.preference_rank ?? 99))
+    .sort(compareSkillsByPreferenceRank)
     .map((s) => s.skill);
 }
 

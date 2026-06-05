@@ -4,6 +4,7 @@ import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
 import {
   buildProfilesMap,
+  emptySkillRows,
   normalizeProfile,
   rosterStats,
   type MemberProfile,
@@ -55,12 +56,7 @@ async function fetchProfileFromDb(
           preference_rank: r.preference_rank,
           ironwood_action_id: r.ironwood_action_id,
         }))
-      : SKILLS.map((skill) => ({
-          skill,
-          xp_per_hour: null,
-          preference_rank: null,
-          ironwood_action_id: null,
-        })),
+      : emptySkillRows(),
     updated_at: metaRows[0]?.updated_at ?? new Date(0).toISOString(),
     updated_by: metaRows[0]?.updated_by ?? null,
   });

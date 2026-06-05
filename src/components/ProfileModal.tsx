@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SKILLS, type Member, type Skill } from "@/lib/constants";
 import {
-  applyRankOrder,
+  compareSkillsByPreferenceRank,
   emptyProfile,
   normalizeProfile,
   type MemberProfile,
@@ -28,12 +28,7 @@ import {
 } from "@/lib/ironwood-action-catalog";
 
 function sortForDisplay(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
-  return [...rows].sort((a, b) => {
-    const ar = a.preference_rank ?? 999;
-    const br = b.preference_rank ?? 999;
-    if (ar !== br) return ar - br;
-    return a.skill.localeCompare(b.skill);
-  });
+  return [...rows].sort(compareSkillsByPreferenceRank);
 }
 
 export function ProfileModal({
@@ -125,8 +120,6 @@ export function ProfileModal({
     if (!Number.isInteger(n) || n < 1 || n > SKILLS.length) return;
     setSkills((prev) => {
       const next = prev.map((r) => ({ ...r }));
-      const existing = next.find((r) => r.preference_rank === n && r.skill !== skill);
-      if (existing) existing.preference_rank = null;
       const row = next.find((r) => r.skill === skill)!;
       row.preference_rank = n;
       return next;
@@ -135,17 +128,15 @@ export function ProfileModal({
 
   function handleDrop(targetSkill: Skill) {
     if (!dragSkill || dragSkill === targetSkill) return;
-    const ranked = displayRows
-      .filter((r) => r.preference_rank != null)
-      .sort((a, b) => (a.preference_rank ?? 99) - (b.preference_rank ?? 99))
-      .map((r) => r.skill);
-    if (!ranked.includes(dragSkill)) ranked.push(dragSkill);
-    const from = ranked.indexOf(dragSkill);
-    const to = ranked.indexOf(targetSkill);
-    if (from < 0 || to < 0) return;
-    ranked.splice(from, 1);
-    ranked.splice(to, 0, dragSkill);
-    setSkills((prev) => applyRankOrder(prev, ranked));
+    setSkills((prev) => {
+      const next = prev.map((r) => ({ ...r }));
+      const dragRow = next.find((r) => r.skill === dragSkill)!;
+      const targetRow = next.find((r) => r.skill === targetSkill)!;
+      const dragRank = dragRow.preference_rank;
+      dragRow.preference_rank = targetRow.preference_rank;
+      targetRow.preference_rank = dragRank;
+      return next;
+    });
     setDragSkill(null);
   }
 
@@ -195,7 +186,7 @@ export function ProfileModal({
           </h2>
           <p className="mt-0.5 text-sm text-slate-400">
             Set XP/h for each skill, pick the Ironwood action used for XP estimates, and rank your
-            preferences (1 = highest).
+            preferences (1 = highest; ties allowed).
           </p>
           {initialProfile && (
             <LastEditedNote by={initialProfile.updated_by} at={initialProfile.updated_at} />
