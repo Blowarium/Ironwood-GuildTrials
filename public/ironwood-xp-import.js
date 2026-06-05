@@ -28,6 +28,49 @@
     Defense: "Defense",
   };
 
+  const GATHERING_SKILLS = {
+    Woodcutting: true,
+    Mining: true,
+    Farming: true,
+    Fishing: true,
+    Delving: true,
+  };
+
+  const COMBAT_SKILLS = {
+    "One-handed": true,
+    "Two-handed": true,
+    Ranged: true,
+    Defense: true,
+  };
+
+  function actionPreferences(displayName) {
+    if (GATHERING_SKILLS[displayName]) return { subGroup: "Outskirts" };
+    if (COMBAT_SKILLS[displayName]) return { subGroup: "Elite" };
+    if (displayName === "Cooking") return { preferPie: true };
+    return {};
+  }
+
+  function readActionName(actionId, row, cmp) {
+    if (cmp && cmp.ACTION_DATA && actionId && cmp.ACTION_DATA[actionId]) {
+      return cmp.ACTION_DATA[actionId].name || "";
+    }
+    return row ? readActionNameFromRow(row) : "";
+  }
+
+  function scoreActionCandidate(level, actionId, name, prefs) {
+    var score = actionScore(level, actionId);
+    if (prefs && prefs.preferPie && /pie/i.test(name || "")) score += 1e12;
+    return score;
+  }
+
+  function filterRowsForPreferences(rows, cmp, prefs) {
+    if (!prefs || !prefs.preferPie || !rows.length) return rows;
+    var pieRows = rows.filter(function (row) {
+      return /pie/i.test(readActionName(parseActionId(row), row, cmp));
+    });
+    return pieRows.length ? pieRows : rows;
+  }
+
   const scriptEl = document.currentScript;
   const scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
   const returnUrl =
@@ -320,7 +363,7 @@
     return null;
   }
 
-  function resolveBestActionPathFromComponent(root) {
+  function resolveBestActionPathFromComponent(root, prefs) {
     var cmp = findActionsComponentInstance(root);
     if (!cmp || !cmp.ACTION_DATA) return null;
 
@@ -333,8 +376,7 @@
     var effectiveLevel = readComponentEffectiveLevel(cmp);
     if (effectiveLevel == null) effectiveLevel = 9999;
 
-    var bestId = null;
-    var bestLevel = -1;
+    var candidates = [];
 
     function considerAction(ref) {
       if (!ref || ref.id == null) return;
@@ -342,32 +384,66 @@
       if (!data) return;
       var level = data.level || 0;
       if (level > effectiveLevel) return;
-      if (level > bestLevel || (level === bestLevel && ref.id > bestId)) {
-        bestLevel = level;
-        bestId = ref.id;
-      }
+      candidates.push({
+        id: ref.id,
+        level: level,
+        name: data.name || "",
+        score: scoreActionCandidate(level, ref.id, data.name, prefs),
+      });
     }
 
-    function walkGroups(groups) {
-      if (!groups) return;
-      for (var i = 0; i < groups.length; i++) {
-        var group = groups[i];
-        if (group.actions) {
-          for (var j = 0; j < group.actions.length; j++) {
-            considerAction(group.actions[j]);
+    function walkGroup(group, withinSubGroup) {
+      if (!group) return;
+      if (group.actionGroups) {
+        for (var s = 0; s < group.actionGroups.length; s++) {
+          var sub = group.actionGroups[s];
+          var childWithin = withinSubGroup;
+          if (prefs && prefs.subGroup) {
+            childWithin = sub.name === prefs.subGroup;
+          } else {
+            childWithin = true;
           }
+          if (sub.actions && childWithin) {
+            for (var j = 0; j < sub.actions.length; j++) considerAction(sub.actions[j]);
+          }
+          if (sub.actionGroups) walkGroups(sub.actionGroups, childWithin);
         }
-        if (group.actionGroups) walkGroups(group.actionGroups);
+        return;
+      }
+      if (group.actions && (!prefs || !prefs.subGroup || withinSubGroup)) {
+        for (var k = 0; k < group.actions.length; k++) considerAction(group.actions[k]);
       }
     }
 
-    var skillData = cmp.skillData;
-    if (skillData.actions) {
+    function walkGroups(groups, withinSubGroup) {
+      if (!groups) return;
+      for (var i = 0; i < groups.length; i++) walkGroup(groups[i], withinSubGroup);
+    }
+
+    if (skillData.actions && !(prefs && prefs.subGroup)) {
       for (var k = 0; k < skillData.actions.length; k++) {
         considerAction(skillData.actions[k]);
       }
     }
-    walkGroups(skillData.actionGroups);
+    walkGroups(skillData.actionGroups, false);
+
+    if (!candidates.length) return null;
+
+    if (prefs && prefs.preferPie) {
+      var pieCandidates = candidates.filter(function (c) {
+        return /pie/i.test(c.name || "");
+      });
+      if (pieCandidates.length) candidates = pieCandidates;
+    }
+
+    var bestId = null;
+    var bestScoreVal = -1;
+    for (var c = 0; c < candidates.length; c++) {
+      if (candidates[c].score > bestScoreVal) {
+        bestScoreVal = candidates[c].score;
+        bestId = candidates[c].id;
+      }
+    }
 
     if (bestId == null) return null;
     var data = cmp.ACTION_DATA[bestId];
@@ -377,6 +453,7 @@
       name: (data && data.name) || "Action " + bestId,
       level: (data && data.level) || null,
       method: "component",
+      prefs: prefs || null,
     };
   }
 
@@ -468,7 +545,7 @@
       /* fall through to row click */
     }
 
-    var row = resolved.row || (await revealActionRow(root, resolved.actionId));
+    var row = resolved.row || (await revealActionRow(root, resolved.actionId, resolved.prefs));
     if (row && !isDisabled(row)) {
       row.click();
       await sleep(700);
@@ -601,7 +678,7 @@
     return null;
   }
 
-  async function revealActionRow(root, actionId) {
+  async function revealActionRow(root, actionId, prefs) {
     if (!root || !actionId) return null;
 
     var direct = findActionRowById(root, actionId);
@@ -618,6 +695,12 @@
     }
 
     async function searchSubFilters() {
+      if (prefs && prefs.subGroup) {
+        await clickSubGroupFilter(root, prefs.subGroup);
+        consider();
+        return;
+      }
+
       var containers = root.querySelectorAll(".sort .container");
       if (!containers.length) {
         consider();
@@ -741,11 +824,33 @@
     await sleep(450);
   }
 
-  async function exploreSubFilterContainers(root, consider) {
+  async function clickSubGroupFilter(root, subGroupName) {
+    if (!subGroupName) return false;
+    var buttons = root.querySelectorAll(".sort .container button");
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+      if (text.toLowerCase() === subGroupName.toLowerCase()) {
+        await clickFilterButton(btn);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async function exploreSubFilterContainers(root, consider, prefs) {
     var containers = root.querySelectorAll(".sort .container");
     if (!containers.length) {
       consider();
       return;
+    }
+
+    if (prefs && prefs.subGroup) {
+      var clicked = await clickSubGroupFilter(root, prefs.subGroup);
+      if (clicked) {
+        consider();
+        return;
+      }
     }
 
     async function walkContainer(index) {
@@ -772,7 +877,7 @@
     await walkContainer(0);
   }
 
-  async function findBestUnlockedActionPathFromDom(root) {
+  async function findBestUnlockedActionPathFromDom(root, prefs) {
     await ensureActionsExpanded(root);
 
     var bestRow = null;
@@ -784,12 +889,15 @@
     function consider() {
       var rows = unlockedActionRows(root);
       if (!rows.length) rows = actionRowCandidates(root);
+      rows = filterRowsForPreferences(rows, cmp, prefs);
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
         if (isDisabled(row)) continue;
         var level = parseActionLevel(row);
         if (level > maxLevel) continue;
-        var score = actionScore(level, parseActionId(row));
+        var actionId = parseActionId(row);
+        var name = readActionName(actionId, row, cmp);
+        var score = scoreActionCandidate(level, actionId, name, prefs);
         if (score > bestScoreVal) {
           bestScoreVal = score;
           bestRow = row;
@@ -801,7 +909,7 @@
 
     async function exploreFilterRow(rowIndex) {
       if (rowIndex >= filterRows.length) {
-        await exploreSubFilterContainers(root, consider);
+        await exploreSubFilterContainers(root, consider, prefs);
         consider();
         return;
       }
@@ -821,7 +929,7 @@
     }
 
     if (!filterRows.length) {
-      await exploreSubFilterContainers(root, consider);
+      await exploreSubFilterContainers(root, consider, prefs);
       consider();
     } else {
       await exploreFilterRow(0);
@@ -831,7 +939,7 @@
 
     var actionId = parseActionId(bestRow);
     if (actionId) {
-      var revealed = await revealActionRow(root, actionId);
+      var revealed = await revealActionRow(root, actionId, prefs);
       if (revealed) bestRow = revealed;
     }
 
@@ -853,18 +961,23 @@
     return actionsComponentRoot();
   }
 
-  async function resolveBestAction(root) {
-    var fromComponent = resolveBestActionPathFromComponent(root);
+  async function resolveBestAction(root, displayName) {
+    var prefs = actionPreferences(displayName);
+    var fromComponent = resolveBestActionPathFromComponent(root, prefs);
     if (fromComponent) return fromComponent;
-    return findBestUnlockedActionPathFromDom(root);
+    var fromDom = await findBestUnlockedActionPathFromDom(root, prefs);
+    if (fromDom) fromDom.prefs = prefs;
+    return fromDom;
   }
 
-  async function openBestUnlockedAction(skillBtn) {
+  async function openBestUnlockedAction(skillBtn, displayName) {
     var root = await waitForComponentForSkill(skillBtn);
     if (!root) return null;
 
-    var resolved = await resolveBestAction(root);
+    var resolved = await resolveBestAction(root, displayName);
     if (!resolved) return null;
+
+    if (!resolved.prefs) resolved.prefs = actionPreferences(displayName);
 
     await navigateToResolvedAction(root, resolved);
     return readCurrentActionInfo(resolved);
@@ -908,7 +1021,7 @@
 
       var actionInfo = null;
       try {
-        actionInfo = await openBestUnlockedAction(target.btn);
+        actionInfo = await openBestUnlockedAction(target.btn, target.displayName);
       } catch (e) {
         /* still try reading XP/h — page may already be on an action */
       }
