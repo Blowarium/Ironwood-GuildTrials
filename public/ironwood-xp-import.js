@@ -126,48 +126,85 @@
     );
   }
 
+  function pathFromRouterSegments(parts) {
+    var cleaned = parts.map(function (p) {
+      return String(p).trim();
+    });
+    var skillId = null;
+    var actionId = null;
+    for (var i = 0; i < cleaned.length; i++) {
+      if (/^\d+$/.test(cleaned[i]) && skillId == null) {
+        if (i > 0 && cleaned[i - 1].indexOf("skill") >= 0) skillId = cleaned[i];
+      }
+      if (cleaned[i].indexOf("action") >= 0 && /^\d+$/.test(cleaned[i + 1] || "")) {
+        actionId = cleaned[i + 1];
+      }
+    }
+    if (skillId && actionId) return "/skill/" + skillId + "/action/" + actionId;
+    return null;
+  }
+
   function readRouterLink(el) {
     var href = el.getAttribute("href");
     if (href && /\/action\/\d+/i.test(href)) return href;
 
     var reflect = el.getAttribute("ng-reflect-router-link");
     if (reflect) {
-      if (reflect.charAt(0) === "/") return reflect;
+      if (reflect.charAt(0) === "/" && /\/action\/\d+/i.test(reflect)) {
+        return reflect.split(",")[0];
+      }
       if (reflect.charAt(0) === "[") {
         try {
-          var parts = JSON.parse(reflect);
-          if (Array.isArray(parts)) {
-            var idx = parts.indexOf("action");
-            if (idx > 0 && parts[idx + 1] != null) {
-              var skillPart = parts[idx - 1];
-              return "/skill/" + skillPart + "/action/" + parts[idx + 1];
+          var parsed = JSON.parse(reflect);
+          if (Array.isArray(parsed)) {
+            var joined = parsed.join("").replace(/\/{2,}/g, "/");
+            if (/\/action\/\d+/i.test(joined)) {
+              return joined.charAt(0) === "/" ? joined : "/" + joined;
             }
-            return parts.join("/").replace(/\/{2,}/g, "/");
+            return pathFromRouterSegments(parsed);
           }
         } catch (e) {
           /* fall through */
         }
       }
-      var parts = reflect.split(",");
-      for (var i = 0; i < parts.length; i++) {
-        if (parts[i] === "action" && parts[i + 1]) {
-          return "/skill/" + parts[i - 1] + "/action/" + parts[i + 1];
-        }
+      if (reflect.indexOf(",") >= 0) {
+        var fromSegments = pathFromRouterSegments(reflect.split(","));
+        if (fromSegments) return fromSegments;
       }
+      if (/\/action\/\d+/i.test(reflect)) return reflect;
     }
 
     for (var a = 0; a < el.attributes.length; a++) {
       var val = el.attributes[a].value || "";
       if (/\/action\/\d+/i.test(val)) return val;
+      if (val.indexOf(",") >= 0 && val.indexOf("action") >= 0) {
+        var fromAttr = pathFromRouterSegments(val.split(","));
+        if (fromAttr) return fromAttr;
+      }
     }
     return null;
   }
 
   function parseActionId(el) {
     var link = readRouterLink(el);
-    if (!link) return 0;
-    var match = link.match(/\/action\/(\d+)/i);
-    return match ? Number(match[1]) : 0;
+    if (link) {
+      var match = link.match(/\/action\/(\d+)/i);
+      if (match) return Number(match[1]);
+    }
+    for (var a = 0; a < el.attributes.length; a++) {
+      var val = el.attributes[a].value || "";
+      var direct = val.match(/\/action\/(\d+)/i);
+      if (direct) return Number(direct[1]);
+      if (val.indexOf("action") >= 0 && val.indexOf(",") >= 0) {
+        var parts = val.split(",");
+        for (var i = 0; i < parts.length - 1; i++) {
+          if (parts[i].indexOf("action") >= 0 && /^\d+$/.test(parts[i + 1].trim())) {
+            return Number(parts[i + 1].trim());
+          }
+        }
+      }
+    }
+    return 0;
   }
 
   function parseActionLevel(el) {
@@ -244,13 +281,9 @@
     return readEffectiveSkillLevel();
   }
 
-  function resolveBestActionPathFromComponent(root, displayName) {
+  function resolveBestActionPathFromComponent(root) {
     var cmp = findActionsComponentInstance(root);
     if (!cmp || !cmp.ACTION_DATA || !cmp.skillData) return null;
-
-    if (displayName && cmp.skillData.name && !skillNamesMatch(displayName, cmp.skillData.name)) {
-      return null;
-    }
 
     var skillId = cmp.skillId || cmp.skillData.id;
     if (!skillId) return null;
@@ -311,18 +344,40 @@
     return nameEl ? nameEl.textContent.replace(/\s+/g, " ").trim() : "";
   }
 
-  function actionInfoFromPath(path, row, method) {
-    var match = path.match(/\/action\/(\d+)/i);
-    var actionId = match ? Number(match[1]) : 0;
+  function actionInfoFromRow(row, method) {
+    var actionId = parseActionId(row);
     var cmp = findActionsComponentInstance();
     var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
+    var skillId = cmp && (cmp.skillId || (cmp.skillData && cmp.skillData.id));
+    var path =
+      actionId && skillId
+        ? "/skill/" + skillId + "/action/" + actionId
+        : readRouterLink(row) || location.pathname;
     return {
       path: path,
       actionId: actionId,
-      name: (data && data.name) || readActionNameFromRow(row) || "Action " + actionId,
-      level: (data && data.level) || (row ? parseActionLevel(row) : null),
+      name: (data && data.name) || readActionNameFromRow(row) || (actionId ? "Action " + actionId : "Unknown"),
+      level: (data && data.level) || parseActionLevel(row) || null,
+      method: method || "dom",
+      row: row,
+    };
+  }
+
+  function actionInfoFromPath(path, row, method) {
+    if (row) {
+      var info = actionInfoFromRow(row, method);
+      if (path) info.path = path;
+      return info;
+    }
+    var match = path && path.match(/\/action\/(\d+)/i);
+    var actionId = match ? Number(match[1]) : 0;
+    return {
+      path: path,
+      actionId: actionId,
+      name: actionId ? "Action " + actionId : "Unknown",
+      level: null,
       method: method,
-      row: row || null,
+      row: null,
     };
   }
 
@@ -565,8 +620,9 @@
     if (!el || el.tagName !== "BUTTON" && el.tagName !== "A") return false;
     if (el.classList.contains("filter") || el.classList.contains("header")) return false;
     if (el.closest(".filters")) return false;
-    if (el.closest(".sort .container") && !parseActionId(el)) return false;
-    return parseActionId(el) > 0;
+    if (!el.classList.contains("row")) return false;
+    if (!el.querySelector(".level")) return false;
+    return true;
   }
 
   function actionRowCandidates(root) {
@@ -663,10 +719,9 @@
       if (!row) row = pickBestRow(unlockedActionRows(root), maxLevel);
       if (!row) return;
       var score = actionScore(parseActionLevel(row), parseActionId(row));
-      var path = readRouterLink(row);
-      if (path && score > bestScoreVal) {
+      if (score > bestScoreVal) {
         bestScoreVal = score;
-        bestPath = path;
+        bestPath = readRouterLink(row);
         bestRow = row;
       }
     }
@@ -678,33 +733,64 @@
     if (!tierFilters.length) {
       await exploreSubFilterContainers(root, consider);
       consider();
-      if (!bestPath) return null;
-      return actionInfoFromPath(bestPath, bestRow, "dom");
+    } else {
+      for (var t = 0; t < tierFilters.length; t++) {
+        await clickFilterButton(tierFilters[t]);
+        await exploreSubFilterContainers(root, consider);
+        consider();
+      }
     }
 
-    for (var t = 0; t < tierFilters.length; t++) {
-      await clickFilterButton(tierFilters[t]);
-      await exploreSubFilterContainers(root, consider);
-      consider();
+    if (!bestRow) return null;
+
+    var actionId = parseActionId(bestRow);
+    if (actionId) {
+      var revealed = await revealActionRow(root, actionId);
+      if (revealed) bestRow = revealed;
     }
 
-    if (!bestPath) return null;
-    return actionInfoFromPath(bestPath, bestRow, "dom");
+    return actionInfoFromRow(bestRow, "dom");
   }
 
-  async function resolveBestAction(root, displayName) {
-    var fromComponent = resolveBestActionPathFromComponent(root, displayName);
+  async function waitForComponentForSkill(skillBtn) {
+    var expectedSkillId = parseSkillIdFromElement(skillBtn);
+    await waitFor(function () {
+      var root = actionsComponentRoot();
+      if (!root) return false;
+      if (!expectedSkillId) return root;
+      var cmp = findActionsComponentInstance(root);
+      if (!cmp || !cmp.skillData) return false;
+      var sid = cmp.skillId || cmp.skillData.id;
+      return String(sid) === String(expectedSkillId) ? root : false;
+    }, 12000);
+    await sleep(500);
+    return actionsComponentRoot();
+  }
+
+  async function resolveBestAction(root) {
+    var fromComponent = resolveBestActionPathFromComponent(root);
     if (fromComponent) return fromComponent;
     return findBestUnlockedActionPathFromDom(root);
   }
 
-  async function openBestUnlockedAction(displayName) {
-    var root = await waitForSkillPage(displayName);
+  async function openBestUnlockedAction(skillBtn) {
+    var root = await waitForComponentForSkill(skillBtn);
+    if (!root) return null;
 
-    var resolved = await resolveBestAction(root, displayName);
-    if (!resolved || !resolved.path) return null;
+    var resolved = await resolveBestAction(root);
+    if (!resolved) return null;
 
-    return navigateToResolvedAction(root, resolved);
+    if (resolved.row && !isDisabled(resolved.row)) {
+      resolved.row.click();
+      await sleep(700);
+    } else if (resolved.path) {
+      var path = resolved.path;
+      if (path.charAt(0) !== "/") path = "/" + path;
+      location.assign(path);
+      await sleep(800);
+    }
+
+    return readCurrentActionInfo(resolved);
   }
 
   function toBase64Url(obj) {
@@ -741,19 +827,13 @@
       );
 
       target.btn.click();
-      await sleep(300);
+      await sleep(400);
 
       var actionInfo = null;
       try {
-        actionInfo = await openBestUnlockedAction(target.displayName);
+        actionInfo = await openBestUnlockedAction(target.btn);
       } catch (e) {
-        errors[target.skill] = "Could not open the highest unlocked action for this skill.";
-        continue;
-      }
-
-      if (!actionInfo) {
-        errors[target.skill] = "Could not determine the highest unlocked action for this skill.";
-        continue;
+        /* still try reading XP/h — page may already be on an action */
       }
 
       await sleep(500);
@@ -769,19 +849,27 @@
 
       if (xp != null) {
         results[target.skill] = xp;
-        actionSources[target.skill] = {
-          actionId: actionInfo.actionId,
-          name: actionInfo.name,
-          level: actionInfo.level,
-          url: actionInfo.url,
-          method: actionInfo.method,
-          xpPerHour: xp,
-        };
-        setStatus(
-          "Importing " + (i + 1) + " / " + targets.length + ": " + target.displayName,
-          actionInfo.name + (actionInfo.level ? " (Lv. " + actionInfo.level + ")" : "") +
-            " → " + xp.toLocaleString() + " XP/h",
-        );
+        if (!actionInfo) {
+          var active = document.querySelector(
+            "actions-component button.row.active-link, actions-component a.row.active-link",
+          );
+          actionInfo = active ? actionInfoFromRow(active, "dom") : null;
+        }
+        if (actionInfo) {
+          actionSources[target.skill] = {
+            actionId: actionInfo.actionId,
+            name: actionInfo.name,
+            level: actionInfo.level,
+            url: actionInfo.url,
+            method: actionInfo.method,
+            xpPerHour: xp,
+          };
+          setStatus(
+            "Importing " + (i + 1) + " / " + targets.length + ": " + target.displayName,
+            actionInfo.name + (actionInfo.level ? " (Lv. " + actionInfo.level + ")" : "") +
+              " → " + xp.toLocaleString() + " XP/h",
+          );
+        }
       } else if (!errors[target.skill]) {
         errors[target.skill] = "No XP/h estimate found (check Stats → Estimates).";
       }
