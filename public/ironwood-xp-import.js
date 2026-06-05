@@ -218,14 +218,44 @@
     return null;
   }
 
-  function resolveBestActionPathFromComponent(root) {
+  function parseSkillIdFromElement(el) {
+    var link = readRouterLink(el);
+    var id = parseSkillIdFromPath(link);
+    if (id) return id;
+    for (var a = 0; a < el.attributes.length; a++) {
+      var val = el.attributes[a].value || "";
+      var match = val.match(/\/skill\/(\d+)/i);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  function skillNamesMatch(expected, actual) {
+    if (!expected || !actual) return false;
+    if (expected === actual) return true;
+    return expected.replace(/[\s-]/g, "").toLowerCase() === actual.replace(/[\s-]/g, "").toLowerCase();
+  }
+
+  function readComponentEffectiveLevel(cmp) {
+    if (!cmp) return readEffectiveSkillLevel();
+    var level = cmp.skillLevel;
+    var bonus = cmp.levelBonus || 0;
+    if (typeof level === "number") return level + bonus;
+    return readEffectiveSkillLevel();
+  }
+
+  function resolveBestActionPathFromComponent(root, displayName) {
     var cmp = findActionsComponentInstance(root);
     if (!cmp || !cmp.ACTION_DATA || !cmp.skillData) return null;
+
+    if (displayName && cmp.skillData.name && !skillNamesMatch(displayName, cmp.skillData.name)) {
+      return null;
+    }
 
     var skillId = cmp.skillId || cmp.skillData.id;
     if (!skillId) return null;
 
-    var effectiveLevel = readEffectiveSkillLevel();
+    var effectiveLevel = readComponentEffectiveLevel(cmp);
     if (effectiveLevel == null) effectiveLevel = 9999;
 
     var bestId = null;
@@ -296,6 +326,53 @@
     };
   }
 
+  function readSkillNavLink(btn) {
+    return readRouterLink(btn);
+  }
+
+  function skillIdForDisplayName(displayName) {
+    var buttons = skillNavButtons();
+    for (var i = 0; i < buttons.length; i++) {
+      if (readSkillName(buttons[i]) !== displayName) continue;
+      return parseSkillIdFromElement(buttons[i]);
+    }
+    return null;
+  }
+
+  function isActiveActionRow(actionId) {
+    if (!actionId) return false;
+    var rows = document.querySelectorAll(
+      "actions-component button.row.active-link, actions-component a.row.active-link",
+    );
+    for (var i = 0; i < rows.length; i++) {
+      if (parseActionId(rows[i]) === actionId) return true;
+    }
+    return false;
+  }
+
+  function actionReady(resolved, previousRoute) {
+    if (!resolved) return false;
+    var route = currentRoutePath();
+    if (previousRoute && route !== previousRoute && routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path))) {
+      return true;
+    }
+    if (isActiveActionRow(resolved.actionId)) return true;
+    if (parseXpPerHour() != null) return true;
+    return routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path));
+  }
+
+  function buildActionInfo(resolved) {
+    var path = resolved.path;
+    if (path && path.charAt(0) !== "/") path = "/" + path;
+    return {
+      actionId: resolved.actionId,
+      name: resolved.name,
+      level: resolved.level,
+      url: location.origin + path,
+      method: resolved.method,
+    };
+  }
+
   function readCurrentActionInfo(fallback) {
     var route = currentRoutePath();
     var path = route;
@@ -318,11 +395,16 @@
       (fallback && fallback.name) ||
       (actionId ? "Action " + actionId : "Unknown action");
 
+    var reportPath =
+      fallback && fallback.path && (!match || Number(match[1]) !== fallback.actionId)
+        ? fallback.path
+        : path;
+
     return {
-      actionId: actionId || (fallback && fallback.actionId) || 0,
+      actionId: (fallback && fallback.actionId) || actionId || 0,
       name: name,
       level: (data && data.level) || (active ? parseActionLevel(active) : null) || (fallback && fallback.level),
-      url: location.origin + path,
+      url: location.origin + reportPath,
       method: (fallback && fallback.method) || "dom",
     };
   }
@@ -345,21 +427,28 @@
   }
 
   async function waitForSkillPage(displayName) {
+    var expectedSkillId = skillIdForDisplayName(displayName);
     await waitFor(function () {
-      var active = document.querySelector(
-        "nav-component button.skill.active-link, nav button.skill.active-link, nav button.skill.active",
-      );
-      if (!active || readSkillName(active) !== displayName) return false;
-      return actionsComponentRoot();
+      var root = actionsComponentRoot();
+      if (!root) return false;
+
+      var active = document.querySelector("nav-component button.skill.active-link");
+      if (active && readSkillName(active) === displayName) return root;
+
+      if (expectedSkillId) {
+        var route = currentRoutePath();
+        if (route.indexOf("/skill/" + expectedSkillId) >= 0) return root;
+      }
+
+      return false;
     }, 12000);
     await sleep(400);
+    return actionsComponentRoot();
   }
 
-  async function waitForActionRoute(resolved) {
-    var actionId = resolved.actionId;
-    var skillId = parseSkillIdFromPath(resolved.path);
+  async function waitForActionReady(resolved, previousRoute) {
     await waitFor(function () {
-      return routeIncludesAction(actionId, skillId);
+      return actionReady(resolved, previousRoute);
     }, 12000);
     await sleep(700);
   }
@@ -443,13 +532,14 @@
   async function navigateToResolvedAction(root, resolved) {
     if (!resolved || !resolved.path) return null;
 
+    var previousRoute = currentRoutePath();
     var actionId = resolved.actionId;
     var row = resolved.row || (await revealActionRow(root, actionId));
 
     if (row && !isDisabled(row)) {
       row.click();
       try {
-        await waitForActionRoute(resolved);
+        await waitForActionReady(resolved, previousRoute);
         return readCurrentActionInfo(resolved);
       } catch (e) {
         /* fall through to direct navigation */
@@ -458,10 +548,17 @@
 
     var bestPath = resolved.path;
     if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
-    location.assign(bestPath);
+    if (currentRoutePath() !== bestPath) {
+      location.assign(bestPath);
+    }
 
-    await waitForActionRoute(resolved);
-    return readCurrentActionInfo(resolved);
+    try {
+      await waitForActionReady(resolved, previousRoute);
+      return readCurrentActionInfo(resolved);
+    } catch (e) {
+      if (actionReady(resolved, previousRoute)) return readCurrentActionInfo(resolved);
+      return buildActionInfo(resolved);
+    }
   }
 
   function isActionRow(el) {
@@ -595,8 +692,8 @@
     return actionInfoFromPath(bestPath, bestRow, "dom");
   }
 
-  async function resolveBestAction(root) {
-    var fromComponent = resolveBestActionPathFromComponent(root);
+  async function resolveBestAction(root, displayName) {
+    var fromComponent = resolveBestActionPathFromComponent(root, displayName);
     if (fromComponent) return fromComponent;
     return findBestUnlockedActionPathFromDom(root);
   }
@@ -604,7 +701,7 @@
   async function openBestUnlockedAction(displayName) {
     var root = await waitForSkillPage(displayName);
 
-    var resolved = await resolveBestAction(root);
+    var resolved = await resolveBestAction(root, displayName);
     if (!resolved || !resolved.path) return null;
 
     return navigateToResolvedAction(root, resolved);
@@ -656,11 +753,6 @@
 
       if (!actionInfo) {
         errors[target.skill] = "Could not determine the highest unlocked action for this skill.";
-        continue;
-      }
-
-      if (!routeIncludesAction(actionInfo.actionId, parseSkillIdFromPath(actionInfo.url))) {
-        errors[target.skill] = "Could not navigate to an action page for this skill.";
         continue;
       }
 
