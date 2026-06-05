@@ -65,7 +65,9 @@ export function defaultActionIdForSkill(skill: Skill): number | null {
 
 export function formatCatalogActionLabel(action: IronwoodCatalogAction): string {
   const group = action.group ? `${action.group} — ` : "";
-  return `${group}${action.name} (Lv. ${action.level})`;
+  const outskirts =
+    !action.group?.includes("Outskirts") && action.actionId >= 1000 ? "Outskirts — " : "";
+  return `${outskirts}${group}${action.name} (Lv. ${action.level})`;
 }
 
 export function resolveProfileActionId(

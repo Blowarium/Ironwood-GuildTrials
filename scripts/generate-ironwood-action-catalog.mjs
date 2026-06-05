@@ -188,6 +188,13 @@ function buildActionsFromKeys(keys, skillId, groupLabels) {
     let group = groupLabels.get(key) || null;
     const raw = actionMeta.get(key);
     if (!group && raw?.elite) group = "Elite";
+    if (key.startsWith("Combat")) {
+      if (group && !group.includes("Outskirts")) {
+        group = `Outskirts › ${group}`;
+      } else if (!group) {
+        group = "Outskirts";
+      }
+    }
     actions.push({
       actionId,
       name: meta.name,

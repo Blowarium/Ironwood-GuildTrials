@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "generatedAt": "2026-06-05T12:57:25.645Z",
+  "generatedAt": "2026-06-05T14:14:34.475Z",
   "origin": "https://ironwoodrpg.com",
   "skills": {
     "Woodcutting": {
@@ -1386,7 +1386,7 @@
           "actionId": 1040,
           "name": "Chilli",
           "level": 100,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1040"
         },
         {
@@ -1400,7 +1400,7 @@
           "actionId": 1041,
           "name": "Snapdragon",
           "level": 100,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1041"
         },
         {
@@ -1414,7 +1414,7 @@
           "actionId": 1034,
           "name": "Nemesia",
           "level": 85,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1034"
         },
         {
@@ -1428,7 +1428,7 @@
           "actionId": 1039,
           "name": "Pumpkin",
           "level": 85,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1039"
         },
         {
@@ -1442,7 +1442,7 @@
           "actionId": 1038,
           "name": "Corn",
           "level": 70,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1038"
         },
         {
@@ -1456,7 +1456,7 @@
           "actionId": 1033,
           "name": "Hyacinth",
           "level": 70,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1033"
         },
         {
@@ -1470,7 +1470,7 @@
           "actionId": 1032,
           "name": "Lilac",
           "level": 55,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1032"
         },
         {
@@ -1484,7 +1484,7 @@
           "actionId": 1037,
           "name": "Tomato",
           "level": 55,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1037"
         },
         {
@@ -1498,7 +1498,7 @@
           "actionId": 1036,
           "name": "Carrot",
           "level": 40,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1036"
         },
         {
@@ -1512,7 +1512,7 @@
           "actionId": 1031,
           "name": "Daisy",
           "level": 40,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1031"
         },
         {
@@ -1526,7 +1526,7 @@
           "actionId": 1035,
           "name": "Onion",
           "level": 25,
-          "group": "Veges",
+          "group": "Outskirts › Veges",
           "path": "/skill/6/action/1035"
         },
         {
@@ -1540,7 +1540,7 @@
           "actionId": 1030,
           "name": "Rose",
           "level": 25,
-          "group": "Flowers",
+          "group": "Outskirts › Flowers",
           "path": "/skill/6/action/1030"
         },
         {
@@ -1748,7 +1748,7 @@
           "actionId": 722,
           "name": "Regular Combat XP Potion",
           "level": 70,
-          "group": "Regular",
+          "group": "Outskirts › Regular",
           "path": "/skill/7/action/722"
         },
         {
@@ -1790,7 +1790,7 @@
           "actionId": 721,
           "name": "Regular Combat Loot Potion",
           "level": 55,
-          "group": "Regular",
+          "group": "Outskirts › Regular",
           "path": "/skill/7/action/721"
         },
         {

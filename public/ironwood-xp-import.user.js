@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — XP/h Import
 // @namespace    ironwood-guild-trials
-// @version      2.2.0
+// @version      2.2.1
 // @description  Auto-runs Guild Trials XP/h import when opened from the trials app (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
@@ -47,7 +47,7 @@
     }
     var script = document.createElement("script");
     var src =
-      appOrigin + "/ironwood-xp-import.js?v=2.2.0&return=" + encodeURIComponent(returnUrl);
+      appOrigin + "/ironwood-xp-import.js?v=2.2.1&return=" + encodeURIComponent(returnUrl);
     if (actionPlan) {
       src += "&actions=" + encodeURIComponent(actionPlan);
     }

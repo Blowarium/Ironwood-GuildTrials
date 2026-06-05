@@ -552,6 +552,10 @@
   }
 
   function getActiveActionId() {
+    var route = currentRoutePath();
+    var match = route.match(/\/action\/(\d+)/i);
+    if (match) return Number(match[1]);
+
     var rows = document.querySelectorAll(
       "actions-component button.row.active-link, actions-component a.row.active-link",
     );
@@ -559,9 +563,7 @@
       var id = parseActionId(rows[i]);
       if (id > 0) return id;
     }
-    var route = currentRoutePath();
-    var match = route.match(/\/action\/(\d+)/i);
-    return match ? Number(match[1]) : 0;
+    return 0;
   }
 
   function actionSelectionMatches(resolved) {
@@ -1082,18 +1084,32 @@
     return location.pathname.indexOf("/action/" + actionId) >= 0;
   }
 
-  function waitForXpOnAction(entry, timeoutMs) {
-    var timeout = timeoutMs || 15000;
+  function waitForXpOnAction(entry, timeoutMs, previousXp) {
+    var timeout = timeoutMs || 20000;
     var start = Date.now();
+    var routeOkSince = null;
     return new Promise(function (resolve, reject) {
       (function tick() {
         try {
-          if (actionSelectionMatches({ actionId: entry.actionId, path: entry.path })) {
-            var xp = parseXpPerHour();
-            if (xp) {
-              resolve(xp);
-              return;
+          if (routeHasAction(entry.actionId)) {
+            if (!routeOkSince) routeOkSince = Date.now();
+            if (Date.now() - routeOkSince >= 600) {
+              var xp = parseXpPerHour();
+              if (xp) {
+                if (
+                  previousXp != null &&
+                  xp === previousXp &&
+                  Date.now() - routeOkSince < 2500
+                ) {
+                  /* estimates panel may still reflect the previous action */
+                } else {
+                  resolve(xp);
+                  return;
+                }
+              }
             }
+          } else {
+            routeOkSince = null;
           }
         } catch (e) {
           /* keep polling */
@@ -1150,6 +1166,7 @@
       results: {},
       errors: {},
       actionSources: {},
+      lastXp: null,
     };
   }
 
@@ -1216,12 +1233,13 @@
 
       var xp = null;
       try {
-        xp = await waitForXpOnAction(entry, 15000);
+        xp = await waitForXpOnAction(entry, 20000, state.lastXp);
       } catch (e) {
         state.errors[skill] = "Could not read XP/h on this action page.";
       }
 
       if (xp != null) {
+        state.lastXp = xp;
         state.results[skill] = xp;
         state.actionSources[skill] = {
           actionId: entry.actionId,
