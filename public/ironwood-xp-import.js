@@ -52,8 +52,9 @@
   }
 
   function readActionName(actionId, row, cmp) {
-    var data = lookupActionData(cmp, actionId);
-    if (data && data.name) return data.name;
+    if (cmp && cmp.ACTION_DATA && actionId && cmp.ACTION_DATA[actionId]) {
+      return cmp.ACTION_DATA[actionId].name || "";
+    }
     return row ? readActionNameFromRow(row) : "";
   }
 
@@ -245,24 +246,11 @@
       if (val.indexOf("action") >= 0 && val.indexOf(",") >= 0) {
         var parts = val.split(",");
         for (var i = 0; i < parts.length - 1; i++) {
-          var part = parts[i].replace(/"/g, "").trim();
-          var next = parts[i + 1].replace(/"/g, "").trim();
-          if (part.indexOf("action") >= 0 && /^\d+$/.test(next)) {
-            return Number(next);
+          if (parts[i].indexOf("action") >= 0 && /^\d+$/.test(parts[i + 1].trim())) {
+            return Number(parts[i + 1].trim());
           }
         }
-        var fromAttr = pathFromRouterSegments(parts);
-        if (fromAttr) {
-          var routeMatch = fromAttr.match(/\/action\/(\d+)/i);
-          if (routeMatch) return Number(routeMatch[1]);
-        }
       }
-    }
-    var cmp = findActionsComponentInstance();
-    var rowName = readActionNameFromRow(el);
-    if (rowName && cmp) {
-      var byName = lookupActionDataByName(cmp, rowName);
-      if (byName) return actionIdFromData(cmp, byName, 0);
     }
     return 0;
   }
@@ -370,176 +358,6 @@
     return null;
   }
 
-  function normalizeActionId(id) {
-    if (id == null) return 0;
-    var n = Number(id);
-    return n > 0 ? n : 0;
-  }
-
-  function lookupActionData(cmp, actionId) {
-    if (!cmp || !cmp.ACTION_DATA || actionId == null) return null;
-    var id = normalizeActionId(actionId);
-    if (!id) return null;
-    var direct = cmp.ACTION_DATA[id] || cmp.ACTION_DATA[String(id)];
-    if (direct) return direct;
-    var keys = Object.keys(cmp.ACTION_DATA);
-    for (var i = 0; i < keys.length; i++) {
-      var entry = cmp.ACTION_DATA[keys[i]];
-      if (entry && normalizeActionId(entry.id) === id) return entry;
-    }
-    return null;
-  }
-
-  function lookupActionDataByName(cmp, name) {
-    if (!cmp || !cmp.ACTION_DATA || !name) return null;
-    var target = String(name).replace(/\s+/g, " ").trim().toLowerCase();
-    if (!target) return null;
-    var keys = Object.keys(cmp.ACTION_DATA);
-    for (var i = 0; i < keys.length; i++) {
-      var entry = cmp.ACTION_DATA[keys[i]];
-      if (!entry || !entry.name) continue;
-      if (entry.name.replace(/\s+/g, " ").trim().toLowerCase() === target) return entry;
-    }
-    return null;
-  }
-
-  function actionIdFromData(cmp, data, fallbackId) {
-    if (!data) return normalizeActionId(fallbackId);
-    var fromData = normalizeActionId(data.id);
-    if (fromData) return fromData;
-    if (!cmp || !cmp.ACTION_DATA) return normalizeActionId(fallbackId);
-    var keys = Object.keys(cmp.ACTION_DATA);
-    for (var i = 0; i < keys.length; i++) {
-      if (cmp.ACTION_DATA[keys[i]] === data) {
-        return normalizeActionId(keys[i]);
-      }
-    }
-    return normalizeActionId(fallbackId);
-  }
-
-  function resolveActionRecord(ref, cmp) {
-    var refId = actionRefId(ref);
-    var data = refId ? lookupActionData(cmp, refId) : null;
-    if (!data && ref && typeof ref === "object" && ref.name) {
-      data = lookupActionDataByName(cmp, ref.name) || ref;
-    }
-    if (!data && typeof ref === "number") {
-      data = lookupActionData(cmp, ref);
-    }
-    if (!data) return null;
-    var id = actionIdFromData(cmp, data, refId);
-    if (!id) return null;
-    return {
-      id: id,
-      name: data.name || "",
-      level: data.level || 0,
-      data: data,
-    };
-  }
-
-  function readComponentSkillData(cmp) {
-    if (!cmp) return null;
-    var data = cmp.skillData;
-    if (!data) data = readObservableValue(cmp.skillData$);
-    if (!data && cmp.skillId != null && cmp.SKILL_DATA) {
-      data = cmp.SKILL_DATA[cmp.skillId] || cmp.SKILL_DATA[String(cmp.skillId)];
-    }
-    return data || null;
-  }
-
-  function readComponentActionId(cmp) {
-    if (!cmp) return 0;
-    var id =
-      typeof cmp.actionId === "number" ? cmp.actionId : readObservableValue(cmp.actionId$);
-    return normalizeActionId(id);
-  }
-
-  function actionRefId(ref) {
-    if (ref == null) return 0;
-    if (typeof ref === "object") {
-      return normalizeActionId(ref.id != null ? ref.id : ref.actionId);
-    }
-    return normalizeActionId(ref);
-  }
-
-  function findGroupsForAction(skillData, actionId) {
-    var result = { actionGroup: null, subActionGroup: null };
-    if (!skillData || !actionId) return result;
-    var aid = normalizeActionId(actionId);
-
-    function scanActions(actions, ag, sag) {
-      if (!actions) return;
-      for (var i = 0; i < actions.length; i++) {
-        if (actionRefId(actions[i]) === aid) {
-          result.actionGroup = ag;
-          result.subActionGroup = sag;
-        }
-      }
-    }
-
-    scanActions(skillData.actions, null, null);
-
-    if (skillData.actionGroups) {
-      for (var g = 0; g < skillData.actionGroups.length; g++) {
-        var ag = skillData.actionGroups[g];
-        scanActions(ag.actions, ag, null);
-        if (ag.actionGroups) {
-          for (var s = 0; s < ag.actionGroups.length; s++) {
-            var sag = ag.actionGroups[s];
-            scanActions(sag.actions, ag, sag);
-          }
-        }
-      }
-    }
-
-    return result;
-  }
-
-  async function applyComponentFilterState(cmp, resolved) {
-    if (!cmp || !resolved) return;
-    var skillData = readComponentSkillData(cmp);
-    if (!skillData) return;
-    var groups = findGroupsForAction(skillData, resolved.actionId);
-    if (groups.actionGroup) cmp.actionGroup = groups.actionGroup;
-    if (groups.subActionGroup) cmp.subActionGroup = groups.subActionGroup;
-    await sleep(500);
-  }
-
-  function isTargetActionSelected(actionId, cmp) {
-    var target = normalizeActionId(actionId);
-    if (!target) return false;
-    var route = currentRoutePath();
-    if (route.indexOf("/action/" + target) >= 0) return true;
-    if (readComponentActionId(cmp) === target) return true;
-    if (getActiveActionRowId() === target) return true;
-    return false;
-  }
-
-  function getActiveActionRowId() {
-    var rows = document.querySelectorAll(
-      "actions-component button.row.active-link, actions-component a.row.active-link",
-    );
-    for (var i = 0; i < rows.length; i++) {
-      var id = parseActionId(rows[i]);
-      if (id > 0) return id;
-    }
-    return 0;
-  }
-
-  function actionInfoFromResolved(resolved, navigated) {
-    var path = resolved.path;
-    if (path && path.charAt(0) !== "/") path = "/" + path;
-    return {
-      actionId: resolved.actionId,
-      name: resolved.name,
-      level: resolved.level,
-      url: location.origin + path,
-      method: resolved.method || "component",
-      targetActionId: resolved.actionId,
-      navigated: !!navigated,
-    };
-  }
-
   function readComponentEffectiveLevel(cmp) {
     if (!cmp) return null;
     var level =
@@ -554,7 +372,7 @@
     var cmp = findActionsComponentInstance(root);
     if (!cmp || !cmp.ACTION_DATA) return null;
 
-    var skillData = readComponentSkillData(cmp);
+    var skillData = cmp.skillData;
     if (!skillData) return null;
 
     var skillId = cmp.skillId || skillData.id;
@@ -566,14 +384,16 @@
     var candidates = [];
 
     function considerAction(ref) {
-      var record = resolveActionRecord(ref, cmp);
-      if (!record) return;
-      if (record.level > effectiveLevel) return;
+      if (!ref || ref.id == null) return;
+      var data = cmp.ACTION_DATA[ref.id];
+      if (!data) return;
+      var level = data.level || 0;
+      if (level > effectiveLevel) return;
       candidates.push({
-        id: record.id,
-        level: record.level,
-        name: record.name,
-        score: scoreActionCandidate(record.level, record.id, record.name, prefs),
+        id: ref.id,
+        level: level,
+        name: data.name || "",
+        score: scoreActionCandidate(level, ref.id, data.name, prefs),
       });
     }
 
@@ -636,13 +456,11 @@
     }
 
     if (bestId == null) return null;
-    var data = lookupActionData(cmp, bestId);
-    var actionId = actionIdFromData(cmp, data, bestId);
-    if (!actionId) return null;
+    var data = cmp.ACTION_DATA[bestId];
     return {
-      path: "/skill/" + skillId + "/action/" + actionId,
-      actionId: actionId,
-      name: (data && data.name) || "Action " + actionId,
+      path: "/skill/" + skillId + "/action/" + bestId,
+      actionId: bestId,
+      name: (data && data.name) || "Action " + bestId,
       level: (data && data.level) || null,
       method: "component",
       prefs: prefs || null,
@@ -656,14 +474,9 @@
   }
 
   function actionInfoFromRow(row, method) {
-    var cmp = findActionsComponentInstance();
     var actionId = parseActionId(row);
-    var data = lookupActionData(cmp, actionId);
-    if (!data) {
-      var rowName = readActionNameFromRow(row);
-      data = rowName ? lookupActionDataByName(cmp, rowName) : null;
-      if (data) actionId = actionIdFromData(cmp, data, actionId);
-    }
+    var cmp = findActionsComponentInstance();
+    var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
     var skillId = cmp && (cmp.skillId || (cmp.skillData && cmp.skillData.id));
     var path =
       actionId && skillId
@@ -711,92 +524,52 @@
   }
 
   function getActiveActionId() {
+    var rows = document.querySelectorAll(
+      "actions-component button.row.active-link, actions-component a.row.active-link",
+    );
+    for (var i = 0; i < rows.length; i++) {
+      var id = parseActionId(rows[i]);
+      if (id > 0) return id;
+    }
     var route = currentRoutePath();
     var match = route.match(/\/action\/(\d+)/i);
-    if (match) return Number(match[1]);
-
-    var cmp = findActionsComponentInstance();
-    var fromCmp = readComponentActionId(cmp);
-    if (fromCmp) return fromCmp;
-
-    return getActiveActionRowId();
-  }
-
-  async function clickActionRow(row) {
-    if (!row || isDisabled(row)) return;
-    try {
-      row.scrollIntoView({ block: "nearest" });
-    } catch (e) {
-      /* ignore */
-    }
-    row.click();
-    await sleep(300);
-    var link = row.querySelector("a[href], [ng-reflect-router-link]");
-    if (link && link !== row && !isDisabled(link)) {
-      link.click();
-      await sleep(300);
-    }
-  }
-
-  async function waitUntilActionActive(actionId, timeoutMs) {
-    await waitFor(function () {
-      return isTargetActionSelected(actionId, findActionsComponentInstance());
-    }, timeoutMs || 12000);
-    await sleep(700);
+    return match ? Number(match[1]) : 0;
   }
 
   async function navigateToResolvedAction(root, resolved) {
-    if (!resolved || !resolved.actionId) return false;
+    if (!resolved || !resolved.actionId || !resolved.path) return false;
 
-    var targetId = normalizeActionId(resolved.actionId);
-    var cmp = findActionsComponentInstance(root);
+    if (getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId)) return true;
 
-    if (isTargetActionSelected(targetId, cmp)) {
-      await sleep(400);
-      return true;
+    async function clickResolvedRow() {
+      var row = resolved.row || (await revealActionRow(root, resolved.actionId, resolved.prefs));
+      if (!row || isDisabled(row)) return false;
+      row.scrollIntoView({ block: "nearest" });
+      row.click();
+      await sleep(700);
+      return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
     }
 
-    await applyComponentFilterState(cmp, resolved);
+    if (await clickResolvedRow()) return true;
 
-    if (resolved.path) {
-      var path = resolved.path.charAt(0) === "/" ? resolved.path : "/" + resolved.path;
-      location.assign(path);
-      try {
-        await waitFor(function () {
-          return (
-            routeIncludesAction(targetId, parseSkillIdFromPath(path)) &&
-            isTargetActionSelected(targetId, findActionsComponentInstance(root))
-          );
-        }, 12000);
-      } catch (e) {
-        /* fall through to row click */
-      }
+    var path = resolved.path;
+    if (path.charAt(0) !== "/") path = "/" + path;
+    location.assign(path);
+
+    try {
+      await waitFor(function () {
+        return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+      }, 12000);
+    } catch (e) {
+      /* fall through to row click */
     }
 
-    cmp = findActionsComponentInstance(root);
-    if (isTargetActionSelected(targetId, cmp)) {
-      await sleep(800);
-      return true;
+    if (!isActiveActionRow(resolved.actionId) && getActiveActionId() !== resolved.actionId) {
+      await clickResolvedRow();
     }
 
-    await applyComponentFilterState(cmp, resolved);
-
-    var row = await revealActionRow(root, targetId, resolved.prefs);
-    if (row) {
-      await clickActionRow(row);
-      try {
-        await waitUntilActionActive(targetId, 10000);
-      } catch (e) {
-        /* give up */
-      }
-    }
-
-    if (isTargetActionSelected(targetId, findActionsComponentInstance(root))) {
-      await sleep(800);
-      return true;
-    }
-
-    return false;
+    await sleep(500);
+    return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
   }
 
   function isActiveActionRow(actionId) {
@@ -812,7 +585,9 @@
 
   function actionReady(resolved) {
     if (!resolved || !resolved.actionId) return false;
-    return isTargetActionSelected(resolved.actionId, findActionsComponentInstance());
+    if (isActiveActionRow(resolved.actionId)) return true;
+    if (getActiveActionId() === resolved.actionId) return true;
+    return routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path));
   }
 
   function buildActionInfo(resolved) {
@@ -837,8 +612,7 @@
     if (!path || path.indexOf("/skill/") < 0) path = location.pathname;
     var match = path.match(/\/action\/(\d+)/i);
     var activeId = getActiveActionId();
-    var routeActionId = match ? Number(match[1]) : 0;
-    var actionId = activeId || routeActionId || 0;
+    var actionId = activeId || (match ? Number(match[1]) : 0) || (fallback && fallback.actionId);
     var cmp = findActionsComponentInstance();
     var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
 
@@ -848,28 +622,20 @@
     var name =
       (data && data.name) ||
       readActionNameFromRow(active) ||
+      (fallback && fallback.name) ||
       (actionId ? "Action " + actionId : "Unknown action");
 
-    if (!actionId && fallback) {
-      actionId = fallback.actionId;
-      name = fallback.name || name;
-    }
-
-    var reportPath = path;
-    if (actionId && path.indexOf("/action/" + actionId) < 0 && fallback && fallback.path) {
-      reportPath = fallback.path;
-    }
+    var reportPath =
+      fallback && fallback.path && (!match || Number(match[1]) !== fallback.actionId)
+        ? fallback.path
+        : path;
 
     return {
-      actionId: actionId || 0,
+      actionId: (fallback && fallback.actionId) || actionId || 0,
       name: name,
-      level:
-        (data && data.level) ||
-        (active ? parseActionLevel(active) : null) ||
-        (fallback && fallback.level),
+      level: (data && data.level) || (active ? parseActionLevel(active) : null) || (fallback && fallback.level),
       url: location.origin + reportPath,
       method: (fallback && fallback.method) || "dom",
-      targetActionId: fallback && fallback.actionId ? fallback.actionId : null,
     };
   }
 
@@ -915,19 +681,6 @@
       return actionReady(resolved);
     }, 12000);
     await sleep(700);
-  }
-
-  async function readXpForResolvedAction(resolved) {
-    var targetId = normalizeActionId(resolved.actionId);
-    await waitFor(function () {
-      return isTargetActionSelected(targetId, findActionsComponentInstance());
-    }, 15000);
-    await sleep(1000);
-    return await waitFor(function () {
-      if (!isTargetActionSelected(targetId, findActionsComponentInstance())) return false;
-      var xp = parseXpPerHour();
-      return xp != null ? xp : false;
-    }, 10000);
   }
 
   function findActionRowById(root, actionId) {
@@ -1087,13 +840,16 @@
 
   async function clickSubGroupFilter(root, subGroupName) {
     if (!subGroupName) return false;
-    var buttons = root.querySelectorAll(".sort .container button");
-    for (var i = 0; i < buttons.length; i++) {
-      var btn = buttons[i];
-      var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
-      if (text.toLowerCase() === subGroupName.toLowerCase()) {
-        await clickFilterButton(btn);
-        return true;
+    var selectors = [".filters button.filter", ".sort .container button"];
+    for (var s = 0; s < selectors.length; s++) {
+      var buttons = root.querySelectorAll(selectors[s]);
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+        if (text.toLowerCase() === subGroupName.toLowerCase()) {
+          await clickFilterButton(btn);
+          return true;
+        }
       }
     }
     return false;
@@ -1173,6 +929,19 @@
 
     var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
 
+    if (prefs && prefs.subGroup) {
+      await clickSubGroupFilter(root, prefs.subGroup);
+      consider();
+      if (bestRow) {
+        var preferredId = parseActionId(bestRow);
+        if (preferredId) {
+          var preferredRow = await revealActionRow(root, preferredId, prefs);
+          if (preferredRow) bestRow = preferredRow;
+        }
+        return actionInfoFromRow(bestRow, "dom");
+      }
+    }
+
     async function exploreFilterRow(rowIndex) {
       if (rowIndex >= filterRows.length) {
         await exploreSubFilterContainers(root, consider, prefs);
@@ -1192,6 +961,7 @@
         await clickFilterButton(filters[f]);
         await exploreFilterRow(rowIndex + 1);
         if (canStopDomScan()) return;
+        if (bestRow && f === 0) return;
       }
     }
 
@@ -1220,55 +990,21 @@
       if (!root) return false;
       if (!expectedSkillId) return root;
       var cmp = findActionsComponentInstance(root);
-      var skillData = readComponentSkillData(cmp);
-      if (!cmp || !skillData) return false;
-      var sid = cmp.skillId || skillData.id;
+      if (!cmp || !cmp.skillData) return false;
+      var sid = cmp.skillId || cmp.skillData.id;
       return String(sid) === String(expectedSkillId) ? root : false;
     }, 12000);
     await sleep(500);
     return actionsComponentRoot();
   }
 
-  function enrichResolvedFromComponent(root, resolved) {
-    if (!resolved) return resolved;
-    var cmp = findActionsComponentInstance(root);
-    var data = lookupActionData(cmp, resolved.actionId);
-    if (!data && resolved.name) {
-      data = lookupActionDataByName(cmp, resolved.name);
-    }
-    if (data) {
-      resolved.actionId = actionIdFromData(cmp, data, resolved.actionId);
-      resolved.name = data.name || resolved.name;
-      resolved.level = data.level != null ? data.level : resolved.level;
-    }
-    if (resolved.actionId && cmp) {
-      var skillId = cmp.skillId || (readComponentSkillData(cmp) && readComponentSkillData(cmp).id);
-      if (skillId) {
-        resolved.path = "/skill/" + skillId + "/action/" + resolved.actionId;
-      }
-    }
-    return resolved;
-  }
-
   async function resolveBestAction(root, displayName) {
     var prefs = actionPreferences(displayName);
     var fromComponent = resolveBestActionPathFromComponent(root, prefs);
-    if (fromComponent) {
-      fromComponent.prefs = prefs;
-      return fromComponent;
-    }
-    await sleep(300);
-    fromComponent = resolveBestActionPathFromComponent(root, prefs);
-    if (fromComponent) {
-      fromComponent.prefs = prefs;
-      return fromComponent;
-    }
+    if (fromComponent) return fromComponent;
     var fromDom = await findBestUnlockedActionPathFromDom(root, prefs);
-    if (fromDom) {
-      fromDom.prefs = prefs;
-      return enrichResolvedFromComponent(root, fromDom);
-    }
-    return null;
+    if (fromDom) fromDom.prefs = prefs;
+    return fromDom;
   }
 
   async function openBestUnlockedAction(skillBtn, displayName) {
@@ -1280,13 +1016,9 @@
 
     if (!resolved.prefs) resolved.prefs = actionPreferences(displayName);
 
-    var navigated = await navigateToResolvedAction(root, resolved);
-    if (!navigated) {
-      await sleep(500);
-      navigated = await navigateToResolvedAction(root, resolved);
-    }
-
-    return actionInfoFromResolved(resolved, navigated);
+    await navigateToResolvedAction(root, resolved);
+    await waitForActionReady(resolved);
+    return readCurrentActionInfo(resolved);
   }
 
   function toBase64Url(obj) {
@@ -1332,54 +1064,50 @@
         /* still try reading XP/h — page may already be on an action */
       }
 
-      if (!actionInfo) {
-        errors[target.skill] = "Could not determine the best unlocked action.";
-        continue;
-      }
-
-      if (!actionInfo.navigated) {
-        errors[target.skill] =
-          "Could not open " + actionInfo.name + " (action #" + actionInfo.actionId + ").";
-        continue;
-      }
-
-      await sleep(400);
+      await sleep(500);
 
       var xp = null;
       try {
-        xp = await readXpForResolvedAction({
-          actionId: actionInfo.actionId,
-          path: actionInfo.url.replace(location.origin, ""),
-        });
+        xp = await waitFor(function () {
+          if (!actionInfo || !actionInfo.actionId) return false;
+          if (getActiveActionId() !== actionInfo.actionId && !isActiveActionRow(actionInfo.actionId)) {
+            return false;
+          }
+          return parseXpPerHour();
+        }, 12000);
       } catch (e) {
         errors[target.skill] = "Could not read XP/h on this skill page.";
       }
 
-      if (
-        xp != null &&
-        !isTargetActionSelected(actionInfo.actionId, findActionsComponentInstance())
-      ) {
+      if (xp != null && actionInfo && actionInfo.actionId && getActiveActionId() !== actionInfo.actionId) {
         errors[target.skill] =
           "Selected action may not have updated (wanted #" + actionInfo.actionId +
           ", active #" + getActiveActionId() + ").";
-        xp = null;
       }
 
       if (xp != null) {
         results[target.skill] = xp;
-        actionSources[target.skill] = {
-          actionId: actionInfo.actionId,
-          name: actionInfo.name,
-          level: actionInfo.level,
-          url: actionInfo.url,
-          method: actionInfo.method,
-          xpPerHour: xp,
-        };
-        setStatus(
-          "Importing " + (i + 1) + " / " + targets.length + ": " + target.displayName,
-          actionInfo.name + (actionInfo.level ? " (Lv. " + actionInfo.level + ")" : "") +
-            " → " + xp.toLocaleString() + " XP/h",
-        );
+        if (!actionInfo) {
+          var active = document.querySelector(
+            "actions-component button.row.active-link, actions-component a.row.active-link",
+          );
+          actionInfo = active ? actionInfoFromRow(active, "dom") : null;
+        }
+        if (actionInfo) {
+          actionSources[target.skill] = {
+            actionId: actionInfo.actionId,
+            name: actionInfo.name,
+            level: actionInfo.level,
+            url: actionInfo.url,
+            method: actionInfo.method,
+            xpPerHour: xp,
+          };
+          setStatus(
+            "Importing " + (i + 1) + " / " + targets.length + ": " + target.displayName,
+            actionInfo.name + (actionInfo.level ? " (Lv. " + actionInfo.level + ")" : "") +
+              " → " + xp.toLocaleString() + " XP/h",
+          );
+        }
       } else if (!errors[target.skill]) {
         errors[target.skill] = "No XP/h estimate found (check Stats → Estimates).";
       }
