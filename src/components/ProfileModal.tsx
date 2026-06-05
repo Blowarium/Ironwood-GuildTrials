@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SKILLS, type Member, type Skill } from "@/lib/constants";
 import {
   applyRankOrder,
@@ -58,12 +58,18 @@ export function ProfileModal({
   const [message, setMessage] = useState<string | null>(null);
   const [dragSkill, setDragSkill] = useState<Skill | null>(null);
   const [showImportGuide, setShowImportGuide] = useState(false);
+  const skipProfileResetRef = useRef(false);
 
   const canEdit = canEditProfileFor(currentUser, targetMember, rolesMap, staffUnlocked);
   const isSelf = currentUser === targetMember;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      skipProfileResetRef.current = false;
+      return;
+    }
+    if (skipProfileResetRef.current) return;
+
     const base = initialProfile ?? emptyProfile(targetMember);
     setSkills(normalizeProfile(base).skills);
     setError(null);
@@ -73,7 +79,10 @@ export function ProfileModal({
 
   useEffect(() => {
     if (!open || !pendingXpImport) return;
-    setSkills((prev) => applyXpImportToRows(prev, pendingXpImport));
+
+    skipProfileResetRef.current = true;
+    const base = initialProfile ?? emptyProfile(targetMember);
+    setSkills(applyXpImportToRows(normalizeProfile(base).skills, pendingXpImport));
     const count = Object.keys(pendingXpImport.skills).length;
     const errCount = pendingXpImport.errors
       ? Object.keys(pendingXpImport.errors).length
@@ -83,8 +92,9 @@ export function ProfileModal({
         ? `Imported XP/h for ${count} skills from Ironwood (${errCount} skipped). Review and save.`
         : `Imported XP/h for ${count} skills from Ironwood. Review and save.`,
     );
+    setShowImportGuide(true);
     onXpImportApplied();
-  }, [open, pendingXpImport, onXpImportApplied]);
+  }, [open, pendingXpImport, initialProfile, targetMember, onXpImportApplied]);
 
   const displayRows = useMemo(() => sortForDisplay(skills), [skills]);
 

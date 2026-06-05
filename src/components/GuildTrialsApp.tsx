@@ -91,6 +91,7 @@ export function GuildTrialsApp() {
   const [staffAuthTick, setStaffAuthTick] = useState(0);
   const [staffPasswordOpen, setStaffPasswordOpen] = useState(false);
   const [pendingXpImport, setPendingXpImport] = useState<IronwoodXpImportPayload | null>(null);
+  const [membersLoaded, setMembersLoaded] = useState(false);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
   const dbRole = currentUser ? getMemberRole(rolesMap, currentUser) : null;
@@ -138,10 +139,10 @@ export function GuildTrialsApp() {
   }, []);
 
   useEffect(() => {
-    if (!pendingXpImport || !identityReady || !currentUser) return;
+    if (!pendingXpImport || !identityReady || !currentUser || !membersLoaded) return;
     openProfile(currentUser);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reopen profile when import arrives
-  }, [pendingXpImport, identityReady, currentUser]);
+  }, [pendingXpImport, identityReady, currentUser, membersLoaded]);
 
   useEffect(() => {
     if (identityReady && currentUser && !isGuideDismissed()) {
@@ -221,6 +222,8 @@ export function GuildTrialsApp() {
       setRolesMap(buildRolesMap(data.roles));
     } catch {
       /* non-fatal */
+    } finally {
+      setMembersLoaded(true);
     }
   }, []);
 
