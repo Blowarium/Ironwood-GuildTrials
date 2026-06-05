@@ -62,7 +62,7 @@ export const STATUS_LABELS: Record<TrialStatus, string> = {
 
 export const STATUS_STYLES: Record<TrialStatus, string> = {
   planned: "bg-slate-700/80 text-slate-200",
-  active: "bg-amber-600/30 text-amber-200 ring-1 ring-amber-500/40",
+  active: "bg-sky-600/40 text-sky-100 ring-1 ring-sky-400/50",
   completed: "bg-emerald-600/30 text-emerald-200 ring-1 ring-emerald-500/40",
 };
 
