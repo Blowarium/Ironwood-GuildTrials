@@ -239,7 +239,7 @@
     if (typeof obj !== "object") return null;
     if (seen.has(obj)) return null;
     seen.add(obj);
-    if (obj.ACTION_DATA && obj.skillData !== undefined) return obj;
+    if (obj.ACTION_DATA && (obj.skillData$ || obj.skillData !== undefined)) return obj;
     if (Array.isArray(obj)) {
       for (var i = 0; i < obj.length; i++) {
         var fromArray = findInNgContext(obj[i], seen, depth + 1);
@@ -273,6 +273,13 @@
     }
 
     if (el.__ngContext__) {
+      var lView = el.__ngContext__;
+      if (Array.isArray(lView)) {
+        for (var i = 0; i < lView.length; i++) {
+          var item = lView[i];
+          if (item && item.ACTION_DATA && item.skillData$) return item;
+        }
+      }
       var fromContext = findInNgContext(el.__ngContext__, new WeakSet(), 0);
       if (fromContext) return fromContext;
     }
@@ -297,19 +304,30 @@
     return expected.replace(/[\s-]/g, "").toLowerCase() === actual.replace(/[\s-]/g, "").toLowerCase();
   }
 
+  function readObservableValue(subject) {
+    if (!subject) return null;
+    if (typeof subject.getValue === "function") return subject.getValue();
+    return null;
+  }
+
   function readComponentEffectiveLevel(cmp) {
-    if (!cmp) return readEffectiveSkillLevel();
-    var level = cmp.skillLevel;
-    var bonus = cmp.levelBonus || 0;
-    if (typeof level === "number") return level + bonus;
-    return readEffectiveSkillLevel();
+    if (!cmp) return null;
+    var level =
+      typeof cmp.skillLevel === "number" ? cmp.skillLevel : readObservableValue(cmp.skillLevel$);
+    var bonus =
+      typeof cmp.levelBonus === "number" ? cmp.levelBonus : readObservableValue(cmp.levelBonus$);
+    if (typeof level === "number") return level + (bonus || 0);
+    return null;
   }
 
   function resolveBestActionPathFromComponent(root) {
     var cmp = findActionsComponentInstance(root);
-    if (!cmp || !cmp.ACTION_DATA || !cmp.skillData) return null;
+    if (!cmp || !cmp.ACTION_DATA) return null;
 
-    var skillId = cmp.skillId || cmp.skillData.id;
+    var skillData = cmp.skillData;
+    if (!skillData) return null;
+
+    var skillId = cmp.skillId || skillData.id;
     if (!skillId) return null;
 
     var effectiveLevel = readComponentEffectiveLevel(cmp);
@@ -591,11 +609,15 @@
 
     await ensureActionsExpanded(root);
 
-    var tierFilters = root.querySelector(".filters")
-      ? Array.prototype.slice.call(root.querySelectorAll(".filters button.filter"))
-      : [];
+    var found = null;
 
-    async function searchSubFilters(consider) {
+    function consider() {
+      if (found) return;
+      var row = findActionRowById(root, actionId);
+      if (row) found = row;
+    }
+
+    async function searchSubFilters() {
       var containers = root.querySelectorAll(".sort .container");
       if (!containers.length) {
         consider();
@@ -620,31 +642,43 @@
         for (var i = 0; i < buttons.length; i++) {
           await clickFilterButton(buttons[i]);
           await walkContainer(index + 1);
+          if (found) return;
         }
       }
 
       await walkContainer(0);
     }
 
-    var found = null;
+    var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
 
-    function consider() {
+    async function exploreFilterRow(rowIndex) {
       if (found) return;
-      var row = findActionRowById(root, actionId);
-      if (row) found = row;
+      if (rowIndex >= filterRows.length) {
+        await searchSubFilters();
+        consider();
+        return;
+      }
+
+      var filters = Array.prototype.slice.call(
+        filterRows[rowIndex].querySelectorAll("button.filter"),
+      );
+      if (!filters.length) {
+        await exploreFilterRow(rowIndex + 1);
+        return;
+      }
+
+      for (var f = 0; f < filters.length; f++) {
+        await clickFilterButton(filters[f]);
+        await exploreFilterRow(rowIndex + 1);
+        if (found) return;
+      }
     }
 
-    if (!tierFilters.length) {
-      await searchSubFilters(consider);
+    if (!filterRows.length) {
+      await searchSubFilters();
       consider();
-      return found;
-    }
-
-    for (var t = 0; t < tierFilters.length; t++) {
-      await clickFilterButton(tierFilters[t]);
-      await searchSubFilters(consider);
-      consider();
-      if (found) return found;
+    } else {
+      await exploreFilterRow(0);
     }
 
     return found;
@@ -680,10 +714,9 @@
     var bestScoreVal = -1;
     for (var i = 0; i < rows.length; i++) {
       var row = rows[i];
-      if (isDisabled(row) && maxLevel == null) continue;
+      if (isDisabled(row)) continue;
       var level = parseActionLevel(row);
       if (maxLevel != null && level > maxLevel) continue;
-      if (maxLevel == null && isDisabled(row)) continue;
       var id = parseActionId(row);
       var score = actionScore(level, id);
       if (score > bestScoreVal) {
@@ -742,7 +775,6 @@
   async function findBestUnlockedActionPathFromDom(root) {
     await ensureActionsExpanded(root);
 
-    var bestPath = null;
     var bestRow = null;
     var bestScoreVal = -1;
     var cmp = findActionsComponentInstance(root);
@@ -750,31 +782,49 @@
     if (maxLevel == null) maxLevel = 9999;
 
     function consider() {
-      var rows = actionRowCandidates(root);
-      var row = pickBestRow(rows, maxLevel);
-      if (!row) row = pickBestRow(unlockedActionRows(root), maxLevel);
-      if (!row) return;
-      var score = actionScore(parseActionLevel(row), parseActionId(row));
-      if (score > bestScoreVal) {
-        bestScoreVal = score;
-        bestPath = readRouterLink(row);
-        bestRow = row;
+      var rows = unlockedActionRows(root);
+      if (!rows.length) rows = actionRowCandidates(root);
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        if (isDisabled(row)) continue;
+        var level = parseActionLevel(row);
+        if (level > maxLevel) continue;
+        var score = actionScore(level, parseActionId(row));
+        if (score > bestScoreVal) {
+          bestScoreVal = score;
+          bestRow = row;
+        }
       }
     }
 
-    var tierFilters = root.querySelector(".filters")
-      ? Array.prototype.slice.call(root.querySelectorAll(".filters button.filter"))
-      : [];
+    var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
 
-    if (!tierFilters.length) {
+    async function exploreFilterRow(rowIndex) {
+      if (rowIndex >= filterRows.length) {
+        await exploreSubFilterContainers(root, consider);
+        consider();
+        return;
+      }
+
+      var filters = Array.prototype.slice.call(
+        filterRows[rowIndex].querySelectorAll("button.filter"),
+      );
+      if (!filters.length) {
+        await exploreFilterRow(rowIndex + 1);
+        return;
+      }
+
+      for (var f = 0; f < filters.length; f++) {
+        await clickFilterButton(filters[f]);
+        await exploreFilterRow(rowIndex + 1);
+      }
+    }
+
+    if (!filterRows.length) {
       await exploreSubFilterContainers(root, consider);
       consider();
     } else {
-      for (var t = 0; t < tierFilters.length; t++) {
-        await clickFilterButton(tierFilters[t]);
-        await exploreSubFilterContainers(root, consider);
-        consider();
-      }
+      await exploreFilterRow(0);
     }
 
     if (!bestRow) return null;
