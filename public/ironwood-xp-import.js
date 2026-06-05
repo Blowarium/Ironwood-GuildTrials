@@ -71,6 +71,10 @@
     return pieRows.length ? pieRows : rows;
   }
 
+  function buttonsTopDown(nodeList) {
+    return Array.prototype.slice.call(nodeList || []).reverse();
+  }
+
   const scriptEl = document.currentScript;
   const scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
   const returnUrl =
@@ -714,7 +718,7 @@
           return;
         }
 
-        var buttons = Array.prototype.slice.call(
+        var buttons = buttonsTopDown(
           liveContainers[index].querySelectorAll("button"),
         );
         if (!buttons.length) {
@@ -742,7 +746,7 @@
         return;
       }
 
-      var filters = Array.prototype.slice.call(
+      var filters = buttonsTopDown(
         filterRows[rowIndex].querySelectorAll("button.filter"),
       );
       if (!filters.length) {
@@ -860,7 +864,7 @@
         return;
       }
 
-      var buttons = Array.prototype.slice.call(
+      var buttons = buttonsTopDown(
         liveContainers[index].querySelectorAll("button"),
       );
       if (!buttons.length) {
@@ -905,6 +909,11 @@
       }
     }
 
+    function canStopDomScan() {
+      if (!bestRow) return false;
+      return parseActionLevel(bestRow) >= maxLevel;
+    }
+
     var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
 
     async function exploreFilterRow(rowIndex) {
@@ -914,7 +923,7 @@
         return;
       }
 
-      var filters = Array.prototype.slice.call(
+      var filters = buttonsTopDown(
         filterRows[rowIndex].querySelectorAll("button.filter"),
       );
       if (!filters.length) {
@@ -925,6 +934,8 @@
       for (var f = 0; f < filters.length; f++) {
         await clickFilterButton(filters[f]);
         await exploreFilterRow(rowIndex + 1);
+        if (canStopDomScan()) return;
+        if (bestRow && f === 0) return;
       }
     }
 
