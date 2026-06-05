@@ -133,6 +133,21 @@
     var reflect = el.getAttribute("ng-reflect-router-link");
     if (reflect) {
       if (reflect.charAt(0) === "/") return reflect;
+      if (reflect.charAt(0) === "[") {
+        try {
+          var parts = JSON.parse(reflect);
+          if (Array.isArray(parts)) {
+            var idx = parts.indexOf("action");
+            if (idx > 0 && parts[idx + 1] != null) {
+              var skillPart = parts[idx - 1];
+              return "/skill/" + skillPart + "/action/" + parts[idx + 1];
+            }
+            return parts.join("/").replace(/\/{2,}/g, "/");
+          }
+        } catch (e) {
+          /* fall through */
+        }
+      }
       var parts = reflect.split(",");
       for (var i = 0; i < parts.length; i++) {
         if (parts[i] === "action" && parts[i + 1]) {
@@ -277,11 +292,18 @@
       name: (data && data.name) || readActionNameFromRow(row) || "Action " + actionId,
       level: (data && data.level) || (row ? parseActionLevel(row) : null),
       method: method,
+      row: row || null,
     };
   }
 
   function readCurrentActionInfo(fallback) {
-    var path = location.pathname;
+    var route = currentRoutePath();
+    var path = route;
+    if (path.indexOf("#") >= 0) {
+      path = path.slice(path.indexOf("#") + 1);
+    }
+    if (path && path.charAt(0) !== "/") path = "/" + path;
+    if (!path || path.indexOf("/skill/") < 0) path = location.pathname;
     var match = path.match(/\/action\/(\d+)/i);
     var actionId = match ? Number(match[1]) : fallback && fallback.actionId;
     var cmp = findActionsComponentInstance();
@@ -303,6 +325,143 @@
       url: location.origin + path,
       method: (fallback && fallback.method) || "dom",
     };
+  }
+
+  function currentRoutePath() {
+    return location.pathname + (location.hash || "");
+  }
+
+  function routeIncludesAction(actionId, skillId) {
+    var route = currentRoutePath();
+    if (actionId && route.indexOf("/action/" + actionId) < 0) return false;
+    if (skillId && route.indexOf("/skill/" + skillId) < 0) return false;
+    return route.indexOf("/action/") >= 0;
+  }
+
+  function parseSkillIdFromPath(path) {
+    if (!path) return null;
+    var match = path.match(/\/skill\/(\d+)/i);
+    return match ? match[1] : null;
+  }
+
+  async function waitForSkillPage(displayName) {
+    await waitFor(function () {
+      var active = document.querySelector(
+        "nav-component button.skill.active-link, nav button.skill.active-link, nav button.skill.active",
+      );
+      if (!active || readSkillName(active) !== displayName) return false;
+      return actionsComponentRoot();
+    }, 12000);
+    await sleep(400);
+  }
+
+  async function waitForActionRoute(resolved) {
+    var actionId = resolved.actionId;
+    var skillId = parseSkillIdFromPath(resolved.path);
+    await waitFor(function () {
+      return routeIncludesAction(actionId, skillId);
+    }, 12000);
+    await sleep(700);
+  }
+
+  function findActionRowById(root, actionId) {
+    if (!root || !actionId) return null;
+    var rows = actionRowCandidates(root);
+    for (var i = 0; i < rows.length; i++) {
+      if (parseActionId(rows[i]) === actionId) return rows[i];
+    }
+    return null;
+  }
+
+  async function revealActionRow(root, actionId) {
+    if (!root || !actionId) return null;
+
+    var direct = findActionRowById(root, actionId);
+    if (direct) return direct;
+
+    await ensureActionsExpanded(root);
+
+    var tierFilters = root.querySelector(".filters")
+      ? Array.prototype.slice.call(root.querySelectorAll(".filters button.filter"))
+      : [];
+
+    async function searchSubFilters(consider) {
+      var containers = root.querySelectorAll(".sort .container");
+      if (!containers.length) {
+        consider();
+        return;
+      }
+
+      async function walkContainer(index) {
+        var liveContainers = root.querySelectorAll(".sort .container");
+        if (index >= liveContainers.length) {
+          consider();
+          return;
+        }
+
+        var buttons = Array.prototype.slice.call(
+          liveContainers[index].querySelectorAll("button"),
+        );
+        if (!buttons.length) {
+          await walkContainer(index + 1);
+          return;
+        }
+
+        for (var i = 0; i < buttons.length; i++) {
+          await clickFilterButton(buttons[i]);
+          await walkContainer(index + 1);
+        }
+      }
+
+      await walkContainer(0);
+    }
+
+    var found = null;
+
+    function consider() {
+      if (found) return;
+      var row = findActionRowById(root, actionId);
+      if (row) found = row;
+    }
+
+    if (!tierFilters.length) {
+      await searchSubFilters(consider);
+      consider();
+      return found;
+    }
+
+    for (var t = 0; t < tierFilters.length; t++) {
+      await clickFilterButton(tierFilters[t]);
+      await searchSubFilters(consider);
+      consider();
+      if (found) return found;
+    }
+
+    return found;
+  }
+
+  async function navigateToResolvedAction(root, resolved) {
+    if (!resolved || !resolved.path) return null;
+
+    var actionId = resolved.actionId;
+    var row = resolved.row || (await revealActionRow(root, actionId));
+
+    if (row && !isDisabled(row)) {
+      row.click();
+      try {
+        await waitForActionRoute(resolved);
+        return readCurrentActionInfo(resolved);
+      } catch (e) {
+        /* fall through to direct navigation */
+      }
+    }
+
+    var bestPath = resolved.path;
+    if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
+    location.assign(bestPath);
+
+    await waitForActionRoute(resolved);
+    return readCurrentActionInfo(resolved);
   }
 
   function isActionRow(el) {
@@ -442,23 +601,13 @@
     return findBestUnlockedActionPathFromDom(root);
   }
 
-  async function openBestUnlockedAction() {
-    var root = await waitFor(function () {
-      return actionsComponentRoot();
-    }, 12000);
+  async function openBestUnlockedAction(displayName) {
+    var root = await waitForSkillPage(displayName);
 
     var resolved = await resolveBestAction(root);
     if (!resolved || !resolved.path) return null;
 
-    var bestPath = resolved.path;
-    if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
-    location.assign(bestPath);
-
-    await waitFor(function () {
-      return location.pathname.indexOf("/action/") >= 0;
-    }, 12000);
-    await sleep(700);
-    return readCurrentActionInfo(resolved);
+    return navigateToResolvedAction(root, resolved);
   }
 
   function toBase64Url(obj) {
@@ -495,17 +644,22 @@
       );
 
       target.btn.click();
-      await sleep(1000);
+      await sleep(300);
 
       var actionInfo = null;
       try {
-        actionInfo = await openBestUnlockedAction();
+        actionInfo = await openBestUnlockedAction(target.displayName);
       } catch (e) {
         errors[target.skill] = "Could not open the highest unlocked action for this skill.";
         continue;
       }
 
-      if (!actionInfo || !location.pathname.includes("/action/")) {
+      if (!actionInfo) {
+        errors[target.skill] = "Could not determine the highest unlocked action for this skill.";
+        continue;
+      }
+
+      if (!routeIncludesAction(actionInfo.actionId, parseSkillIdFromPath(actionInfo.url))) {
         errors[target.skill] = "Could not navigate to an action page for this skill.";
         continue;
       }
