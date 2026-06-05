@@ -134,20 +134,10 @@
     if (reflect) {
       if (reflect.charAt(0) === "/") return reflect;
       var parts = reflect.split(",");
-      var actionIdx = -1;
       for (var i = 0; i < parts.length; i++) {
         if (parts[i] === "action" && parts[i + 1]) {
-          actionIdx = i;
-          break;
+          return "/skill/" + parts[i - 1] + "/action/" + parts[i + 1];
         }
-      }
-      if (actionIdx > 0) {
-        return (
-          "/skill/" +
-          parts[actionIdx - 1] +
-          "/action/" +
-          parts[actionIdx + 1]
-        );
       }
     }
 
@@ -172,74 +162,228 @@
     return num > 0 ? num : 0;
   }
 
-  function actionScore(el) {
-    var level = parseActionLevel(el);
-    var id = parseActionId(el);
+  function actionScore(level, id) {
     return level * 100000 + id;
   }
 
-  function unlockedActionRows(root) {
-    return Array.prototype.slice.call(
-      root.querySelectorAll("button.row, a.row"),
-    ).filter(function (el) {
-      if (isDisabled(el)) return false;
-      if (el.offsetParent === null) return false;
-      return parseActionId(el) > 0;
-    });
+  function readEffectiveSkillLevel() {
+    var scopes = document.querySelectorAll(
+      "skill-page, actions-component, .page-title, [class*='skill']",
+    );
+    for (var i = 0; i < scopes.length; i++) {
+      var text = scopes[i].textContent || "";
+      var match = text.match(/Lv\.\s*(\d+)(?:\s*\+\s*(\d+))?/);
+      if (match) return Number(match[1]) + (match[2] ? Number(match[2]) : 0);
+    }
+    return null;
   }
 
-  function pickBestRow(rows) {
-    if (!rows.length) return null;
-    rows.sort(function (a, b) {
-      return actionScore(b) - actionScore(a);
-    });
-    return rows[0];
-  }
+  function findActionsComponentInstance(rootEl) {
+    var el = rootEl || document.querySelector("actions-component");
+    if (!el) return null;
 
-  async function findBestUnlockedAction(root) {
-    var bestRow = null;
-    var bestScore = -1;
-
-    function considerRows() {
-      var row = pickBestRow(unlockedActionRows(root));
-      if (row && actionScore(row) > bestScore) {
-        bestScore = actionScore(row);
-        bestRow = row;
+    if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
+      try {
+        return window.ng.getComponent(el);
+      } catch (e) {
+        /* fall through */
       }
     }
 
-    var filterRows = Array.prototype.slice.call(root.querySelectorAll(".filters"));
-    if (!filterRows.length) {
-      considerRows();
-      return bestRow;
+    var context = el.__ngContext__;
+    if (!context) return null;
+
+    var items = Array.isArray(context) ? context : [context];
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      if (!item || typeof item !== "object") continue;
+      if (item.ACTION_DATA && item.skillData !== undefined) return item;
+      if (item.ACTION_DATA && item.SKILL_DATA) return item;
+    }
+    return null;
+  }
+
+  function resolveBestActionPathFromComponent(root) {
+    var cmp = findActionsComponentInstance(root);
+    if (!cmp || !cmp.ACTION_DATA || !cmp.skillData) return null;
+
+    var skillId = cmp.skillId || cmp.skillData.id;
+    if (!skillId) return null;
+
+    var effectiveLevel = readEffectiveSkillLevel();
+    if (effectiveLevel == null) effectiveLevel = 9999;
+
+    var bestId = null;
+    var bestLevel = -1;
+
+    function considerAction(ref) {
+      if (!ref || ref.id == null) return;
+      var data = cmp.ACTION_DATA[ref.id];
+      if (!data) return;
+      var level = data.level || 0;
+      if (level > effectiveLevel) return;
+      if (level > bestLevel || (level === bestLevel && ref.id > bestId)) {
+        bestLevel = level;
+        bestId = ref.id;
+      }
     }
 
-    async function exploreFilterRow(rowIndex) {
-      var filters = Array.prototype.slice.call(
-        filterRows[rowIndex].querySelectorAll("button.filter"),
-      );
+    function walkGroups(groups) {
+      if (!groups) return;
+      for (var i = 0; i < groups.length; i++) {
+        var group = groups[i];
+        if (group.actions) {
+          for (var j = 0; j < group.actions.length; j++) {
+            considerAction(group.actions[j]);
+          }
+        }
+        if (group.actionGroups) walkGroups(group.actionGroups);
+      }
+    }
 
-      if (!filters.length) {
-        if (rowIndex === filterRows.length - 1) considerRows();
+    var skillData = cmp.skillData;
+    if (skillData.actions) {
+      for (var k = 0; k < skillData.actions.length; k++) {
+        considerAction(skillData.actions[k]);
+      }
+    }
+    walkGroups(skillData.actionGroups);
+
+    if (bestId == null) return null;
+    return "/skill/" + skillId + "/action/" + bestId;
+  }
+
+  function isActionRow(el) {
+    if (!el || el.tagName !== "BUTTON" && el.tagName !== "A") return false;
+    if (el.classList.contains("filter") || el.classList.contains("header")) return false;
+    if (el.closest(".filters")) return false;
+    if (el.closest(".sort .container") && !parseActionId(el)) return false;
+    return parseActionId(el) > 0;
+  }
+
+  function actionRowCandidates(root) {
+    return Array.prototype.slice.call(
+      root.querySelectorAll(
+        "button.row, a.row, button.active-link, .items button, .card button.row",
+      ),
+    ).filter(isActionRow);
+  }
+
+  function unlockedActionRows(root) {
+    return actionRowCandidates(root).filter(function (el) {
+      if (isDisabled(el)) return false;
+      if (el.offsetParent === null) return false;
+      return true;
+    });
+  }
+
+  function pickBestRow(rows, maxLevel) {
+    var best = null;
+    var bestScoreVal = -1;
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      if (isDisabled(row) && maxLevel == null) continue;
+      var level = parseActionLevel(row);
+      if (maxLevel != null && level > maxLevel) continue;
+      if (maxLevel == null && isDisabled(row)) continue;
+      var id = parseActionId(row);
+      var score = actionScore(level, id);
+      if (score > bestScoreVal) {
+        bestScoreVal = score;
+        best = row;
+      }
+    }
+    return best;
+  }
+
+  async function ensureActionsExpanded(root) {
+    var header = root.querySelector("button.header");
+    if (!header) return;
+    if (actionRowCandidates(root).length > 0) return;
+    header.click();
+    await sleep(500);
+  }
+
+  async function clickFilterButton(btn) {
+    if (!btn || btn.disabled) return;
+    btn.click();
+    await sleep(450);
+  }
+
+  async function exploreSubFilterContainers(root, consider) {
+    var containers = root.querySelectorAll(".sort .container");
+    if (!containers.length) {
+      consider();
+      return;
+    }
+
+    async function walkContainer(index) {
+      var liveContainers = root.querySelectorAll(".sort .container");
+      if (index >= liveContainers.length) {
+        consider();
         return;
       }
 
-      for (var i = 0; i < filters.length; i++) {
-        if (!filters[i].disabled) {
-          filters[i].click();
-          await sleep(rowIndex === 0 ? 500 : 350);
-        }
+      var buttons = Array.prototype.slice.call(
+        liveContainers[index].querySelectorAll("button"),
+      );
+      if (!buttons.length) {
+        await walkContainer(index + 1);
+        return;
+      }
 
-        if (rowIndex < filterRows.length - 1) {
-          await exploreFilterRow(rowIndex + 1);
-        } else {
-          considerRows();
-        }
+      for (var i = 0; i < buttons.length; i++) {
+        await clickFilterButton(buttons[i]);
+        await walkContainer(index + 1);
       }
     }
 
-    await exploreFilterRow(0);
-    return bestRow;
+    await walkContainer(0);
+  }
+
+  async function findBestUnlockedActionPathFromDom(root) {
+    await ensureActionsExpanded(root);
+
+    var bestPath = null;
+    var bestScoreVal = -1;
+    var maxLevel = readEffectiveSkillLevel();
+
+    function consider() {
+      var rows = actionRowCandidates(root);
+      var bestRow = pickBestRow(rows, maxLevel);
+      if (!bestRow) bestRow = pickBestRow(unlockedActionRows(root), maxLevel);
+      if (!bestRow) return;
+      var score = actionScore(parseActionLevel(bestRow), parseActionId(bestRow));
+      var path = readRouterLink(bestRow);
+      if (path && score > bestScoreVal) {
+        bestScoreVal = score;
+        bestPath = path;
+      }
+    }
+
+    var tierFilters = root.querySelector(".filters")
+      ? Array.prototype.slice.call(root.querySelectorAll(".filters button.filter"))
+      : [];
+
+    if (!tierFilters.length) {
+      await exploreSubFilterContainers(root, consider);
+      consider();
+      return bestPath;
+    }
+
+    for (var t = 0; t < tierFilters.length; t++) {
+      await clickFilterButton(tierFilters[t]);
+      await exploreSubFilterContainers(root, consider);
+      consider();
+    }
+
+    return bestPath;
+  }
+
+  async function resolveBestActionPath(root) {
+    var fromComponent = resolveBestActionPathFromComponent(root);
+    if (fromComponent) return fromComponent;
+    return findBestUnlockedActionPathFromDom(root);
   }
 
   async function openBestUnlockedAction() {
@@ -247,19 +391,17 @@
       return actionsComponentRoot();
     }, 12000);
 
-    var bestRow = await findBestUnlockedAction(root);
-    if (!bestRow) return false;
+    var bestPath = await resolveBestActionPath(root);
+    if (!bestPath) return false;
 
-    var targetPath = readRouterLink(bestRow);
-    bestRow.click();
+    if (bestPath.charAt(0) !== "/") bestPath = "/" + bestPath;
+    location.assign(bestPath);
+
+    await waitFor(function () {
+      return location.pathname.indexOf("/action/") >= 0;
+    }, 12000);
     await sleep(700);
-
-    if (targetPath && location.pathname.indexOf("/action/") < 0) {
-      location.assign(targetPath);
-      await sleep(900);
-    }
-
-    return location.pathname.includes("/action/");
+    return true;
   }
 
   function toBase64Url(obj) {
@@ -295,7 +437,7 @@
       );
 
       target.btn.click();
-      await sleep(900);
+      await sleep(1000);
 
       try {
         await openBestUnlockedAction();
@@ -309,7 +451,8 @@
         continue;
       }
 
-      await sleep(400);
+      await sleep(500);
+
       var xp = null;
       try {
         xp = await waitFor(function () {
