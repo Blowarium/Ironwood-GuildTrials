@@ -36,6 +36,28 @@
     Delving: true,
   };
 
+  const GUILD_SKILL_ORDER = [
+    "Woodcutting",
+    "Mining",
+    "Smelting",
+    "Smithing",
+    "Enchanting",
+    "Farming",
+    "Alchemy",
+    "Fishing",
+    "Cooking",
+    "Delving",
+    "Imbuing",
+    "Exploring",
+    "One-handed",
+    "Two-handed",
+    "Ranged",
+    "Defense",
+  ];
+
+  const IMPORT_RUN_KEY = "igt-xp-import-run";
+  const IMPORT_STATE_KEY = "igt-xp-import-state";
+
   const COMBAT_SKILLS = {
     "One-handed": true,
     "Two-handed": true,
@@ -85,6 +107,9 @@
   const actionPlanEncoded =
     (scriptUrl && scriptUrl.searchParams.get("actions")) ||
     "";
+  const importResume =
+    (scriptUrl && scriptUrl.searchParams.get("resume") === "1") ||
+    sessionStorage.getItem(IMPORT_RUN_KEY) === "1";
 
   if (!returnUrl) {
     alert(
@@ -1057,82 +1082,172 @@
     return location.pathname.indexOf("/action/" + actionId) >= 0;
   }
 
+  function loadImportState() {
+    try {
+      var raw = sessionStorage.getItem(IMPORT_STATE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.v === 1 && parsed.plan && parsed.skillKeys) return parsed;
+    } catch (e) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function saveImportState(state) {
+    sessionStorage.setItem(IMPORT_RUN_KEY, "1");
+    sessionStorage.setItem(IMPORT_STATE_KEY, JSON.stringify(state));
+  }
+
+  function clearImportState() {
+    sessionStorage.removeItem(IMPORT_RUN_KEY);
+    sessionStorage.removeItem(IMPORT_STATE_KEY);
+  }
+
+  function orderedSkillKeys(plan) {
+    return GUILD_SKILL_ORDER.filter(function (skill) {
+      return plan[skill] && plan[skill].path && plan[skill].actionId;
+    });
+  }
+
+  function normalizeActionPath(path) {
+    if (!path) return path;
+    return path.charAt(0) === "/" ? path : "/" + path;
+  }
+
+  function initImportState(plan) {
+    return {
+      v: 1,
+      returnUrl: returnUrl,
+      plan: plan,
+      skillKeys: orderedSkillKeys(plan),
+      index: 0,
+      results: {},
+      errors: {},
+      actionSources: {},
+    };
+  }
+
+  function finishImport(state) {
+    clearImportState();
+    var payload = {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      skills: state.results,
+      actionSources: state.actionSources,
+    };
+    if (Object.keys(state.errors).length) payload.errors = state.errors;
+
+    var sep = state.returnUrl.indexOf("?") >= 0 ? "&" : "?";
+    var destination =
+      state.returnUrl + sep + "xpImport=" + encodeURIComponent(toBase64Url(payload));
+
+    setStatus(
+      "Done! Returning to Guild Trials…",
+      Object.keys(state.results).length + " skills imported.",
+    );
+    window.setTimeout(function () {
+      location.href = destination;
+    }, 600);
+  }
+
   async function importAllDirect(plan) {
-    var skills = Object.keys(plan);
-    if (!skills.length) {
-      throw new Error("No Ironwood actions were provided for import.");
+    var state = loadImportState();
+    if (!state) {
+      state = initImportState(plan);
+      if (!state.skillKeys.length) {
+        throw new Error("No Ironwood actions were provided for import.");
+      }
+      saveImportState(state);
     }
 
-    var results = {};
-    var errors = {};
-    var actionSources = {};
+    var total = state.skillKeys.length;
+    if (state.index >= total) {
+      finishImport(state);
+      return;
+    }
 
-    for (var i = 0; i < skills.length; i++) {
-      var skill = skills[i];
-      var entry = plan[skill];
-      if (!entry || !entry.path || !entry.actionId) {
-        errors[skill] = "Missing action configuration.";
-        continue;
+    var skill = state.skillKeys[state.index];
+    var entry = state.plan[skill];
+    if (!entry || !entry.path || !entry.actionId) {
+      state.errors[skill] = "Missing action configuration.";
+      state.index++;
+      saveImportState(state);
+      if (state.index >= total) {
+        finishImport(state);
+        return;
       }
+      location.assign(normalizeActionPath(state.plan[state.skillKeys[state.index]].path));
+      return;
+    }
 
+    if (routeHasAction(entry.actionId)) {
       setStatus(
-        "Importing " + (i + 1) + " / " + skills.length + ": " + skill,
-        "Opening " + entry.name + "…",
+        "Importing " + (state.index + 1) + " / " + total + ": " + skill,
+        "Reading Estimates XP/h for " + entry.name + "…",
       );
-
-      var path = entry.path;
-      if (path.charAt(0) !== "/") path = "/" + path;
-      location.assign(path);
 
       var xp = null;
       try {
         xp = await waitFor(function () {
-          if (!routeHasAction(entry.actionId)) return false;
           return parseXpPerHour();
-        }, 8000);
+        }, 10000);
       } catch (e) {
-        errors[skill] = "Could not read XP/h on this action page.";
+        state.errors[skill] = "Could not read XP/h on this action page.";
       }
 
       if (xp != null) {
-        results[skill] = xp;
-        actionSources[skill] = {
+        state.results[skill] = xp;
+        state.actionSources[skill] = {
           actionId: entry.actionId,
           name: entry.name,
           level: null,
-          url: location.origin + path,
+          url: location.origin + normalizeActionPath(entry.path),
           method: "profile",
           xpPerHour: xp,
         };
         setStatus(
-          "Importing " + (i + 1) + " / " + skills.length + ": " + skill,
+          "Importing " + (state.index + 1) + " / " + total + ": " + skill,
           entry.name + " → " + xp.toLocaleString() + " XP/h",
         );
-      } else if (!errors[skill]) {
-        errors[skill] = "No XP/h estimate found (check Stats → Estimates).";
+      } else if (!state.errors[skill]) {
+        state.errors[skill] = "No XP/h estimate found (check Stats → Estimates).";
       }
 
-      await sleep(250);
+      state.index++;
+      saveImportState(state);
+
+      if (state.index >= total) {
+        await sleep(400);
+        finishImport(state);
+        return;
+      }
+
+      var nextEntry = state.plan[state.skillKeys[state.index]];
+      setStatus(
+        "Importing " + (state.index + 1) + " / " + total + ": " + state.skillKeys[state.index],
+        "Opening " + nextEntry.name + "…",
+      );
+      await sleep(300);
+      location.assign(normalizeActionPath(nextEntry.path));
+      return;
     }
 
-    var payload = {
-      v: 1,
-      importedAt: new Date().toISOString(),
-      skills: results,
-      actionSources: actionSources,
-    };
-    if (Object.keys(errors).length) payload.errors = errors;
-
-    var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
-    var destination = returnUrl + sep + "xpImport=" + encodeURIComponent(toBase64Url(payload));
-
-    setStatus("Done! Returning to Guild Trials…", Object.keys(results).length + " skills imported.");
-    await sleep(600);
-    location.href = destination;
+    setStatus(
+      "Importing " + (state.index + 1) + " / " + total + ": " + skill,
+      "Opening " + entry.name + "…",
+    );
+    await sleep(200);
+    location.assign(normalizeActionPath(entry.path));
   }
 
   async function importAll() {
-    var plan = readUserActionPlan();
+    var planFromUrl = readUserActionPlan();
+    if (planFromUrl && Object.keys(planFromUrl).length) {
+      clearImportState();
+    }
+    var state = loadImportState();
+    var plan = state ? state.plan : planFromUrl;
     if (!plan || !Object.keys(plan).length) {
       throw new Error(
         "No Ironwood actions configured. Open your Guild Trials profile, pick an action for each skill, save, then run import again.",

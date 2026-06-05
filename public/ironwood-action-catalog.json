@@ -1,6 +1,6 @@
 {
   "v": 1,
-  "generatedAt": "2026-06-05T11:50:15.423Z",
+  "generatedAt": "2026-06-05T12:25:09.457Z",
   "origin": "https://ironwoodrpg.com",
   "skills": {
     "Woodcutting": {
@@ -213,60 +213,60 @@
       "skillId": 3,
       "actions": [
         {
-          "actionId": 17,
+          "actionId": 37,
           "name": "Infernal Bar",
           "level": 100,
           "group": null,
-          "path": "/skill/3/action/17"
+          "path": "/skill/3/action/37"
         },
         {
-          "actionId": 16,
+          "actionId": 36,
           "name": "Astral Bar",
           "level": 85,
           "group": null,
-          "path": "/skill/3/action/16"
+          "path": "/skill/3/action/36"
         },
         {
-          "actionId": 15,
+          "actionId": 35,
           "name": "Obsidian Bar",
           "level": 70,
           "group": null,
-          "path": "/skill/3/action/15"
+          "path": "/skill/3/action/35"
         },
         {
-          "actionId": 14,
+          "actionId": 34,
           "name": "Cobalt Bar",
           "level": 55,
           "group": null,
-          "path": "/skill/3/action/14"
+          "path": "/skill/3/action/34"
         },
         {
-          "actionId": 13,
+          "actionId": 33,
           "name": "Gold Bar",
           "level": 40,
           "group": null,
-          "path": "/skill/3/action/13"
+          "path": "/skill/3/action/33"
         },
         {
-          "actionId": 12,
+          "actionId": 32,
           "name": "Silver Bar",
           "level": 25,
           "group": null,
-          "path": "/skill/3/action/12"
+          "path": "/skill/3/action/32"
         },
         {
-          "actionId": 11,
+          "actionId": 31,
           "name": "Iron Bar",
           "level": 10,
           "group": null,
-          "path": "/skill/3/action/11"
+          "path": "/skill/3/action/31"
         },
         {
-          "actionId": 10,
+          "actionId": 30,
           "name": "Copper Bar",
           "level": 1,
           "group": null,
-          "path": "/skill/3/action/10"
+          "path": "/skill/3/action/30"
         }
       ]
     },
@@ -1231,95 +1231,95 @@
       "skillId": 5,
       "actions": [
         {
-          "actionId": 145,
+          "actionId": 95,
           "name": "Elite Key 100",
           "level": 100,
           "group": "Keys",
-          "path": "/skill/5/action/145"
+          "path": "/skill/5/action/95"
         },
         {
-          "actionId": 127,
+          "actionId": 77,
           "name": "Onyx Essence",
           "level": 100,
           "group": "Essence",
-          "path": "/skill/5/action/127"
+          "path": "/skill/5/action/77"
         },
         {
-          "actionId": 144,
+          "actionId": 94,
           "name": "Elite Key 85",
           "level": 85,
           "group": "Keys",
-          "path": "/skill/5/action/144"
+          "path": "/skill/5/action/94"
         },
         {
-          "actionId": 126,
+          "actionId": 76,
           "name": "Moonstone Essence",
           "level": 85,
           "group": "Essence",
-          "path": "/skill/5/action/126"
+          "path": "/skill/5/action/76"
         },
         {
-          "actionId": 125,
+          "actionId": 75,
           "name": "Diamond Essence",
           "level": 70,
           "group": "Essence",
-          "path": "/skill/5/action/125"
+          "path": "/skill/5/action/75"
         },
         {
-          "actionId": 143,
+          "actionId": 93,
           "name": "Elite Key 70",
           "level": 70,
           "group": "Keys",
-          "path": "/skill/5/action/143"
+          "path": "/skill/5/action/93"
         },
         {
-          "actionId": 124,
+          "actionId": 74,
           "name": "Citrine Essence",
           "level": 55,
           "group": "Essence",
-          "path": "/skill/5/action/124"
+          "path": "/skill/5/action/74"
         },
         {
-          "actionId": 142,
+          "actionId": 92,
           "name": "Elite Key 55",
           "level": 55,
           "group": "Keys",
-          "path": "/skill/5/action/142"
+          "path": "/skill/5/action/92"
         },
         {
-          "actionId": 123,
+          "actionId": 73,
           "name": "Amethyst Essence",
           "level": 40,
           "group": "Essence",
-          "path": "/skill/5/action/123"
+          "path": "/skill/5/action/73"
         },
         {
-          "actionId": 141,
+          "actionId": 91,
           "name": "Elite Key 40",
           "level": 40,
           "group": "Keys",
-          "path": "/skill/5/action/141"
+          "path": "/skill/5/action/91"
         },
         {
-          "actionId": 140,
+          "actionId": 90,
           "name": "Elite Key 25",
           "level": 25,
           "group": "Keys",
-          "path": "/skill/5/action/140"
+          "path": "/skill/5/action/90"
         },
         {
-          "actionId": 122,
+          "actionId": 72,
           "name": "Emerald Essence",
           "level": 25,
           "group": "Essence",
-          "path": "/skill/5/action/122"
+          "path": "/skill/5/action/72"
         },
         {
-          "actionId": 121,
+          "actionId": 71,
           "name": "Topaz Essence",
           "level": 10,
           "group": "Essence",
-          "path": "/skill/5/action/121"
+          "path": "/skill/5/action/71"
         },
         {
           "actionId": 81,
@@ -1350,11 +1350,11 @@
           "path": "/skill/5/action/85"
         },
         {
-          "actionId": 120,
+          "actionId": 70,
           "name": "Ruby Essence",
           "level": 1,
           "group": "Essence",
-          "path": "/skill/5/action/120"
+          "path": "/skill/5/action/70"
         },
         {
           "actionId": 83,
@@ -1577,256 +1577,256 @@
       "skillId": 7,
       "actions": [
         {
-          "actionId": 32,
+          "actionId": 712,
           "name": "Basic Combat Exp Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/32"
+          "path": "/skill/7/action/712"
         },
         {
-          "actionId": 31,
+          "actionId": 711,
           "name": "Basic Combat Loot Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/31"
+          "path": "/skill/7/action/711"
         },
         {
-          "actionId": 38,
+          "actionId": 718,
           "name": "Basic Craft Exp Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/38"
+          "path": "/skill/7/action/718"
         },
         {
-          "actionId": 36,
+          "actionId": 716,
           "name": "Basic Craft Level Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/36"
+          "path": "/skill/7/action/716"
         },
         {
-          "actionId": 35,
+          "actionId": 715,
           "name": "Basic Gather Exp Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/35"
+          "path": "/skill/7/action/715"
         },
         {
-          "actionId": 33,
+          "actionId": 713,
           "name": "Basic Gather Level Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/33"
+          "path": "/skill/7/action/713"
         },
         {
-          "actionId": 34,
+          "actionId": 714,
           "name": "Basic Gather Yield Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/34"
+          "path": "/skill/7/action/714"
         },
         {
-          "actionId": 30,
+          "actionId": 710,
           "name": "Basic Health Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/30"
+          "path": "/skill/7/action/710"
         },
         {
-          "actionId": 37,
+          "actionId": 717,
           "name": "Basic Multi Craft Potion",
           "level": 1,
           "group": "Basic",
-          "path": "/skill/7/action/37"
+          "path": "/skill/7/action/717"
         },
         {
-          "actionId": 42,
+          "actionId": 722,
           "name": "Combat Exp Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/42"
+          "path": "/skill/7/action/722"
         },
         {
-          "actionId": 41,
+          "actionId": 721,
           "name": "Combat Loot Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/41"
+          "path": "/skill/7/action/721"
         },
         {
-          "actionId": 48,
+          "actionId": 728,
           "name": "Craft Exp Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/48"
+          "path": "/skill/7/action/728"
         },
         {
-          "actionId": 46,
+          "actionId": 726,
           "name": "Craft Level Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/46"
+          "path": "/skill/7/action/726"
         },
         {
-          "actionId": 45,
+          "actionId": 725,
           "name": "Gather Exp Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/45"
+          "path": "/skill/7/action/725"
         },
         {
-          "actionId": 43,
+          "actionId": 723,
           "name": "Gather Level Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/43"
+          "path": "/skill/7/action/723"
         },
         {
-          "actionId": 44,
+          "actionId": 724,
           "name": "Gather Yield Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/44"
+          "path": "/skill/7/action/724"
         },
         {
-          "actionId": 40,
+          "actionId": 720,
           "name": "Health Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/40"
+          "path": "/skill/7/action/720"
         },
         {
-          "actionId": 47,
+          "actionId": 727,
           "name": "Multi Craft Potion",
           "level": 1,
           "group": "Regular",
-          "path": "/skill/7/action/47"
+          "path": "/skill/7/action/727"
         },
         {
-          "actionId": 92,
+          "actionId": 752,
           "name": "New Divine Combat Exp Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/92"
+          "path": "/skill/7/action/752"
         },
         {
-          "actionId": 91,
+          "actionId": 751,
           "name": "New Divine Combat Loot Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/91"
+          "path": "/skill/7/action/751"
         },
         {
-          "actionId": 98,
+          "actionId": 758,
           "name": "New Divine Craft Exp Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/98"
+          "path": "/skill/7/action/758"
         },
         {
-          "actionId": 96,
+          "actionId": 756,
           "name": "New Divine Craft Level Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/96"
+          "path": "/skill/7/action/756"
         },
         {
-          "actionId": 95,
+          "actionId": 755,
           "name": "New Divine Gather Exp Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/95"
+          "path": "/skill/7/action/755"
         },
         {
-          "actionId": 93,
+          "actionId": 753,
           "name": "New Divine Gather Level Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/93"
+          "path": "/skill/7/action/753"
         },
         {
-          "actionId": 94,
+          "actionId": 754,
           "name": "New Divine Gather Yield Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/94"
+          "path": "/skill/7/action/754"
         },
         {
-          "actionId": 90,
+          "actionId": 750,
           "name": "New Divine Health Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/90"
+          "path": "/skill/7/action/750"
         },
         {
-          "actionId": 97,
+          "actionId": 757,
           "name": "New Divine Multi Craft Potion",
           "level": 1,
           "group": "Divine",
-          "path": "/skill/7/action/97"
+          "path": "/skill/7/action/757"
         },
         {
-          "actionId": 52,
+          "actionId": 732,
           "name": "Super Combat Exp Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/52"
+          "path": "/skill/7/action/732"
         },
         {
-          "actionId": 51,
+          "actionId": 731,
           "name": "Super Combat Loot Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/51"
+          "path": "/skill/7/action/731"
         },
         {
-          "actionId": 58,
+          "actionId": 738,
           "name": "Super Craft Exp Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/58"
+          "path": "/skill/7/action/738"
         },
         {
-          "actionId": 56,
+          "actionId": 736,
           "name": "Super Craft Level Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/56"
+          "path": "/skill/7/action/736"
         },
         {
-          "actionId": 55,
+          "actionId": 735,
           "name": "Super Gather Exp Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/55"
+          "path": "/skill/7/action/735"
         },
         {
-          "actionId": 53,
+          "actionId": 733,
           "name": "Super Gather Level Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/53"
+          "path": "/skill/7/action/733"
         },
         {
-          "actionId": 54,
+          "actionId": 734,
           "name": "Super Gather Yield Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/54"
+          "path": "/skill/7/action/734"
         },
         {
-          "actionId": 50,
+          "actionId": 730,
           "name": "Super Health Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/50"
+          "path": "/skill/7/action/730"
         },
         {
-          "actionId": 57,
+          "actionId": 737,
           "name": "Super Multi Craft Potion",
           "level": 1,
           "group": "Super",
-          "path": "/skill/7/action/57"
+          "path": "/skill/7/action/737"
         }
       ]
     },
@@ -1937,116 +1937,116 @@
       "skillId": 9,
       "actions": [
         {
-          "actionId": 27,
+          "actionId": 58,
           "name": "King Crab",
           "level": 100,
           "group": "Fish",
-          "path": "/skill/9/action/27"
+          "path": "/skill/9/action/58"
         },
         {
-          "actionId": 77,
+          "actionId": 67,
           "name": "King Crab Pie",
           "level": 100,
           "group": "Pie",
-          "path": "/skill/9/action/77"
+          "path": "/skill/9/action/67"
         },
         {
-          "actionId": 26,
+          "actionId": 57,
           "name": "Shark",
           "level": 85,
           "group": "Fish",
-          "path": "/skill/9/action/26"
+          "path": "/skill/9/action/57"
         },
         {
-          "actionId": 76,
+          "actionId": 66,
           "name": "Shark Pie",
           "level": 85,
           "group": "Pie",
-          "path": "/skill/9/action/76"
+          "path": "/skill/9/action/66"
         },
         {
-          "actionId": 25,
+          "actionId": 55,
           "name": "Swordfish",
           "level": 70,
           "group": "Fish",
-          "path": "/skill/9/action/25"
+          "path": "/skill/9/action/55"
         },
         {
-          "actionId": 75,
+          "actionId": 65,
           "name": "Swordfish Pie",
           "level": 70,
           "group": "Pie",
-          "path": "/skill/9/action/75"
+          "path": "/skill/9/action/65"
         },
         {
-          "actionId": 24,
+          "actionId": 54,
           "name": "Lobster",
           "level": 55,
           "group": "Fish",
-          "path": "/skill/9/action/24"
+          "path": "/skill/9/action/54"
         },
         {
-          "actionId": 74,
+          "actionId": 64,
           "name": "Lobster Pie",
           "level": 55,
           "group": "Pie",
-          "path": "/skill/9/action/74"
+          "path": "/skill/9/action/64"
         },
         {
-          "actionId": 23,
+          "actionId": 53,
           "name": "Bass",
           "level": 40,
           "group": "Fish",
-          "path": "/skill/9/action/23"
+          "path": "/skill/9/action/53"
         },
         {
-          "actionId": 73,
+          "actionId": 63,
           "name": "Bass Pie",
           "level": 40,
           "group": "Pie",
-          "path": "/skill/9/action/73"
+          "path": "/skill/9/action/63"
         },
         {
-          "actionId": 22,
+          "actionId": 52,
           "name": "Salmon",
           "level": 25,
           "group": "Fish",
-          "path": "/skill/9/action/22"
+          "path": "/skill/9/action/52"
         },
         {
-          "actionId": 72,
+          "actionId": 62,
           "name": "Salmon Pie",
           "level": 25,
           "group": "Pie",
-          "path": "/skill/9/action/72"
+          "path": "/skill/9/action/62"
         },
         {
-          "actionId": 21,
+          "actionId": 51,
           "name": "Cod",
           "level": 10,
           "group": "Fish",
-          "path": "/skill/9/action/21"
+          "path": "/skill/9/action/51"
         },
         {
-          "actionId": 71,
+          "actionId": 61,
           "name": "Cod Pie",
           "level": 10,
           "group": "Pie",
-          "path": "/skill/9/action/71"
+          "path": "/skill/9/action/61"
         },
         {
-          "actionId": 20,
+          "actionId": 50,
           "name": "Shrimp",
           "level": 1,
           "group": "Fish",
-          "path": "/skill/9/action/20"
+          "path": "/skill/9/action/50"
         },
         {
-          "actionId": 70,
+          "actionId": 60,
           "name": "Shrimp Pie",
           "level": 1,
           "group": "Pie",
-          "path": "/skill/9/action/70"
+          "path": "/skill/9/action/60"
         }
       ]
     },
@@ -2157,88 +2157,88 @@
       "skillId": 11,
       "actions": [
         {
-          "actionId": 101,
-          "name": "Basic Discovery Sigil",
-          "level": 1,
+          "actionId": 820,
+          "name": "Divine Discovery Sigil",
+          "level": 100,
           "group": null,
-          "path": "/skill/11/action/101"
+          "path": "/skill/11/action/820"
         },
         {
-          "actionId": 100,
+          "actionId": 821,
+          "name": "Divine Wisdom Sigil",
+          "level": 100,
+          "group": null,
+          "path": "/skill/11/action/821"
+        },
+        {
+          "actionId": 817,
+          "name": "Super Discovery Sigil",
+          "level": 100,
+          "group": null,
+          "path": "/skill/11/action/817"
+        },
+        {
+          "actionId": 818,
+          "name": "Super Wisdom Sigil",
+          "level": 100,
+          "group": null,
+          "path": "/skill/11/action/818"
+        },
+        {
+          "actionId": 819,
+          "name": "Divine Power Sigil",
+          "level": 85,
+          "group": null,
+          "path": "/skill/11/action/819"
+        },
+        {
+          "actionId": 816,
+          "name": "Super Power Sigil",
+          "level": 85,
+          "group": null,
+          "path": "/skill/11/action/816"
+        },
+        {
+          "actionId": 815,
+          "name": "Regular Wisdom Sigil",
+          "level": 70,
+          "group": null,
+          "path": "/skill/11/action/815"
+        },
+        {
+          "actionId": 814,
+          "name": "Regular Discovery Sigil",
+          "level": 55,
+          "group": null,
+          "path": "/skill/11/action/814"
+        },
+        {
+          "actionId": 813,
+          "name": "Regular Power Sigil",
+          "level": 40,
+          "group": null,
+          "path": "/skill/11/action/813"
+        },
+        {
+          "actionId": 812,
+          "name": "Basic Wisdom Sigil",
+          "level": 25,
+          "group": null,
+          "path": "/skill/11/action/812"
+        },
+        {
+          "actionId": 811,
+          "name": "Basic Discovery Sigil",
+          "level": 10,
+          "group": null,
+          "path": "/skill/11/action/811"
+        },
+        {
+          "actionId": 810,
           "name": "Basic Power Sigil",
           "level": 1,
           "group": null,
-          "path": "/skill/11/action/100"
-        },
-        {
-          "actionId": 102,
-          "name": "Basic Wisdom Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/102"
-        },
-        {
-          "actionId": 110,
-          "name": "Divine Discovery Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/110"
-        },
-        {
-          "actionId": 109,
-          "name": "Divine Power Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/109"
-        },
-        {
-          "actionId": 111,
-          "name": "Divine Wisdom Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/111"
-        },
-        {
-          "actionId": 104,
-          "name": "Regular Discovery Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/104"
-        },
-        {
-          "actionId": 103,
-          "name": "Regular Power Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/103"
-        },
-        {
-          "actionId": 105,
-          "name": "Regular Wisdom Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/105"
-        },
-        {
-          "actionId": 107,
-          "name": "Super Discovery Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/107"
-        },
-        {
-          "actionId": 106,
-          "name": "Super Power Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/106"
-        },
-        {
-          "actionId": 108,
-          "name": "Super Wisdom Sigil",
-          "level": 1,
-          "group": null,
-          "path": "/skill/11/action/108"
+          "path": "/skill/11/action/810"
         }
       ]
     },

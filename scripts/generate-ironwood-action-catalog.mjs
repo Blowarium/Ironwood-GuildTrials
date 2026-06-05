@@ -42,7 +42,7 @@ function extractEnum(name) {
   const start = s.indexOf(marker);
   if (start < 0) return new Map();
   const end = s.indexOf("var d})(),", start);
-  const block = end > start ? s.slice(start, end) : s.slice(start, start + 250000);
+  const block = end > start ? s.slice(start, end) : s.slice(start, start + 500000);
   const map = new Map();
   for (const m of block.matchAll(/\.(\w+)="(\d+)"/g)) {
     map.set(m[1], Number(m[2]));
@@ -51,14 +51,21 @@ function extractEnum(name) {
 }
 
 const skillIds = extractEnum("e");
-const actionIds = new Map([...extractEnum("z"), ...extractEnum("te")]);
+/** Route/action IDs — use z only; te uses different numbering and must not be merged. */
+const actionIds = extractEnum("z");
 
-const actionMetaRe = /\[n\.Xv\.(\w+)\]:\{id:n\.Xv\.\1,name:"([^"]+)",[^}]*level:(\d+)/g;
+const xvMetaRe = /\[n\.Xv\.(\w+)\]:\{id:n\.Xv\.\1,name:"([^"]+)",[^}]*level:(\d+)/g;
+const nAMetaRe =
+  /\[n\.nA\.(\w+)\]:\{id:n\.nA\.\1,name:"([^"]+)",[^}]*level:(\d+),skill:n\.AT\.(\w+)/g;
+
 const actionMeta = new Map();
-for (const m of s.matchAll(actionMetaRe)) {
+for (const m of s.matchAll(xvMetaRe)) {
   if (!actionMeta.has(m[1])) {
     actionMeta.set(m[1], { name: m[2], level: Number(m[3]) });
   }
+}
+for (const m of s.matchAll(nAMetaRe)) {
+  actionMeta.set(m[1], { name: m[2], level: Number(m[3]), skillKey: m[4] });
 }
 
 function humanizeKey(key) {
@@ -68,10 +75,11 @@ function humanizeKey(key) {
     .trim();
 }
 
-function inferLevel(key, metaLevel) {
-  if (metaLevel != null) return metaLevel;
+function metaForKey(key) {
+  const meta = actionMeta.get(key);
+  if (meta) return { name: meta.name, level: meta.level };
   const tail = key.match(/(\d+)$/);
-  return tail ? Number(tail[1]) : 1;
+  return { name: humanizeKey(key), level: tail ? Number(tail[1]) : 1 };
 }
 
 function findSkillBlockEnd(startIdx) {
@@ -86,12 +94,13 @@ function extractSkillBlock(skillName) {
   let idx = 0;
   while ((idx = s.indexOf(needle, idx)) >= 0) {
     const sliceStart = idx;
-    const end = findSkillBlockEnd(sliceStart);
-    const slice = s.slice(sliceStart, end);
-    if (slice.includes("color:") && (slice.includes("actions:") || slice.includes("actionGroups:"))) {
-      return slice;
+    const head = s.slice(sliceStart, sliceStart + 400);
+    if (!head.includes("color:") || !head.includes("actions:")) {
+      idx += needle.length;
+      continue;
     }
-    idx += needle.length;
+    const end = findSkillBlockEnd(sliceStart);
+    return s.slice(sliceStart, end);
   }
   return "";
 }
@@ -130,11 +139,11 @@ function buildActionsFromKeys(keys, skillId, groupLabels) {
     const actionId = actionIds.get(key);
     if (actionId == null || seen.has(actionId)) continue;
     seen.add(actionId);
-    const meta = actionMeta.get(key);
+    const meta = metaForKey(key);
     actions.push({
       actionId,
-      name: meta?.name || humanizeKey(key),
-      level: inferLevel(key, meta?.level),
+      name: meta.name,
+      level: meta.level,
       group: groupLabels.get(key) || null,
       path: skillId != null ? `/skill/${skillId}/action/${actionId}` : null,
     });
