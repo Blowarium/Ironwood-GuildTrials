@@ -50,7 +50,8 @@ function extractEnum(name) {
   return map;
 }
 
-const skillIds = extractEnum("e");
+/** Route skill IDs in URLs (/skill/:id/...) — me enum, not e (different ordering). */
+const skillIds = extractEnum("me");
 /** Route/action IDs — z only; te uses a different numbering scheme. */
 const actionIds = extractEnum("z");
 
