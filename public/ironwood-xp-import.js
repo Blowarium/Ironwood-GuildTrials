@@ -47,6 +47,7 @@
     if (GATHERING_SKILLS[displayName]) return { subGroup: "Outskirts" };
     if (COMBAT_SKILLS[displayName]) return { subGroup: "Elite" };
     if (displayName === "Cooking") return { preferPie: true };
+    if (displayName === "Enchanting") return { subGroup: "Keys" };
     return {};
   }
 
@@ -530,32 +531,67 @@
     return match ? Number(match[1]) : 0;
   }
 
+  async function clickActionRow(row) {
+    if (!row || isDisabled(row)) return;
+    try {
+      row.scrollIntoView({ block: "nearest" });
+    } catch (e) {
+      /* ignore */
+    }
+    row.click();
+    await sleep(300);
+    var link = row.querySelector("a[href], [ng-reflect-router-link]");
+    if (link && link !== row && !isDisabled(link)) {
+      link.click();
+      await sleep(300);
+    }
+  }
+
+  async function waitUntilActionActive(actionId, timeoutMs) {
+    await waitFor(function () {
+      return getActiveActionId() === actionId || isActiveActionRow(actionId);
+    }, timeoutMs || 12000);
+    await sleep(700);
+  }
+
   async function navigateToResolvedAction(root, resolved) {
-    if (!resolved || !resolved.actionId || !resolved.path) return false;
+    if (!resolved || !resolved.actionId) return false;
 
     if (getActiveActionId() === resolved.actionId) return true;
 
-    var path = resolved.path;
-    if (path.charAt(0) !== "/") path = "/" + path;
-    location.assign(path);
-
-    try {
-      await waitFor(function () {
-        return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
-      }, 12000);
-      await sleep(500);
-      return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
-    } catch (e) {
-      /* fall through to row click */
+    var row = await revealActionRow(root, resolved.actionId, resolved.prefs);
+    if (row) {
+      await clickActionRow(row);
+      try {
+        await waitUntilActionActive(resolved.actionId, 10000);
+        if (getActiveActionId() === resolved.actionId) return true;
+      } catch (e) {
+        /* try URL navigation */
+      }
     }
 
-    var row = resolved.row || (await revealActionRow(root, resolved.actionId, resolved.prefs));
-    if (row && !isDisabled(row)) {
-      row.click();
-      await sleep(700);
+    if (resolved.path) {
+      var path = resolved.path.charAt(0) === "/" ? resolved.path : "/" + resolved.path;
+      location.assign(path);
+      try {
+        await waitUntilActionActive(resolved.actionId, 10000);
+        if (getActiveActionId() === resolved.actionId) return true;
+      } catch (e) {
+        /* try row click again */
+      }
     }
 
-    return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+    row = await revealActionRow(root, resolved.actionId, resolved.prefs);
+    if (row) {
+      await clickActionRow(row);
+      try {
+        await waitUntilActionActive(resolved.actionId, 8000);
+      } catch (e) {
+        /* give up */
+      }
+    }
+
+    return getActiveActionId() === resolved.actionId;
   }
 
   function isActiveActionRow(actionId) {
@@ -569,15 +605,9 @@
     return false;
   }
 
-  function actionReady(resolved, previousRoute) {
-    if (!resolved) return false;
-    var route = currentRoutePath();
-    if (previousRoute && route !== previousRoute && routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path))) {
-      return true;
-    }
-    if (isActiveActionRow(resolved.actionId)) return true;
-    if (parseXpPerHour() != null) return true;
-    return routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path));
+  function actionReady(resolved) {
+    if (!resolved || !resolved.actionId) return false;
+    return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
   }
 
   function buildActionInfo(resolved) {
@@ -602,7 +632,8 @@
     if (!path || path.indexOf("/skill/") < 0) path = location.pathname;
     var match = path.match(/\/action\/(\d+)/i);
     var activeId = getActiveActionId();
-    var actionId = activeId || (match ? Number(match[1]) : 0) || (fallback && fallback.actionId);
+    var routeActionId = match ? Number(match[1]) : 0;
+    var actionId = activeId || routeActionId || 0;
     var cmp = findActionsComponentInstance();
     var data = cmp && cmp.ACTION_DATA && actionId ? cmp.ACTION_DATA[actionId] : null;
 
@@ -612,20 +643,28 @@
     var name =
       (data && data.name) ||
       readActionNameFromRow(active) ||
-      (fallback && fallback.name) ||
       (actionId ? "Action " + actionId : "Unknown action");
 
-    var reportPath =
-      fallback && fallback.path && (!match || Number(match[1]) !== fallback.actionId)
-        ? fallback.path
-        : path;
+    if (!actionId && fallback) {
+      actionId = fallback.actionId;
+      name = fallback.name || name;
+    }
+
+    var reportPath = path;
+    if (actionId && path.indexOf("/action/" + actionId) < 0 && fallback && fallback.path) {
+      reportPath = fallback.path;
+    }
 
     return {
-      actionId: (fallback && fallback.actionId) || actionId || 0,
+      actionId: actionId || 0,
       name: name,
-      level: (data && data.level) || (active ? parseActionLevel(active) : null) || (fallback && fallback.level),
+      level:
+        (data && data.level) ||
+        (active ? parseActionLevel(active) : null) ||
+        (fallback && fallback.level),
       url: location.origin + reportPath,
       method: (fallback && fallback.method) || "dom",
+      targetActionId: fallback && fallback.actionId ? fallback.actionId : null,
     };
   }
 
@@ -666,11 +705,21 @@
     return actionsComponentRoot();
   }
 
-  async function waitForActionReady(resolved, previousRoute) {
+  async function waitForActionReady(resolved) {
     await waitFor(function () {
-      return actionReady(resolved, previousRoute);
+      return actionReady(resolved);
     }, 12000);
     await sleep(700);
+  }
+
+  async function readXpForActiveAction(actionId) {
+    await waitForActionReady({ actionId: actionId });
+    await sleep(800);
+    return await waitFor(function () {
+      if (getActiveActionId() !== actionId) return false;
+      var xp = parseXpPerHour();
+      return xp != null ? xp : false;
+    }, 10000);
   }
 
   function findActionRowById(root, actionId) {
@@ -990,8 +1039,24 @@
 
     if (!resolved.prefs) resolved.prefs = actionPreferences(displayName);
 
-    await navigateToResolvedAction(root, resolved);
-    return readCurrentActionInfo(resolved);
+    var navigated = await navigateToResolvedAction(root, resolved);
+    if (!navigated) {
+      await sleep(400);
+      navigated = await navigateToResolvedAction(root, resolved);
+    }
+
+    var info = readCurrentActionInfo(resolved);
+    if (navigated && resolved.actionId && info.actionId !== resolved.actionId) {
+      info.actionId = resolved.actionId;
+      var cmp = findActionsComponentInstance(root);
+      var data =
+        cmp && cmp.ACTION_DATA && resolved.actionId ? cmp.ACTION_DATA[resolved.actionId] : null;
+      if (data) {
+        info.name = data.name || info.name;
+        info.level = data.level != null ? data.level : info.level;
+      }
+    }
+    return info;
   }
 
   function toBase64Url(obj) {
@@ -1040,21 +1105,30 @@
       await sleep(500);
 
       var xp = null;
+      var targetActionId =
+        actionInfo && (actionInfo.targetActionId || actionInfo.actionId)
+          ? actionInfo.targetActionId || actionInfo.actionId
+          : null;
+
       try {
-        xp = await waitFor(function () {
-          if (actionInfo && actionInfo.actionId && getActiveActionId() === actionInfo.actionId) {
-            return parseXpPerHour();
-          }
-          return parseXpPerHour();
-        }, 12000);
+        if (targetActionId) {
+          xp = await readXpForActiveAction(targetActionId);
+        } else {
+          xp = parseXpPerHour();
+        }
       } catch (e) {
         errors[target.skill] = "Could not read XP/h on this skill page.";
       }
 
-      if (xp != null && actionInfo && actionInfo.actionId && getActiveActionId() !== actionInfo.actionId) {
+      if (
+        xp != null &&
+        targetActionId &&
+        getActiveActionId() !== targetActionId
+      ) {
         errors[target.skill] =
-          "Selected action may not have updated (wanted #" + actionInfo.actionId +
+          "Selected action may not have updated (wanted #" + targetActionId +
           ", active #" + getActiveActionId() + ").";
+        xp = null;
       }
 
       if (xp != null) {
