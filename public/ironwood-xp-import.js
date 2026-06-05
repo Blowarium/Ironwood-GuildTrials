@@ -536,40 +536,61 @@
     return match ? Number(match[1]) : 0;
   }
 
+  function actionSelectionMatches(resolved) {
+    if (!resolved || !resolved.actionId) return false;
+    if (isActiveActionRow(resolved.actionId)) return true;
+    if (getActiveActionId() === resolved.actionId) return true;
+    var path = resolved.path || resolved.url || "";
+    if (path.indexOf("http") === 0) {
+      try {
+        path = new URL(path).pathname;
+      } catch (e) {
+        path = "";
+      }
+    }
+    return routeIncludesAction(resolved.actionId, parseSkillIdFromPath(path));
+  }
+
   async function navigateToResolvedAction(root, resolved) {
     if (!resolved || !resolved.actionId || !resolved.path) return false;
 
-    if (getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId)) return true;
+    if (actionSelectionMatches(resolved)) return true;
 
     async function clickResolvedRow() {
-      var row = resolved.row || (await revealActionRow(root, resolved.actionId, resolved.prefs));
+      if (resolved.prefs && resolved.prefs.subGroup) {
+        await clickSubGroupFilter(root, resolved.prefs.subGroup);
+        await sleep(300);
+      }
+      var row = resolved.row || findActionRowById(root, resolved.actionId);
+      if (!row) row = await revealActionRow(root, resolved.actionId, resolved.prefs);
       if (!row || isDisabled(row)) return false;
       row.scrollIntoView({ block: "nearest" });
       row.click();
-      await sleep(700);
-      return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+      await sleep(500);
+      return actionSelectionMatches(resolved);
     }
 
     if (await clickResolvedRow()) return true;
 
     var path = resolved.path;
     if (path.charAt(0) !== "/") path = "/" + path;
-    location.assign(path);
-
-    try {
-      await waitFor(function () {
-        return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
-      }, 12000);
-    } catch (e) {
-      /* fall through to row click */
+    if (!routeIncludesAction(resolved.actionId, parseSkillIdFromPath(path))) {
+      location.assign(path);
+      try {
+        await waitFor(function () {
+          return actionSelectionMatches(resolved);
+        }, 5000);
+      } catch (e) {
+        /* fall through to row click */
+      }
     }
 
-    if (!isActiveActionRow(resolved.actionId) && getActiveActionId() !== resolved.actionId) {
+    if (!actionSelectionMatches(resolved)) {
       await clickResolvedRow();
     }
 
-    await sleep(500);
-    return getActiveActionId() === resolved.actionId || isActiveActionRow(resolved.actionId);
+    await sleep(300);
+    return actionSelectionMatches(resolved);
   }
 
   function isActiveActionRow(actionId) {
@@ -581,13 +602,6 @@
       if (parseActionId(rows[i]) === actionId) return true;
     }
     return false;
-  }
-
-  function actionReady(resolved) {
-    if (!resolved || !resolved.actionId) return false;
-    if (isActiveActionRow(resolved.actionId)) return true;
-    if (getActiveActionId() === resolved.actionId) return true;
-    return routeIncludesAction(resolved.actionId, parseSkillIdFromPath(resolved.path));
   }
 
   function buildActionInfo(resolved) {
@@ -676,11 +690,19 @@
     return actionsComponentRoot();
   }
 
-  async function waitForActionReady(resolved) {
+  async function waitForComponentForSkill(skillBtn) {
+    var expectedSkillId = parseSkillIdFromElement(skillBtn);
     await waitFor(function () {
-      return actionReady(resolved);
+      var root = actionsComponentRoot();
+      if (!root) return false;
+      if (!expectedSkillId) return root;
+      var cmp = findActionsComponentInstance(root);
+      if (!cmp || !cmp.skillData) return false;
+      var sid = cmp.skillId || cmp.skillData.id;
+      return String(sid) === String(expectedSkillId) ? root : false;
     }, 12000);
-    await sleep(700);
+    await sleep(500);
+    return actionsComponentRoot();
   }
 
   function findActionRowById(root, actionId) {
@@ -983,21 +1005,6 @@
     return actionInfoFromRow(bestRow, "dom");
   }
 
-  async function waitForComponentForSkill(skillBtn) {
-    var expectedSkillId = parseSkillIdFromElement(skillBtn);
-    await waitFor(function () {
-      var root = actionsComponentRoot();
-      if (!root) return false;
-      if (!expectedSkillId) return root;
-      var cmp = findActionsComponentInstance(root);
-      if (!cmp || !cmp.skillData) return false;
-      var sid = cmp.skillId || cmp.skillData.id;
-      return String(sid) === String(expectedSkillId) ? root : false;
-    }, 12000);
-    await sleep(500);
-    return actionsComponentRoot();
-  }
-
   async function resolveBestAction(root, displayName) {
     var prefs = actionPreferences(displayName);
     var fromComponent = resolveBestActionPathFromComponent(root, prefs);
@@ -1017,7 +1024,7 @@
     if (!resolved.prefs) resolved.prefs = actionPreferences(displayName);
 
     await navigateToResolvedAction(root, resolved);
-    await waitForActionReady(resolved);
+    await sleep(400);
     return readCurrentActionInfo(resolved);
   }
 
@@ -1064,22 +1071,23 @@
         /* still try reading XP/h — page may already be on an action */
       }
 
-      await sleep(500);
+      await sleep(300);
 
       var xp = null;
       try {
         xp = await waitFor(function () {
-          if (!actionInfo || !actionInfo.actionId) return false;
-          if (getActiveActionId() !== actionInfo.actionId && !isActiveActionRow(actionInfo.actionId)) {
-            return false;
-          }
           return parseXpPerHour();
-        }, 12000);
+        }, 6000);
       } catch (e) {
         errors[target.skill] = "Could not read XP/h on this skill page.";
       }
 
-      if (xp != null && actionInfo && actionInfo.actionId && getActiveActionId() !== actionInfo.actionId) {
+      if (
+        xp != null &&
+        actionInfo &&
+        actionInfo.actionId &&
+        !actionSelectionMatches(actionInfo)
+      ) {
         errors[target.skill] =
           "Selected action may not have updated (wanted #" + actionInfo.actionId +
           ", active #" + getActiveActionId() + ").";
