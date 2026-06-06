@@ -10,7 +10,9 @@ export type UpgradeStrategyId =
   | "halls_first"
   | "cheapest_next"
   | "event_rush"
-  | "trial_rush";
+  | "trial_rush"
+  | "bank_rush"
+  | "max_member_coins";
 
 export interface UpgradeStrategyDef {
   id: UpgradeStrategyId;
@@ -57,6 +59,17 @@ export const UPGRADE_STRATEGIES: UpgradeStrategyDef[] = [
     description: "Max Trial Hall as fast as possible, then switch to max-income picks.",
   },
   {
+    id: "bank_rush",
+    name: "Guild Bank rush",
+    description: "Max Guild Bank as fast as possible, then switch to max-income picks.",
+  },
+  {
+    id: "max_member_coins",
+    name: "Max member coins",
+    description:
+      "Balance Guild Bank coin payouts vs credit halls by best weekly return per day waited.",
+  },
+  {
     id: "cheapest_next",
     name: "Cheapest next",
     description: "Always take the lowest credit-cost upgrade — spreads spending across buildings.",
@@ -91,6 +104,9 @@ export function filterPendingByStrategy(
       return pending;
     case "trial_rush":
       if (levels.GuildTrialHall < targetLevel) return ["GuildTrialHall"];
+      return pending;
+    case "bank_rush":
+      if (levels.GuildBank < targetLevel) return ["GuildBank"];
       return pending;
     default:
       return pending;

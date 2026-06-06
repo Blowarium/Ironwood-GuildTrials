@@ -7,8 +7,11 @@ import {
   GUILD_BUILDINGS,
   type GuildBuildingId,
   type GuildBuildingLevels,
+  formatCoins,
   formatCredits,
   totalRemainingUpgradeCredits,
+  weeklyGuildBankCoins,
+  DEFAULT_GUILD_MEMBER_COUNT,
 } from "@/lib/guild-buildings-data";
 import type { GuildConfig } from "@/lib/guild-config";
 import { mergeBuildingLevelsWithConfig } from "@/lib/guild-config";
@@ -101,6 +104,7 @@ export function GuildBuildingsView({
   const detailSchedule = detailScenario.schedule;
 
   const incomeNow = useMemo(() => weeklyCreditIncome(levels), [levels]);
+  const bankCoinsNow = useMemo(() => weeklyGuildBankCoins(levels.GuildBank), [levels.GuildBank]);
   const remainingCredits = useMemo(() => totalRemainingUpgradeCredits(levels), [levels]);
 
   function updateLevel(id: GuildBuildingId, value: number) {
@@ -222,9 +226,20 @@ export function GuildBuildingsView({
               />
               <IncomeRow label="Trials (16 skills)" value={incomeNow.trials} />
               <div className="border-t border-slate-700/50 pt-1">
-                <IncomeRow label="Total" value={incomeNow.total} />
+                <IncomeRow label="Total credits" value={incomeNow.total} />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-yellow-900/30 bg-yellow-950/15 p-4">
+            <p className="text-sm font-medium text-yellow-100">Guild Bank coins (now)</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
+              {DEFAULT_GUILD_MEMBER_COUNT} members × level × 1,000 × 13 / day
+            </p>
+            <p className="mt-2 text-lg font-semibold text-yellow-200">
+              {formatCoins(bankCoinsNow)}/wk
+            </p>
+            <p className="text-xs text-slate-500">Paid to players, not Guild Credits</p>
           </div>
         </div>
       </div>
@@ -234,7 +249,8 @@ export function GuildBuildingsView({
       <div className="rounded-xl border border-sky-800/40 bg-sky-950/20 p-4">
         <p className="text-sm font-medium text-sky-200">Upgrade order</p>
         <p className="mt-1 text-xs text-slate-400">
-          Pick a strategy to see its timeline, upgrade steps, and projected weekly income.
+          Pick a strategy to see its timeline, upgrade steps, credit income, and Guild Bank coin
+          payouts.
         </p>
         <div className="mt-3">
           <ScenarioStrategyPills
@@ -245,7 +261,7 @@ export function GuildBuildingsView({
           />
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-slate-500">Credits still needed</p>
             <p className="mt-1 text-sm font-semibold text-amber-200">
@@ -263,12 +279,25 @@ export function GuildBuildingsView({
             <p className="mt-1 text-sm font-semibold text-sky-300">{detailSchedule.completionDate}</p>
           </div>
           <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wide text-slate-500">Weekly income after</p>
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Weekly credits after</p>
             <p className="mt-1 text-sm font-semibold text-emerald-300">
               {formatCredits(detailSchedule.weeklyIncomeAtEnd.total)}/wk
             </p>
+          </div>
+          <div className="rounded-lg border border-yellow-800/30 bg-yellow-950/20 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Bank coins (path)</p>
+            <p className="mt-1 text-sm font-semibold text-yellow-200">
+              {formatCoins(detailSchedule.totalBankCoinsOnPath)}
+            </p>
+            <p className="text-[11px] text-slate-500">{DEFAULT_GUILD_MEMBER_COUNT} members total</p>
+          </div>
+          <div className="rounded-lg border border-yellow-800/30 bg-yellow-950/20 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Weekly bank coins after</p>
+            <p className="mt-1 text-sm font-semibold text-yellow-200">
+              {formatCoins(detailSchedule.weeklyBankCoinsAtEnd)}/wk
+            </p>
             <p className="text-[11px] text-slate-500">
-              up from {formatCredits(detailSchedule.weeklyIncomeAtStart.total)}/wk
+              up from {formatCoins(detailSchedule.weeklyBankCoinsAtStart)}/wk
             </p>
           </div>
         </div>
@@ -307,21 +336,25 @@ export function GuildBuildingsView({
 
       <details className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
         <summary className="cursor-pointer text-sm font-medium text-slate-300">
-          Credit mechanics
+          Income & coin mechanics
         </summary>
         <ul className="mt-3 list-inside list-disc space-y-1 text-xs text-slate-400">
           <li>
-            Daily quests: Guild Hall level × 20 × 13 (2,080/day at Hall Lv.8) — paid at{" "}
+            Guild credits — daily quests: Guild Hall level × 20 × 13 — paid at{" "}
             {formatDailyResetLabel()}
           </li>
           <li>
-            Events: Event Hall level × 400 per completed event (~{eventsPerWeek()}/wk active)
+            Guild credits — events: Event Hall level × 400 per completed event (~
+            {eventsPerWeek()}/wk active)
           </li>
           <li>
-            Trials: Trial Hall level × 50 × 16 per week (4,000/wk at Trial Hall Lv.5) — Mon{" "}
+            Guild credits — trials: Trial Hall level × 50 × 16 per week — Mon{" "}
             {formatDailyResetLabel()}
           </li>
-          <li>Guild Bank affects coin rewards only, not Guild Credits</li>
+          <li>
+            Player coins — Guild Bank: level × 1,000 × 13 per member per day (
+            {DEFAULT_GUILD_MEMBER_COUNT} members each receive the full amount)
+          </li>
           <li>Upgrade costs (credits): 100 → 1k → 5k → 10k → 25k → 50k → 100k → 150k</li>
           {detailSchedule.notes.map((n) => (
             <li key={n}>{n}</li>

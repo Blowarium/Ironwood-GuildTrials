@@ -117,6 +117,15 @@ export const GUILD_CREDIT_CONSTANTS = {
   guildTrialSkillsPerWeek: 16,
 } as const;
 
+/** Daily guild quest coins per member from Guild Bank: level × 1000 × 13 */
+export const GUILD_BANK_COIN_CONSTANTS = {
+  dailyQuestMultiplier: 1000,
+  dailyQuestTierCount: 13,
+} as const;
+
+/** Alliance size for total coin payouts (each member receives the per-member amount). */
+export const DEFAULT_GUILD_MEMBER_COUNT = 25;
+
 export interface GuildBuildingLevels {
   GuildHall: number;
   GuildLibrary: number;
@@ -161,6 +170,37 @@ export function trialCreditsPerWeek(trialHallLevel: number): number {
 /** Full event completion credits (Event Hall level at event end). */
 export function eventCreditsPerCompletion(eventHallLevel: number): number {
   return eventHallLevel * GUILD_CREDIT_CONSTANTS.eventCreditsPerLevel;
+}
+
+/** Coins paid to each member per day when daily quests are complete. */
+export function guildBankCoinsPerMemberPerDay(
+  guildBankLevel: number,
+  allQuestsComplete = true,
+): number {
+  if (!allQuestsComplete || guildBankLevel <= 0) return 0;
+  const { dailyQuestMultiplier, dailyQuestTierCount } = GUILD_BANK_COIN_CONSTANTS;
+  return guildBankLevel * dailyQuestMultiplier * dailyQuestTierCount;
+}
+
+/** Total coins paid to all members per day (each member receives the per-member amount). */
+export function guildBankCoinsGuildTotalPerDay(
+  guildBankLevel: number,
+  memberCount = DEFAULT_GUILD_MEMBER_COUNT,
+  allQuestsComplete = true,
+): number {
+  return guildBankCoinsPerMemberPerDay(guildBankLevel, allQuestsComplete) * memberCount;
+}
+
+export function weeklyGuildBankCoins(
+  guildBankLevel: number,
+  memberCount = DEFAULT_GUILD_MEMBER_COUNT,
+  allQuestsComplete = true,
+): number {
+  return guildBankCoinsGuildTotalPerDay(guildBankLevel, memberCount, allQuestsComplete) * 7;
+}
+
+export function formatCoins(n: number): string {
+  return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
 export function totalRemainingUpgradeCredits(levels: GuildBuildingLevels): number {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { GUILD_BUILDING_ORDER, GUILD_BUILDINGS, formatCredits } from "@/lib/guild-buildings-data";
+import { GUILD_BUILDING_ORDER, GUILD_BUILDINGS, formatCoins, formatCredits } from "@/lib/guild-buildings-data";
 import {
   UPGRADE_STRATEGIES,
   type GuildBuildingLevels,
   type ScenarioComparisonRow,
   type UpgradeStrategyId,
+  totalGuildBankCoinsOnPath,
   weeklyIncomeAtDayOffset,
 } from "@/lib/guild-buildings-schedule";
 import { ScenarioStrategyPills } from "./ScenarioStrategyPills";
@@ -106,8 +107,14 @@ export function GuildBuildingsScenarioCompare({
   const hallMaxDays = visible.map((r) => r.milestones.allHallsMaxDay);
   const fastestHallsIdx = bestRowIndex(hallMaxDays, true);
 
-  const utilityMaxDays = visible.map((r) => r.milestones.allUtilityMaxDay);
-  const fastestUtilityIdx = bestRowIndex(utilityMaxDays, true);
+  const bankMaxDays = visible.map((r) => r.milestones.byBuilding.GuildBank);
+  const fastestBankIdx = bestRowIndex(
+    bankMaxDays.map((d) => (d === null || d <= 0 ? null : d)),
+    true,
+  );
+
+  const bankCoinsOnPath = visible.map((r) => r.schedule.totalBankCoinsOnPath);
+  const mostBankCoinsIdx = bestRowIndex(bankCoinsOnPath, false);
 
   function toggleStrategy(id: UpgradeStrategyId) {
     setEnabled((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -118,8 +125,8 @@ export function GuildBuildingsScenarioCompare({
       <div>
         <h3 className="text-sm font-semibold text-violet-200">Compare upgrade scenarios</h3>
         <p className="mt-1 text-xs text-slate-400">
-          Same starting credits and building levels, different priorities. Finishing everything
-          later can be worth it if key buildings or credit halls max sooner.
+          Same starting credits and building levels, different priorities. Compare guild credits
+          and Guild Bank coin payouts to members (25 × per-member daily reward).
         </p>
       </div>
 
@@ -135,21 +142,26 @@ export function GuildBuildingsScenarioCompare({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[880px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
                   <th className="py-2 pr-3">Scenario</th>
                   <th className="py-2 pr-3">All maxed</th>
+                  <th className="py-2 pr-3">Bank max</th>
+                  <th className="py-2 pr-3">Bank coins (path)</th>
                   <th className="py-2 pr-3">Credit halls max</th>
-                  <th className="py-2 pr-3">Utility max</th>
-                  <th className="py-2 pr-3">Income @ 4 wk</th>
-                  <th className="py-2 pr-3">Income @ 8 wk</th>
+                  <th className="py-2 pr-3">Credits @ 8 wk</th>
+                  <th className="py-2 pr-3">Bank coins @ 8 wk</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((row, idx) => {
-                  const income4 = weeklyIncomeAtDayOffset(levels, row.schedule.upgrades, 28);
                   const income8 = weeklyIncomeAtDayOffset(levels, row.schedule.upgrades, 56);
+                  const bankCoins8 = totalGuildBankCoinsOnPath(
+                    levels,
+                    row.schedule.upgrades,
+                    56,
+                  );
                   return (
                     <tr key={row.strategy} className="border-b border-slate-800/60 align-top">
                       <td className="py-2 pr-3">
@@ -170,23 +182,30 @@ export function GuildBuildingsScenarioCompare({
                       </td>
                       <td
                         className={`py-2 pr-3 text-xs ${
+                          idx === fastestBankIdx ? "text-emerald-300" : "text-slate-300"
+                        }`}
+                      >
+                        {formatMilestone(row.milestones.byBuilding.GuildBank)}
+                      </td>
+                      <td
+                        className={`py-2 pr-3 text-xs ${
+                          idx === mostBankCoinsIdx ? "text-emerald-300" : "text-yellow-200/90"
+                        }`}
+                      >
+                        {formatCoins(row.schedule.totalBankCoinsOnPath)}
+                      </td>
+                      <td
+                        className={`py-2 pr-3 text-xs ${
                           idx === fastestHallsIdx ? "text-emerald-300" : "text-slate-300"
                         }`}
                       >
                         {formatMilestone(row.milestones.allHallsMaxDay)}
                       </td>
-                      <td
-                        className={`py-2 pr-3 text-xs ${
-                          idx === fastestUtilityIdx ? "text-emerald-300" : "text-slate-300"
-                        }`}
-                      >
-                        {formatMilestone(row.milestones.allUtilityMaxDay)}
-                      </td>
-                      <td className="py-2 pr-3 text-xs text-sky-300">
-                        {formatCredits(income4.total)}/wk
-                      </td>
                       <td className="py-2 pr-3 text-xs text-sky-300">
                         {formatCredits(income8.total)}/wk
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-yellow-200/90">
+                        {formatCoins(bankCoins8)}
                       </td>
                     </tr>
                   );

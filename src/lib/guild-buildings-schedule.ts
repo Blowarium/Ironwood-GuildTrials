@@ -5,8 +5,10 @@ import {
   type GuildBuildingLevels,
   dailyQuestCreditsPerDay,
   eventCreditsPerCompletion,
+  guildBankCoinsGuildTotalPerDay,
   trialCreditsPerWeek,
   upgradeCreditCost,
+  weeklyGuildBankCoins,
 } from "./guild-buildings-data";
 import {
   CREDIT_HALL_IDS,
@@ -64,6 +66,9 @@ export interface GuildBuildingsScheduleResult {
   completionDate: string;
   weeklyIncomeAtStart: WeeklyIncomeBreakdown;
   weeklyIncomeAtEnd: WeeklyIncomeBreakdown;
+  weeklyBankCoinsAtStart: number;
+  weeklyBankCoinsAtEnd: number;
+  totalBankCoinsOnPath: number;
   notes: string[];
 }
 
@@ -163,7 +168,7 @@ function isComplete(levels: GuildBuildingLevels, targetLevel: number): boolean {
   return pendingUpgrades(levels, targetLevel).length === 0;
 }
 
-function marginalWeeklyGain(id: GuildBuildingId, at: Date): number {
+function marginalWeeklyCreditGain(id: GuildBuildingId, at: Date): number {
   const eventsPerWeek = countActiveEventsPerWeek(at);
   switch (id) {
     case "GuildHall":
@@ -175,6 +180,43 @@ function marginalWeeklyGain(id: GuildBuildingId, at: Date): number {
     default:
       return 0;
   }
+}
+
+function marginalWeeklyValueGain(id: GuildBuildingId, at: Date): number {
+  if (id === "GuildBank") return weeklyGuildBankCoins(1);
+  return marginalWeeklyCreditGain(id, at);
+}
+
+/** Total player coins from Guild Bank daily payouts over a path (each member paid separately). */
+export function totalGuildBankCoinsOnPath(
+  initialLevels: GuildBuildingLevels,
+  upgrades: ScheduledUpgrade[],
+  endDayOffset: number,
+  memberCount?: number,
+): number {
+  let bankLevel = initialLevels.GuildBank;
+  let cursor = 0;
+  let total = 0;
+
+  const bankUpgrades = upgrades
+    .filter((u) => u.buildingId === "GuildBank")
+    .sort((a, b) => a.dayOffset - b.dayOffset);
+
+  for (const step of bankUpgrades) {
+    if (step.dayOffset > endDayOffset) break;
+    const days = step.dayOffset - cursor;
+    if (days > 0) {
+      total += days * guildBankCoinsGuildTotalPerDay(bankLevel, memberCount);
+    }
+    bankLevel = step.toLevel;
+    cursor = step.dayOffset;
+  }
+
+  const tail = endDayOffset - cursor;
+  if (tail > 0) {
+    total += tail * guildBankCoinsGuildTotalPerDay(bankLevel, memberCount);
+  }
+  return total;
 }
 
 function daysUntilAffordable(
@@ -220,12 +262,43 @@ function pickNextUpgrade(
     return pickFromPoolBuildingOrder(pool);
   }
 
-  if (strategy === "event_rush" || strategy === "trial_rush") {
+  if (strategy === "event_rush" || strategy === "trial_rush" || strategy === "bank_rush") {
     if (pool.length === 1) return pool[0];
     return pickNextUpgradeByIncomeScore(state, fullDailyQuests, pool);
   }
 
+  if (strategy === "max_member_coins") {
+    return pickNextUpgradeByMemberCoinScore(state, fullDailyQuests, pool);
+  }
+
   return pickNextUpgradeByIncomeScore(state, fullDailyQuests, pool);
+}
+
+function pickNextUpgradeByMemberCoinScore(
+  state: SimulationState,
+  fullDailyQuests: boolean,
+  pool: GuildBuildingId[],
+): GuildBuildingId | null {
+  if (pool.length === 0) return null;
+
+  let best: GuildBuildingId | null = null;
+  let bestScore = -Infinity;
+
+  for (const id of pool) {
+    const gain = marginalWeeklyValueGain(id, state.date);
+    const days = daysUntilAffordable(state, id, fullDailyQuests);
+    if (!Number.isFinite(days)) continue;
+
+    const cost = upgradeCreditCost(id, state.levels[id]) ?? 0;
+    const score = gain > 0 ? gain / (days + 1) : -cost / (days + 1);
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = id;
+    }
+  }
+
+  return best ?? pool[0];
 }
 
 function pickNextUpgradeByIncomeScore(
@@ -239,7 +312,7 @@ function pickNextUpgradeByIncomeScore(
   let bestScore = -Infinity;
 
   for (const id of pool) {
-    const gain = marginalWeeklyGain(id, state.date);
+    const gain = marginalWeeklyCreditGain(id, state.date);
     const days = daysUntilAffordable(state, id, fullDailyQuests);
     if (!Number.isFinite(days)) continue;
 
@@ -338,11 +411,13 @@ export function buildGuildBuildingsSchedule(
     "Daily quests: Guild Hall level × 20 × 13 per day.",
     "Events: Event Hall level × 400 per completed event.",
     "Trials: Trial Hall level × 50 × 16 per week.",
-    "Guild Bank does not affect Guild Credits (no storage cap).",
+    "Guild Bank: level × 1,000 × 13 coins per member per day (25 members = guild total × 25).",
+    "Guild Bank does not affect Guild Credits.",
     `Strategy: ${def.name} — ${def.description}`,
   ];
 
   const weeklyIncomeAtStart = weeklyCreditIncome(input.levels, startDate, fullDailyQuests);
+  const weeklyBankCoinsAtStart = weeklyGuildBankCoins(input.levels.GuildBank);
 
   const state = createSimulationState({
     levels: input.levels,
@@ -377,6 +452,12 @@ export function buildGuildBuildingsSchedule(
   }
 
   const weeklyIncomeAtEnd = weeklyCreditIncome(state.levels, state.date, fullDailyQuests);
+  const weeklyBankCoinsAtEnd = weeklyGuildBankCoins(state.levels.GuildBank);
+  const totalBankCoinsOnPath = totalGuildBankCoinsOnPath(
+    input.levels,
+    upgrades,
+    state.dayOffset,
+  );
   const completionDate =
     upgrades.length > 0 ? upgrades[upgrades.length - 1].date : toISODate(startDate);
 
@@ -388,6 +469,9 @@ export function buildGuildBuildingsSchedule(
     completionDate,
     weeklyIncomeAtStart,
     weeklyIncomeAtEnd,
+    weeklyBankCoinsAtStart,
+    weeklyBankCoinsAtEnd,
+    totalBankCoinsOnPath,
     notes,
   };
 }
@@ -446,7 +530,10 @@ export {
 export {
   DEFAULT_GUILD_BUILDING_LEVELS,
   DEFAULT_GUILD_CREDITS,
+  DEFAULT_GUILD_MEMBER_COUNT,
+  formatCoins,
   formatCredits,
   totalRemainingUpgradeCredits,
+  weeklyGuildBankCoins,
   type GuildBuildingLevels,
 } from "./guild-buildings-data";
