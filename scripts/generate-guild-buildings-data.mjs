@@ -81,7 +81,7 @@ for (const id of BUILDINGS) {
     let matEnd = chunk.indexOf("}},[n.dZ.", matStart);
     if (matEnd < 0) matEnd = chunk.indexOf("}},An=", matStart);
     const matChunk = chunk.slice(matStart + 11, matEnd > 0 ? matEnd : chunk.length);
-    for (const m of matChunk.matchAll(/(\d+):\[(.*?)\](?=,\d+:\[|\}|\$)/gs)) {
+    for (const m of matChunk.matchAll(/(\d+):\[(.*?)\](?=,\d+:|}|$)/gs)) {
       const items = [];
       for (const im of m[2].matchAll(/\{id:n\.AM\.(\w+),amount:(\d+(?:e\d+)?)\}/g)) {
         items.push({ id: im[1], amount: Number(im[2]) });
