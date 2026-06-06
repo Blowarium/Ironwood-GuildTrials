@@ -1,6 +1,6 @@
 {
   "source": "ironwood-main-bundle",
-  "generatedAt": "2026-06-06T18:11:51.300Z",
+  "generatedAt": "2026-06-06T18:18:56.008Z",
   "constants": {
     "dailyQuestMultiplier": 20,
     "dailyQuestTierCount": 13,
@@ -34,7 +34,7 @@
         "2": {
           "playerLevel": 75,
           "coins": 2500000,
-          "credits": 5000
+          "credits": 5
         },
         "3": {
           "playerLevel": 100,
@@ -216,28 +216,6 @@
             "id": "GiantBone",
             "amount": 200000
           }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "InfernalOre",
-            "amount": 250000
-          },
-          {
-            "id": "Snapdragon",
-            "amount": 250000
-          },
-          {
-            "id": "RawKingCrab",
-            "amount": 250000
-          },
-          {
-            "id": "GiantFang",
-            "amount": 250000
-          }
         ]
       }
     },
@@ -356,16 +334,6 @@
           {
             "id": "Blueberry",
             "amount": 10000
-          }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "Banana",
-            "amount": 15000
           }
         ]
       }
@@ -486,16 +454,6 @@
             "id": "Moonstone",
             "amount": 20000
           }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "Onyx",
-            "amount": 25000
-          }
         ]
       }
     },
@@ -506,42 +464,42 @@
       "requirements": {
         "0": {
           "playerLevel": 25,
-          "coins": 500000,
+          "coins": 250000,
           "credits": 100
         },
         "1": {
           "playerLevel": 50,
-          "coins": 1000000,
+          "coins": 500000,
           "credits": 1000
         },
         "2": {
           "playerLevel": 75,
-          "coins": 2500000,
+          "coins": 1000000,
           "credits": 5000
         },
         "3": {
           "playerLevel": 100,
-          "coins": 5000000,
+          "coins": 2500000,
           "credits": 10000
         },
         "4": {
           "playerLevel": 125,
-          "coins": 10000000,
+          "coins": 5000000,
           "credits": 25000
         },
         "5": {
           "playerLevel": 150,
-          "coins": 25000000,
+          "coins": 10000000,
           "credits": 50000
         },
         "6": {
           "playerLevel": 175,
-          "coins": 50000000,
+          "coins": 25000000,
           "credits": 100000
         },
         "7": {
           "playerLevel": 200,
-          "coins": 100000000,
+          "coins": 50000000,
           "credits": 150000
         }
       },
@@ -614,16 +572,6 @@
           {
             "id": "AstralBar",
             "amount": 40000
-          }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "InfernalBar",
-            "amount": 50000
           }
         ]
       }
@@ -744,16 +692,6 @@
             "id": "AstralBar",
             "amount": 40000
           }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "InfernalBar",
-            "amount": 50000
-          }
         ]
       }
     },
@@ -872,16 +810,6 @@
           {
             "id": "AstralBar",
             "amount": 40000
-          }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "InfernalBar",
-            "amount": 50000
           }
         ]
       }
@@ -1086,28 +1014,6 @@
             "id": "GiantBone",
             "amount": 200000
           }
-        ],
-        "7": [
-          {
-            "id": "AncientLog",
-            "amount": 250000
-          },
-          {
-            "id": "InfernalOre",
-            "amount": 250000
-          },
-          {
-            "id": "Snapdragon",
-            "amount": 250000
-          },
-          {
-            "id": "RawKingCrab",
-            "amount": 250000
-          },
-          {
-            "id": "GiantFang",
-            "amount": 250000
-          }
         ]
       }
     },
@@ -1254,6 +1160,20 @@
           {
             "id": "MoonstoneCrystal",
             "amount": 200000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "Logbook100",
+            "amount": 250000
+          },
+          {
+            "id": "OnyxCrystal",
+            "amount": 250000
           }
         ]
       }

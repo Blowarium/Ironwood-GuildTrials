@@ -205,13 +205,13 @@ export function ProfileModal({
       role="presentation"
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-xl border border-slate-600 bg-[#131f36] shadow-2xl"
+        className="flex max-h-[92vh] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-slate-600 bg-[#131f36] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-modal-title"
       >
-        <div className="border-b border-slate-700/60 px-4 py-3 sm:px-5">
+        <div className="shrink-0 border-b border-slate-700/60 px-4 py-3 sm:px-5">
           <h2 id="profile-modal-title" className="text-lg font-bold text-white">
             {isSelf ? "Your profile" : `${targetMember}'s profile`}
           </h2>
@@ -231,8 +231,11 @@ export function ProfileModal({
               {showImportGuide ? "Hide import guide" : "Import XP/h from Ironwood RPG"}
             </button>
           )}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5">
           {canEdit && showImportGuide && (
-            <div className="mt-2">
+            <div className="mb-3">
               <IronwoodXpImportGuide
                 returnUrl={
                   typeof window !== "undefined"
@@ -244,13 +247,10 @@ export function ProfileModal({
             </div>
           )}
           {lastImportReport && (
-            <div className="mt-2">
+            <div className="mb-3">
               <IronwoodXpImportReport payload={lastImportReport} />
             </div>
           )}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
           <div className="grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px] gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px]">
             <span />
             <span>Skill</span>
@@ -332,7 +332,7 @@ export function ProfileModal({
           </ul>
         </div>
 
-        <div className="border-t border-slate-700/60 px-4 py-3 sm:px-5">
+        <div className="shrink-0 border-t border-slate-700/60 px-4 py-3 sm:px-5">
           {!canEdit && (
             <p className="mb-2 text-xs text-amber-300">
               Only {targetMember} or the Guild Leader can edit this profile.

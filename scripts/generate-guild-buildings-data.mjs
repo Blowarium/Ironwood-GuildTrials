@@ -66,7 +66,7 @@ for (const id of BUILDINGS) {
     console.warn("Missing", id);
     continue;
   }
-  const chunk = vnBlock.slice(bi, bi + 2500);
+  const chunk = vnBlock.slice(bi, bi + 4000);
   const requirements = {};
   for (const m of chunk.matchAll(/(\d+):\{level:(\d+),coins:(\d+(?:e\d+)?),credits:(\d+(?:e\d+)?)/g)) {
     requirements[Number(m[1])] = {
@@ -78,14 +78,17 @@ for (const id of BUILDINGS) {
   const materials = {};
   const matStart = chunk.indexOf("materials:{");
   if (matStart >= 0) {
-    const matEnd = chunk.indexOf("}},[n.dZ.", matStart);
-    const matChunk = chunk.slice(matStart + 11, matEnd > 0 ? matEnd : matStart + 3000);
-    for (const m of matChunk.matchAll(/(\d+):\[(.*?)\](?=,\d+:|$)/gs)) {
+    let matEnd = chunk.indexOf("}},[n.dZ.", matStart);
+    if (matEnd < 0) matEnd = chunk.indexOf("}},An=", matStart);
+    const matChunk = chunk.slice(matStart + 11, matEnd > 0 ? matEnd : chunk.length);
+    for (const m of matChunk.matchAll(/(\d+):\[(.*?)\](?=,\d+:\[|\}|\$)/gs)) {
       const items = [];
       for (const im of m[2].matchAll(/\{id:n\.AM\.(\w+),amount:(\d+(?:e\d+)?)\}/g)) {
         items.push({ id: im[1], amount: Number(im[2]) });
       }
-      materials[Number(m[1])] = items;
+      if (items.length > 0) {
+        materials[Number(m[1])] = items;
+      }
     }
   }
   buildings[id] = {

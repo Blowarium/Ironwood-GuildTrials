@@ -91,7 +91,7 @@ export function IronwoodXpImportGuide({
   }
 
   return (
-    <div className="rounded-lg border border-orange-500/25 bg-orange-950/20 p-3 text-sm text-slate-300">
+    <div className="max-w-full overflow-x-hidden rounded-lg border border-orange-500/25 bg-orange-950/20 p-3 text-sm text-slate-300">
       <p className="font-medium text-orange-100">Import XP/h from Ironwood RPG</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Opens each skill page you selected in your profile, reads Estimates XP/h, then fills
@@ -174,7 +174,7 @@ export function IronwoodXpImportGuide({
         <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
           Phone or tablet
         </summary>
-        <div className="mt-3 space-y-4 leading-relaxed text-slate-400">
+        <div className="mt-3 max-w-full space-y-4 break-words leading-relaxed text-slate-400">
           <p>
             Use the same <strong className="text-slate-300">Import XP/h now</strong> button below
             after setup. Keep Guild Trials and Ironwood in the <strong className="text-slate-300">same

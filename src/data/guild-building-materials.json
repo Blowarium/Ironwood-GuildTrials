@@ -153,28 +153,6 @@
         "id": "GiantBone",
         "amount": 200000
       }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "InfernalOre",
-        "amount": 250000
-      },
-      {
-        "id": "Snapdragon",
-        "amount": 250000
-      },
-      {
-        "id": "RawKingCrab",
-        "amount": 250000
-      },
-      {
-        "id": "GiantFang",
-        "amount": 250000
-      }
     ]
   },
   "GuildLibrary": {
@@ -246,16 +224,6 @@
       {
         "id": "Blueberry",
         "amount": 10000
-      }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "Banana",
-        "amount": 15000
       }
     ]
   },
@@ -329,16 +297,6 @@
         "id": "Moonstone",
         "amount": 20000
       }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "Onyx",
-        "amount": 25000
-      }
     ]
   },
   "GuildStorehouse": {
@@ -410,16 +368,6 @@
       {
         "id": "AstralBar",
         "amount": 40000
-      }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "InfernalBar",
-        "amount": 50000
       }
     ]
   },
@@ -493,16 +441,6 @@
         "id": "AstralBar",
         "amount": 40000
       }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "InfernalBar",
-        "amount": 50000
-      }
     ]
   },
   "GuildArmoury": {
@@ -574,16 +512,6 @@
       {
         "id": "AstralBar",
         "amount": 40000
-      }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "InfernalBar",
-        "amount": 50000
       }
     ]
   },
@@ -741,28 +669,6 @@
         "id": "GiantBone",
         "amount": 200000
       }
-    ],
-    "7": [
-      {
-        "id": "AncientLog",
-        "amount": 250000
-      },
-      {
-        "id": "InfernalOre",
-        "amount": 250000
-      },
-      {
-        "id": "Snapdragon",
-        "amount": 250000
-      },
-      {
-        "id": "RawKingCrab",
-        "amount": 250000
-      },
-      {
-        "id": "GiantFang",
-        "amount": 250000
-      }
     ]
   },
   "GuildTrialHall": {
@@ -862,6 +768,20 @@
       {
         "id": "MoonstoneCrystal",
         "amount": 200000
+      }
+    ],
+    "7": [
+      {
+        "id": "AncientLog",
+        "amount": 250000
+      },
+      {
+        "id": "Logbook100",
+        "amount": 250000
+      },
+      {
+        "id": "OnyxCrystal",
+        "amount": 250000
       }
     ]
   }
