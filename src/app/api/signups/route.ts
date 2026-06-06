@@ -18,6 +18,7 @@ import {
 } from "@/lib/server-auth";
 import { buildRolesMap } from "@/lib/roles";
 import {
+  dateFromStartAt,
   getEffectiveStatus,
   normalizeSignupTiming,
   syncSignups,
@@ -75,7 +76,7 @@ function validatePayload(body: SignupPayload): string | null {
     return "Planned day must be within the selected trial week.";
   }
   if (body.plannedStartAt) {
-    const startDate = body.plannedStartAt.slice(0, 10);
+    const startDate = dateFromStartAt(body.plannedStartAt);
     if (!isDateInWeek(startDate, body.weekStart)) {
       return "Start time must fall within the selected trial week.";
     }
