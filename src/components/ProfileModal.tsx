@@ -83,25 +83,81 @@ export function ProfileModal({
     setLastImportReport(null);
   }, [open, initialProfile, targetMember]);
 
+  async function saveSkills(rows: MemberSkillProfileRow[]) {
+    setSaving(true);
+    setError(null);
+    const { profile, error: err } = await saveMemberProfile({
+      actorMember: currentUser,
+      memberName: targetMember,
+      skills: rows.map((s) => ({
+        skill: s.skill,
+        xpPerHour: s.xp_per_hour,
+        preferenceRank: s.preference_rank,
+        ironwoodActionId: resolveProfileActionId(s.skill, s.ironwood_action_id),
+      })),
+    });
+    setSaving(false);
+    if (err) {
+      setError(err);
+      return false;
+    }
+    if (profile) {
+      onSaved(profile);
+      setMessage("Profile saved.");
+    }
+    return true;
+  }
+
+  async function handleSave() {
+    setMessage(null);
+    await saveSkills(skills);
+  }
+
   useEffect(() => {
     if (!open || !pendingXpImport) return;
 
     skipProfileResetRef.current = true;
     const base = initialProfile ?? emptyProfile(targetMember);
-    setSkills(applyXpImportToRows(normalizeProfile(base).skills, pendingXpImport));
+    const importedSkills = applyXpImportToRows(
+      normalizeProfile(base).skills,
+      pendingXpImport,
+    );
+    setSkills(importedSkills);
     const count = Object.keys(pendingXpImport.skills).length;
     const errCount = pendingXpImport.errors
       ? Object.keys(pendingXpImport.errors).length
       : 0;
-    setMessage(
-      errCount > 0
-        ? `Imported XP/h for ${count} skills from Ironwood (${errCount} skipped). Review and save.`
-        : `Imported XP/h for ${count} skills from Ironwood. Review and save.`,
-    );
     setShowImportGuide(true);
     setLastImportReport(pendingXpImport);
     onXpImportApplied();
-  }, [open, pendingXpImport, initialProfile, targetMember, onXpImportApplied]);
+
+    if (!canEdit) {
+      setMessage(
+        errCount > 0
+          ? `Imported XP/h for ${count} skills from Ironwood (${errCount} skipped).`
+          : `Imported XP/h for ${count} skills from Ironwood.`,
+      );
+      return;
+    }
+
+    void (async () => {
+      setMessage("Saving imported XP/h…");
+      const saved = await saveSkills(importedSkills);
+      if (saved) {
+        setMessage(
+          errCount > 0
+            ? `Imported and saved XP/h for ${count} skills from Ironwood (${errCount} skipped).`
+            : `Imported and saved XP/h for ${count} skills from Ironwood.`,
+        );
+      } else {
+        setMessage(
+          errCount > 0
+            ? `Imported XP/h for ${count} skills (${errCount} skipped) but could not save — use Save profile to retry.`
+            : `Imported XP/h for ${count} skills but could not save — use Save profile to retry.`,
+        );
+      }
+    })();
+  }, [open, pendingXpImport, initialProfile, targetMember, onXpImportApplied, canEdit]);
 
   const displayRows = useMemo(() => sortForDisplay(skills), [skills]);
 
@@ -138,31 +194,6 @@ export function ProfileModal({
       return next;
     });
     setDragSkill(null);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    setMessage(null);
-    const { profile, error: err } = await saveMemberProfile({
-      actorMember: currentUser,
-      memberName: targetMember,
-      skills: skills.map((s) => ({
-        skill: s.skill,
-        xpPerHour: s.xp_per_hour,
-        preferenceRank: s.preference_rank,
-        ironwoodActionId: resolveProfileActionId(s.skill, s.ironwood_action_id),
-      })),
-    });
-    setSaving(false);
-    if (err) {
-      setError(err);
-      return;
-    }
-    if (profile) {
-      onSaved(profile);
-      setMessage("Profile saved.");
-    }
   }
 
   if (!open) return null;
