@@ -21,6 +21,7 @@ import {
 } from "@/lib/guild-buildings-schedule";
 import { formatDailyResetLabel } from "@/lib/guild-reset";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
+import { GuildBuildingsScenarioCompare } from "./GuildBuildingsScenarioCompare";
 
 const STORAGE_KEY = "ironwood-guild-buildings-state";
 
@@ -227,11 +228,15 @@ export function GuildBuildingsView({
         </div>
       </div>
 
+      <GuildBuildingsScenarioCompare levels={levels} credits={credits} />
+
       <div className="rounded-xl border border-sky-800/40 bg-sky-950/20 p-4">
-        <p className="text-sm font-medium text-sky-200">Recommended upgrade order</p>
+        <p className="text-sm font-medium text-sky-200">
+          Recommended upgrade order — {schedule.strategyName}
+        </p>
         <p className="mt-1 text-xs text-slate-400">
-          Prioritizes Event Hall, Trial Hall, and Guild Hall early for compounding credit income.
-          Hall upgrades in this path increase simulated income from that step onward.
+          {schedule.notes[schedule.notes.length - 1]?.replace(/^Strategy: /, "") ??
+            "Prioritizes credit halls early for compounding income."}
         </p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">

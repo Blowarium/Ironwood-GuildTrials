@@ -8,6 +8,16 @@ import {
   trialCreditsPerWeek,
   upgradeCreditCost,
 } from "./guild-buildings-data";
+import {
+  CREDIT_HALL_IDS,
+  DEFAULT_COMPARISON_STRATEGIES,
+  UTILITY_BUILDING_IDS,
+  filterPendingByStrategy,
+  pickFromPoolBuildingOrder,
+  pickFromPoolCheapest,
+  strategyDef,
+  type UpgradeStrategyId,
+} from "./guild-buildings-strategies";
 import { guildEventIntervalsInRange } from "./guild-events";
 import {
   GUILD_DAY_MS,
@@ -25,6 +35,7 @@ export interface GuildBuildingsScheduleInput {
   credits: number;
   fullDailyQuests?: boolean;
   targetLevel?: number;
+  strategy?: UpgradeStrategyId;
 }
 
 export interface ScheduledUpgrade {
@@ -46,12 +57,29 @@ export interface WeeklyIncomeBreakdown {
 }
 
 export interface GuildBuildingsScheduleResult {
+  strategy: UpgradeStrategyId;
+  strategyName: string;
   upgrades: ScheduledUpgrade[];
   totalDays: number;
   completionDate: string;
   weeklyIncomeAtStart: WeeklyIncomeBreakdown;
   weeklyIncomeAtEnd: WeeklyIncomeBreakdown;
   notes: string[];
+}
+
+export interface BuildingMilestones {
+  /** Day offset when each building reaches target level; null if already maxed at start. */
+  byBuilding: Record<GuildBuildingId, number | null>;
+  allHallsMaxDay: number | null;
+  allUtilityMaxDay: number | null;
+}
+
+export interface ScenarioComparisonRow {
+  strategy: UpgradeStrategyId;
+  strategyName: string;
+  strategyDescription: string;
+  schedule: GuildBuildingsScheduleResult;
+  milestones: BuildingMilestones;
 }
 
 interface SimulationState {
@@ -177,14 +205,40 @@ function pickNextUpgrade(
   state: SimulationState,
   targetLevel: number,
   fullDailyQuests: boolean,
+  strategy: UpgradeStrategyId,
 ): GuildBuildingId | null {
   const pending = pendingUpgrades(state.levels, targetLevel);
   if (pending.length === 0) return null;
 
+  const pool = filterPendingByStrategy(pending, strategy, state.levels, targetLevel);
+
+  if (strategy === "cheapest_next") {
+    return pickFromPoolCheapest(pool, state.levels);
+  }
+
+  if (strategy === "utility_first" || strategy === "halls_first") {
+    return pickFromPoolBuildingOrder(pool);
+  }
+
+  if (strategy === "event_rush" || strategy === "trial_rush") {
+    if (pool.length === 1) return pool[0];
+    return pickNextUpgradeByIncomeScore(state, fullDailyQuests, pool);
+  }
+
+  return pickNextUpgradeByIncomeScore(state, fullDailyQuests, pool);
+}
+
+function pickNextUpgradeByIncomeScore(
+  state: SimulationState,
+  fullDailyQuests: boolean,
+  pool: GuildBuildingId[],
+): GuildBuildingId | null {
+  if (pool.length === 0) return null;
+
   let best: GuildBuildingId | null = null;
   let bestScore = -Infinity;
 
-  for (const id of pending) {
+  for (const id of pool) {
     const gain = marginalWeeklyGain(id, state.date);
     const days = daysUntilAffordable(state, id, fullDailyQuests);
     if (!Number.isFinite(days)) continue;
@@ -198,7 +252,7 @@ function pickNextUpgrade(
     }
   }
 
-  return best ?? pending[0];
+  return best ?? pool[0];
 }
 
 function applyUpgrade(
@@ -220,9 +274,61 @@ function applyUpgrade(
   return false;
 }
 
+export function computeBuildingMilestones(
+  initialLevels: GuildBuildingLevels,
+  upgrades: ScheduledUpgrade[],
+  targetLevel: number,
+): BuildingMilestones {
+  const byBuilding = {} as Record<GuildBuildingId, number | null>;
+
+  for (const id of GUILD_BUILDING_ORDER) {
+    byBuilding[id] = initialLevels[id] >= targetLevel ? 0 : null;
+  }
+
+  for (const step of upgrades) {
+    if (step.toLevel >= targetLevel && byBuilding[step.buildingId] === null) {
+      byBuilding[step.buildingId] = step.dayOffset;
+    }
+  }
+
+  const hallDays = CREDIT_HALL_IDS.map((id) => byBuilding[id]).filter(
+    (d): d is number => d !== null,
+  );
+  const utilityDays = UTILITY_BUILDING_IDS.map((id) => byBuilding[id]).filter(
+    (d): d is number => d !== null,
+  );
+
+  return {
+    byBuilding,
+    allHallsMaxDay: hallDays.length === CREDIT_HALL_IDS.length ? Math.max(...hallDays) : null,
+    allUtilityMaxDay:
+      utilityDays.length === UTILITY_BUILDING_IDS.length ? Math.max(...utilityDays) : null,
+  };
+}
+
+export function buildScenarioComparison(
+  input: Omit<GuildBuildingsScheduleInput, "strategy">,
+  strategies: UpgradeStrategyId[] = DEFAULT_COMPARISON_STRATEGIES,
+): ScenarioComparisonRow[] {
+  const targetLevel = input.targetLevel ?? 8;
+  return strategies.map((strategy) => {
+    const schedule = buildGuildBuildingsSchedule({ ...input, strategy });
+    const def = strategyDef(strategy);
+    return {
+      strategy,
+      strategyName: def.name,
+      strategyDescription: def.description,
+      schedule,
+      milestones: computeBuildingMilestones(input.levels, schedule.upgrades, targetLevel),
+    };
+  });
+}
+
 export function buildGuildBuildingsSchedule(
   input: GuildBuildingsScheduleInput,
 ): GuildBuildingsScheduleResult {
+  const strategy = input.strategy ?? "max_income";
+  const def = strategyDef(strategy);
   const targetLevel = input.targetLevel ?? 8;
   const fullDailyQuests = input.fullDailyQuests ?? true;
   const startDate = input.startDate ?? new Date();
@@ -233,7 +339,7 @@ export function buildGuildBuildingsSchedule(
     "Events: Event Hall level × 400 per completed event.",
     "Trials: Trial Hall level × 50 × 16 per week.",
     "Guild Bank does not affect Guild Credits (no storage cap).",
-    "Upgrade order favors Event Hall, Trial Hall, and Guild Hall early for compounding income.",
+    `Strategy: ${def.name} — ${def.description}`,
   ];
 
   const weeklyIncomeAtStart = weeklyCreditIncome(input.levels, startDate, fullDailyQuests);
@@ -246,7 +352,7 @@ export function buildGuildBuildingsSchedule(
   const upgrades: ScheduledUpgrade[] = [];
 
   while (!isComplete(state.levels, targetLevel)) {
-    const next = pickNextUpgrade(state, targetLevel, fullDailyQuests);
+    const next = pickNextUpgrade(state, targetLevel, fullDailyQuests, strategy);
     if (!next) break;
 
     const fromLevel = state.levels[next];
@@ -275,6 +381,8 @@ export function buildGuildBuildingsSchedule(
     upgrades.length > 0 ? upgrades[upgrades.length - 1].date : toISODate(startDate);
 
   return {
+    strategy,
+    strategyName: def.name,
     upgrades,
     totalDays: state.dayOffset,
     completionDate,
@@ -282,6 +390,32 @@ export function buildGuildBuildingsSchedule(
     weeklyIncomeAtEnd,
     notes,
   };
+}
+
+export function levelsAfterUpgrades(
+  initialLevels: GuildBuildingLevels,
+  upgrades: ScheduledUpgrade[],
+  maxDayOffset: number,
+): GuildBuildingLevels {
+  const levels = cloneLevels(initialLevels);
+  for (const step of upgrades) {
+    if (step.dayOffset <= maxDayOffset) {
+      levels[step.buildingId] = step.toLevel;
+    }
+  }
+  return levels;
+}
+
+export function weeklyIncomeAtDayOffset(
+  initialLevels: GuildBuildingLevels,
+  upgrades: ScheduledUpgrade[],
+  dayOffset: number,
+  startDate: Date = new Date(),
+  fullDailyQuests = true,
+): WeeklyIncomeBreakdown {
+  const levels = levelsAfterUpgrades(initialLevels, upgrades, dayOffset);
+  const at = new Date(startDate.getTime() + dayOffset * DAY_MS);
+  return weeklyCreditIncome(levels, at, fullDailyQuests);
 }
 
 export function parseLevelsFromForm(value: GuildBuildingLevels): GuildBuildingLevels {
@@ -304,6 +438,11 @@ export function eventsPerWeek(at = new Date()): number {
   return countActiveEventsPerWeek(at);
 }
 
+export {
+  DEFAULT_COMPARISON_STRATEGIES,
+  UPGRADE_STRATEGIES,
+  type UpgradeStrategyId,
+} from "./guild-buildings-strategies";
 export {
   DEFAULT_GUILD_BUILDING_LEVELS,
   DEFAULT_GUILD_CREDITS,
