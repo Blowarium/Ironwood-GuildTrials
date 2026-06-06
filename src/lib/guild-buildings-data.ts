@@ -40,14 +40,38 @@ export const UPGRADE_CREDIT_LADDER = [
   100, 1_000, 5_000, 10_000, 25_000, 50_000, 100_000, 150_000,
 ] as const;
 
-function ladderRequirements(coinBase: number): Record<number, BuildingUpgradeStep> {
-  const playerLevels = [25, 50, 75, 100, 125, 150, 175, 200];
-  const coinMultipliers = [1, 2, 5, 10, 20, 40, 80, 100];
+/** Coin costs for 250k-base buildings (Guild Hall, Event Hall, Trial Hall). */
+export const UPGRADE_COIN_LADDER_250K = [
+  250_000,
+  500_000,
+  1_000_000,
+  2_500_000,
+  5_000_000,
+  10_000_000,
+  25_000_000,
+  50_000_000,
+] as const;
+
+/** Coin costs for 500k-base buildings (Library, Bank, Storehouse, Workshop, Armoury). */
+export const UPGRADE_COIN_LADDER_500K = [
+  500_000,
+  1_000_000,
+  2_500_000,
+  5_000_000,
+  10_000_000,
+  25_000_000,
+  50_000_000,
+  100_000_000,
+] as const;
+
+const PLAYER_LEVEL_LADDER = [25, 50, 75, 100, 125, 150, 175, 200] as const;
+
+function ladderRequirements(coinLadder: readonly number[]): Record<number, BuildingUpgradeStep> {
   const req: Record<number, BuildingUpgradeStep> = {};
   for (let i = 0; i < 8; i++) {
     req[i] = {
-      playerLevel: playerLevels[i],
-      coins: coinBase * coinMultipliers[i],
+      playerLevel: PLAYER_LEVEL_LADDER[i],
+      coins: coinLadder[i],
       credits: UPGRADE_CREDIT_LADDER[i],
     };
   }
@@ -60,49 +84,49 @@ export const GUILD_BUILDINGS: Record<GuildBuildingId, GuildBuildingDef> = {
     id: "GuildHall",
     name: "Guild Hall",
     maxLevel: 8,
-    requirements: ladderRequirements(250_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_250K),
   },
   GuildLibrary: {
     id: "GuildLibrary",
     name: "Guild Library",
     maxLevel: 8,
-    requirements: ladderRequirements(500_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_500K),
   },
   GuildBank: {
     id: "GuildBank",
     name: "Guild Bank",
     maxLevel: 8,
-    requirements: ladderRequirements(500_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_500K),
   },
   GuildStorehouse: {
     id: "GuildStorehouse",
     name: "Guild Storehouse",
     maxLevel: 8,
-    requirements: ladderRequirements(500_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_500K),
   },
   GuildWorkshop: {
     id: "GuildWorkshop",
     name: "Guild Workshop",
     maxLevel: 8,
-    requirements: ladderRequirements(500_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_500K),
   },
   GuildArmoury: {
     id: "GuildArmoury",
     name: "Guild Armoury",
     maxLevel: 8,
-    requirements: ladderRequirements(500_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_500K),
   },
   GuildEventHall: {
     id: "GuildEventHall",
     name: "Guild Event Hall",
     maxLevel: 8,
-    requirements: ladderRequirements(250_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_250K),
   },
   GuildTrialHall: {
     id: "GuildTrialHall",
     name: "Guild Trial Hall",
     maxLevel: 8,
-    requirements: ladderRequirements(250_000),
+    requirements: ladderRequirements(UPGRADE_COIN_LADDER_250K),
   },
 };
 
