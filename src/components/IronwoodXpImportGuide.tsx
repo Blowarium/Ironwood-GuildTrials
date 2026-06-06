@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MemberSkillProfileRow } from "@/lib/member-profile";
 import {
+  FIREFOX_ANDROID_TAMPERMONKEY_URL,
   TAMPERMONKEY_HOME_URL,
+  USERSCRIPTS_IOS_APP_URL,
   buildIronwoodActionPlanFromRows,
   buildIronwoodImportLaunchUrl,
   buildIronwoodXpImportConsoleSnippet,
+  buildStaticIronwoodXpImportBookmarklet,
   buildUserscriptInstallUrl,
   isXpImportHelperInstalled,
 } from "@/lib/ironwood-xp-import";
@@ -20,6 +23,7 @@ export function IronwoodXpImportGuide({
 }) {
   const [helperReady, setHelperReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [bookmarkletCopied, setBookmarkletCopied] = useState(false);
   const [importing, setImporting] = useState(false);
 
   const appOrigin = useMemo(() => {
@@ -51,6 +55,8 @@ export function IronwoodXpImportGuide({
     [appOrigin, returnUrl, actionPlan],
   );
 
+  const staticBookmarklet = useMemo(() => buildStaticIronwoodXpImportBookmarklet(), []);
+
   const launchImport = useCallback(() => {
     if (!returnUrl) return;
     if (planSkillCount < 16) {
@@ -69,6 +75,16 @@ export function IronwoodXpImportGuide({
       await navigator.clipboard.writeText(consoleSnippet);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* user can select manually */
+    }
+  }
+
+  async function copyBookmarklet() {
+    try {
+      await navigator.clipboard.writeText(staticBookmarklet);
+      setBookmarkletCopied(true);
+      window.setTimeout(() => setBookmarkletCopied(false), 2500);
     } catch {
       /* user can select manually */
     }
@@ -153,6 +169,105 @@ export function IronwoodXpImportGuide({
           </a>
         )}
       </div>
+
+      <details className="mt-3 text-xs text-slate-500">
+        <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
+          Phone or tablet
+        </summary>
+        <div className="mt-3 space-y-4 leading-relaxed text-slate-400">
+          <p>
+            Use the same <strong className="text-slate-300">Import XP/h now</strong> button below
+            after setup. Keep Guild Trials and Ironwood in the <strong className="text-slate-300">same
+            browser</strong> so you return to your profile when the import finishes.
+          </p>
+
+          <div>
+            <p className="font-medium text-slate-300">Android — Firefox (recommended, free)</p>
+            <ol className="mt-1.5 list-decimal space-y-1.5 pl-4">
+              <li>
+                Install{" "}
+                <a
+                  href={FIREFOX_ANDROID_TAMPERMONKEY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-400 hover:underline"
+                >
+                  Tampermonkey in Firefox for Android
+                </a>{" "}
+                (Menu → Add-ons → Tampermonkey → add).
+              </li>
+              <li>
+                Tap <strong className="text-slate-300">Add import helper to Tampermonkey</strong>{" "}
+                above and install the script (same as desktop).
+              </li>
+              <li>Import XP/h now whenever you need fresh values.</li>
+            </ol>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-300">iPhone / iPad — Userscripts app (free)</p>
+            <p className="mt-1">
+              Tampermonkey on iOS is paid; the free{" "}
+              <a
+                href={USERSCRIPTS_IOS_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:underline"
+              >
+                Userscripts
+              </a>{" "}
+              app works the same way in Safari.
+            </p>
+            <ol className="mt-1.5 list-decimal space-y-1.5 pl-4">
+              <li>Install Userscripts from the App Store and enable it under Settings → Safari → Extensions.</li>
+              <li>
+                In Safari, open this profile and tap{" "}
+                <strong className="text-slate-300">Add import helper to Tampermonkey</strong>{" "}
+                above (the <code className="text-slate-500">.user.js</code> link works with
+                Userscripts too).
+              </li>
+              <li>
+                Tap the <strong className="text-slate-300">AA</strong> button in Safari’s address
+                bar → Userscripts → install when prompted.
+              </li>
+              <li>Back in Guild Trials, tap Import XP/h now.</li>
+            </ol>
+          </div>
+
+          <div>
+            <p className="font-medium text-slate-300">No extension? Safari bookmark (one-time)</p>
+            <ol className="mt-1.5 list-decimal space-y-1.5 pl-4">
+              <li>Copy the bookmark link below.</li>
+              <li>
+                In Safari, add any bookmark, then edit it: name it{" "}
+                <strong className="text-slate-300">Guild Trials XP Import</strong> and paste the
+                copied text into the URL field.
+              </li>
+              <li>
+                Tap <strong className="text-slate-300">Import XP/h now</strong> here — Ironwood
+                opens in a new tab.
+              </li>
+              <li>
+                Switch to that Ironwood tab, open Bookmarks, and tap{" "}
+                <strong className="text-slate-300">Guild Trials XP Import</strong>. The import
+                overlay should appear.
+              </li>
+            </ol>
+            <button
+              type="button"
+              onClick={copyBookmarklet}
+              className="mt-2 rounded border border-slate-600 px-2 py-1 text-[11px] text-slate-300 hover:border-slate-500"
+            >
+              {bookmarkletCopied ? "Bookmark link copied!" : "Copy bookmark link"}
+            </button>
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              Run the bookmark on the Ironwood tab opened by Import XP/h now (that tab keeps the
+              return link in its address bar). On iPhone, Firefox does not support Tampermonkey —
+              use Safari with Userscripts above, or this bookmark in Firefox.
+            </p>
+          </div>
+        </div>
+      </details>
 
       <details className="mt-3 text-xs text-slate-500">
         <summary className="cursor-pointer text-slate-400 hover:text-slate-300">

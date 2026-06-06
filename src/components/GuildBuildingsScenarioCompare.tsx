@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GUILD_BUILDING_ORDER, GUILD_BUILDINGS, formatCredits } from "@/lib/guild-buildings-data";
 import {
   UPGRADE_STRATEGIES,
-  buildScenarioComparison,
   type GuildBuildingLevels,
   type ScenarioComparisonRow,
   type UpgradeStrategyId,
   weeklyIncomeAtDayOffset,
 } from "@/lib/guild-buildings-schedule";
+import { ScenarioStrategyPills } from "./ScenarioStrategyPills";
 
 function formatWeeks(days: number): string {
   return `${Math.ceil(days / 7)} wk`;
@@ -84,10 +84,10 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
 
 export function GuildBuildingsScenarioCompare({
   levels,
-  credits,
+  scenarios,
 }: {
   levels: GuildBuildingLevels;
-  credits: number;
+  scenarios: ScenarioComparisonRow[];
 }) {
   const [enabled, setEnabled] = useState<Record<UpgradeStrategyId, boolean>>(() =>
     Object.fromEntries(UPGRADE_STRATEGIES.map((s) => [s.id, true])) as Record<
@@ -96,11 +96,6 @@ export function GuildBuildingsScenarioCompare({
     >,
   );
   const [expandedPaths, setExpandedPaths] = useState(false);
-
-  const scenarios = useMemo(
-    () => buildScenarioComparison({ levels, credits }),
-    [levels, credits],
-  );
 
   const visible = scenarios.filter((row) => enabled[row.strategy]);
 
@@ -128,27 +123,12 @@ export function GuildBuildingsScenarioCompare({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {UPGRADE_STRATEGIES.map((s) => (
-          <label
-            key={s.id}
-            className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-              enabled[s.id]
-                ? "border-violet-600/60 bg-violet-900/30 text-violet-100"
-                : "border-slate-700 text-slate-500"
-            }`}
-            title={s.description}
-          >
-            <input
-              type="checkbox"
-              checked={enabled[s.id]}
-              onChange={() => toggleStrategy(s.id)}
-              className="sr-only"
-            />
-            {s.name}
-          </label>
-        ))}
-      </div>
+      <ScenarioStrategyPills
+        mode="filter"
+        accent="violet"
+        enabled={enabled}
+        onToggle={toggleStrategy}
+      />
 
       {visible.length === 0 ? (
         <p className="text-sm text-slate-500">Select at least one scenario to compare.</p>
@@ -168,16 +148,8 @@ export function GuildBuildingsScenarioCompare({
               </thead>
               <tbody>
                 {visible.map((row, idx) => {
-                  const income4 = weeklyIncomeAtDayOffset(
-                    levels,
-                    row.schedule.upgrades,
-                    28,
-                  );
-                  const income8 = weeklyIncomeAtDayOffset(
-                    levels,
-                    row.schedule.upgrades,
-                    56,
-                  );
+                  const income4 = weeklyIncomeAtDayOffset(levels, row.schedule.upgrades, 28);
+                  const income8 = weeklyIncomeAtDayOffset(levels, row.schedule.upgrades, 56);
                   return (
                     <tr key={row.strategy} className="border-b border-slate-800/60 align-top">
                       <td className="py-2 pr-3">

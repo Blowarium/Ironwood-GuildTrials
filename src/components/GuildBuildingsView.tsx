@@ -13,15 +13,17 @@ import {
 import type { GuildConfig } from "@/lib/guild-config";
 import { mergeBuildingLevelsWithConfig } from "@/lib/guild-config";
 import {
-  buildGuildBuildingsSchedule,
+  buildScenarioComparison,
   DEFAULT_GUILD_BUILDING_LEVELS,
   DEFAULT_GUILD_CREDITS,
   eventsPerWeek,
+  type UpgradeStrategyId,
   weeklyCreditIncome,
 } from "@/lib/guild-buildings-schedule";
 import { formatDailyResetLabel } from "@/lib/guild-reset";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
 import { GuildBuildingsScenarioCompare } from "./GuildBuildingsScenarioCompare";
+import { ScenarioStrategyPills } from "./ScenarioStrategyPills";
 
 const STORAGE_KEY = "ironwood-guild-buildings-state";
 
@@ -79,16 +81,24 @@ export function GuildBuildingsView({
 }) {
   const [localLevels, setLocalLevels] = useState<GuildBuildingLevels>(loadLocalBuildingLevels);
   const [credits, setCredits] = useState(loadLocalCredits);
+  const [detailStrategy, setDetailStrategy] = useState<UpgradeStrategyId>("max_income");
 
   const levels = useMemo(
     () => mergeBuildingLevelsWithConfig(localLevels, guildConfig),
     [localLevels, guildConfig],
   );
 
-  const schedule = useMemo(
-    () => buildGuildBuildingsSchedule({ levels, credits }),
+  const scenarios = useMemo(
+    () => buildScenarioComparison({ levels, credits }),
     [levels, credits],
   );
+
+  const detailScenario = useMemo(
+    () => scenarios.find((row) => row.strategy === detailStrategy) ?? scenarios[0],
+    [scenarios, detailStrategy],
+  );
+
+  const detailSchedule = detailScenario.schedule;
 
   const incomeNow = useMemo(() => weeklyCreditIncome(levels), [levels]);
   const remainingCredits = useMemo(() => totalRemainingUpgradeCredits(levels), [levels]);
@@ -216,28 +226,55 @@ export function GuildBuildingsView({
               </div>
             </div>
           </div>
-
-          <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4 text-sm">
-            <p className="font-medium text-white">Summary</p>
-            <ul className="mt-2 space-y-1 text-slate-400">
-              <li>{formatCredits(remainingCredits)} credits still needed</li>
-              <li>~{Math.ceil(schedule.totalDays / 7)} weeks to max all</li>
-              <li>Done by {schedule.completionDate}</li>
-            </ul>
-          </div>
         </div>
       </div>
 
-      <GuildBuildingsScenarioCompare levels={levels} credits={credits} />
+      <GuildBuildingsScenarioCompare levels={levels} scenarios={scenarios} />
 
       <div className="rounded-xl border border-sky-800/40 bg-sky-950/20 p-4">
-        <p className="text-sm font-medium text-sky-200">
-          Recommended upgrade order — {schedule.strategyName}
-        </p>
+        <p className="text-sm font-medium text-sky-200">Upgrade order</p>
         <p className="mt-1 text-xs text-slate-400">
-          {schedule.notes[schedule.notes.length - 1]?.replace(/^Strategy: /, "") ??
-            "Prioritizes credit halls early for compounding income."}
+          Pick a strategy to see its timeline, upgrade steps, and projected weekly income.
         </p>
+        <div className="mt-3">
+          <ScenarioStrategyPills
+            mode="select"
+            accent="sky"
+            selected={detailStrategy}
+            onSelect={setDetailStrategy}
+          />
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Credits still needed</p>
+            <p className="mt-1 text-sm font-semibold text-amber-200">
+              {formatCredits(remainingCredits)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Weeks to max all</p>
+            <p className="mt-1 text-sm font-semibold text-white">
+              ~{Math.ceil(detailSchedule.totalDays / 7)} weeks
+            </p>
+          </div>
+          <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">All maxed by</p>
+            <p className="mt-1 text-sm font-semibold text-sky-300">{detailSchedule.completionDate}</p>
+          </div>
+          <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Weekly income after</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-300">
+              {formatCredits(detailSchedule.weeklyIncomeAtEnd.total)}/wk
+            </p>
+            <p className="text-[11px] text-slate-500">
+              up from {formatCredits(detailSchedule.weeklyIncomeAtStart.total)}/wk
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-sm font-medium text-sky-200">{detailSchedule.strategyName}</p>
+        <p className="mt-1 text-xs text-slate-400">{detailScenario.strategyDescription}</p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
@@ -251,7 +288,7 @@ export function GuildBuildingsView({
               </tr>
             </thead>
             <tbody>
-              {schedule.upgrades.map((step, idx) => (
+              {detailSchedule.upgrades.map((step, idx) => (
                 <tr key={`${step.buildingId}-${step.toLevel}-${idx}`} className="border-b border-slate-800/60">
                   <td className="py-2 pr-3 text-slate-500">{idx + 1}</td>
                   <td className="py-2 pr-3 text-white">{GUILD_BUILDINGS[step.buildingId].name}</td>
@@ -265,19 +302,6 @@ export function GuildBuildingsView({
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
-        <p className="text-sm font-medium text-white">After all upgrades</p>
-        <div className="mt-2">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Weekly income</p>
-          <p className="mt-1 text-lg font-semibold text-emerald-300">
-            {formatCredits(schedule.weeklyIncomeAtEnd.total)}/wk
-          </p>
-          <p className="text-xs text-slate-500">
-            Up from {formatCredits(schedule.weeklyIncomeAtStart.total)}/wk
-          </p>
         </div>
       </div>
 
@@ -299,7 +323,7 @@ export function GuildBuildingsView({
           </li>
           <li>Guild Bank affects coin rewards only, not Guild Credits</li>
           <li>Upgrade costs (credits): 100 → 1k → 5k → 10k → 25k → 50k → 100k → 150k</li>
-          {schedule.notes.map((n) => (
+          {detailSchedule.notes.map((n) => (
             <li key={n}>{n}</li>
           ))}
         </ul>

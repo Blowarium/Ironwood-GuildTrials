@@ -10,6 +10,10 @@ export const XP_IMPORT_SCRIPT_PATH = "/ironwood-xp-import.js";
 export const XP_IMPORT_USERSCRIPT_PATH = "/ironwood-xp-import.user.js";
 export const XP_IMPORT_HELPER_STORAGE_KEY = "igt-xp-import-helper-installed";
 export const TAMPERMONKEY_HOME_URL = "https://www.tampermonkey.net/";
+export const FIREFOX_ANDROID_TAMPERMONKEY_URL =
+  "https://addons.mozilla.org/android/addon/tampermonkey/";
+/** Free userscript manager for iPhone/iPad Safari (alternative to paid Tampermonkey on iOS). */
+export const USERSCRIPTS_IOS_APP_URL = "https://apps.apple.com/app/userscripts/id1463298887";
 
 /** Ironwood sidebar display name → guild trials skill. */
 export const IRONWOOD_SKILL_NAME_MAP: Record<string, Skill> = {
@@ -136,6 +140,15 @@ export function buildIronwoodXpImportBookmarklet(
   actionPlan?: IronwoodActionPlan,
 ): string {
   const code = buildIronwoodXpImportConsoleSnippet(appOrigin, returnUrl, actionPlan);
+  return `javascript:${encodeURIComponent(code)}`;
+}
+
+/**
+ * One-time mobile bookmark: run on ironwoodrpg.com after "Import XP/h now" opens that tab.
+ * Reads igtReturn / igtActions from the page URL (same params the userscript uses).
+ */
+export function buildStaticIronwoodXpImportBookmarklet(): string {
+  const code = `(function(){var p=new URLSearchParams(location.search);var r=p.get('igtReturn');if(!r){alert('Tap Import XP/h in Guild Trials first, then run this bookmark on the Ironwood tab.');return;}if(location.hostname.indexOf('ironwoodrpg')<0){alert('Open ironwoodrpg.com first.');return;}var o=new URL(r).origin;var s=o+'/ironwood-xp-import.js?v=2.2.1&return='+encodeURIComponent(r);var a=p.get('igtActions');if(a)s+='&actions='+encodeURIComponent(a);var e=document.createElement('script');e.src=s;(document.body||document.documentElement).appendChild(e);})();`;
   return `javascript:${encodeURIComponent(code)}`;
 }
 
