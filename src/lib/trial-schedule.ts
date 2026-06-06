@@ -52,6 +52,25 @@ export function dateFromStartAt(iso: string): string {
   return toISODate(new Date(iso));
 }
 
+/** Calendar date for an instant in a specific IANA timezone (e.g. Europe/Amsterdam). */
+export function localDateFromInstant(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
+/** Browser timezone for signup payloads so the server can validate local dates. */
+export function clientTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 export function formatTimeLabel(iso: string, short = false): string {
   return new Intl.DateTimeFormat(undefined, {
     hour: "numeric",

@@ -18,8 +18,8 @@ import {
 } from "@/lib/server-auth";
 import { buildRolesMap } from "@/lib/roles";
 import {
-  dateFromStartAt,
   getEffectiveStatus,
+  localDateFromInstant,
   normalizeSignupTiming,
   syncSignups,
 } from "@/lib/trial-schedule";
@@ -75,10 +75,13 @@ function validatePayload(body: SignupPayload): string | null {
   if (!isDateInWeek(body.plannedDate, body.weekStart)) {
     return "Planned day must be within the selected trial week.";
   }
-  if (body.plannedStartAt) {
-    const startDate = dateFromStartAt(body.plannedStartAt);
+  if (body.plannedStartAt && body.timeZone) {
+    const startDate = localDateFromInstant(body.plannedStartAt, body.timeZone);
     if (!isDateInWeek(startDate, body.weekStart)) {
       return "Start time must fall within the selected trial week.";
+    }
+    if (startDate !== body.plannedDate) {
+      return "Start time does not match the selected day.";
     }
   }
   return null;

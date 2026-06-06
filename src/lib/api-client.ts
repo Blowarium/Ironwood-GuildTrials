@@ -7,7 +7,7 @@ import type {
 } from "./member-profile";
 import type { GuildRole, MemberRoleRow } from "./roles";
 import { getStaffAuthToken, storeStaffAuth, removeStaffAuth } from "./staff-auth-client";
-import { defaultStartAtForDate, normalizeSignupTiming } from "./trial-schedule";
+import { defaultStartAtForDate, normalizeSignupTiming, clientTimeZone } from "./trial-schedule";
 import type { SkillWeekCompletion, TrialSignup } from "./types";
 
 function withStaffAuth<T extends { actorMember: Member }>(
@@ -75,7 +75,7 @@ export async function saveSignup(payload: {
   const res = await fetch("/api/signups", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(withStaffAuth(payload)),
+    body: JSON.stringify(withStaffAuth({ ...payload, timeZone: clientTimeZone() })),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not save." };

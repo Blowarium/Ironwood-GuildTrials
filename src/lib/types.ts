@@ -19,6 +19,7 @@ export interface SignupPayload {
   skill: Skill;
   plannedDate: string;
   plannedStartAt?: string;
+  timeZone?: string;
   status?: TrialStatus;
   actorMember?: Member;
   staffAuthToken?: string;
