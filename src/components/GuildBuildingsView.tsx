@@ -149,23 +149,30 @@ export function GuildBuildingsView({
         <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-white">Current buildings</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={saveState}
-                className="rounded-md bg-slate-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-600"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={resetDefaults}
-                className="rounded-md border border-slate-600 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
-              >
-                Reset to alliance defaults
-              </button>
-            </div>
+            {canEditHalls && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveState}
+                  className="rounded-md bg-slate-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-600"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={resetDefaults}
+                  className="rounded-md border border-slate-600 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800"
+                >
+                  Reset to alliance defaults
+                </button>
+              </div>
+            )}
           </div>
+          {!canEditHalls && (
+            <p className="mb-3 text-xs text-slate-500">
+              Only Guild Leaders and Officers can edit building levels and guild credits.
+            </p>
+          )}
 
           <div className="mb-4">
             <label className="text-xs text-slate-400">Guild credits in bank</label>
@@ -174,8 +181,9 @@ export function GuildBuildingsView({
                 type="number"
                 min={0}
                 value={credits}
+                disabled={!canEditHalls}
                 onChange={(e) => setCredits(Math.max(0, Number(e.target.value) || 0))}
-                className="w-32 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
+                className="w-32 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white disabled:opacity-50"
               />
             </div>
           </div>
@@ -203,7 +211,7 @@ export function GuildBuildingsView({
                       min={0}
                       max={def.maxLevel}
                       value={lv}
-                      disabled={fromConfig || (maxed && id === "GuildHall")}
+                      disabled={!canEditHalls || fromConfig || (maxed && id === "GuildHall")}
                       onChange={(e) => updateLevel(id, Number(e.target.value))}
                       className="w-14 rounded border border-slate-600 bg-slate-900 px-1.5 py-0.5 text-right text-sm text-white disabled:opacity-50"
                     />
