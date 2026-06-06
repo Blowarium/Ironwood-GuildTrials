@@ -80,6 +80,17 @@ export const DEFAULT_COMPARISON_STRATEGIES: UpgradeStrategyId[] = UPGRADE_STRATE
   (s) => s.id,
 );
 
+export const DEFAULT_PREFERRED_BUILDING_STRATEGY: UpgradeStrategyId = "max_income";
+
+const STRATEGY_IDS = new Set<UpgradeStrategyId>(UPGRADE_STRATEGIES.map((s) => s.id));
+
+export function parsePreferredBuildingStrategy(value: unknown): UpgradeStrategyId {
+  if (typeof value === "string" && STRATEGY_IDS.has(value as UpgradeStrategyId)) {
+    return value as UpgradeStrategyId;
+  }
+  return DEFAULT_PREFERRED_BUILDING_STRATEGY;
+}
+
 export function strategyDef(id: UpgradeStrategyId): UpgradeStrategyDef {
   return UPGRADE_STRATEGIES.find((s) => s.id === id)!;
 }

@@ -1,5 +1,11 @@
 import { MEMBERS, SKILLS, type Member, type Skill, type TrialStatus } from "./constants";
-import { DEFAULT_GUILD_CONFIG, type GuildConfig } from "./guild-config";
+import {
+  DEFAULT_GUILD_CONFIG,
+  stripCreditHallsFromLevels,
+  type GuildConfig,
+} from "./guild-config";
+import { DEFAULT_GUILD_BUILDING_LEVELS } from "./guild-buildings-schedule";
+import { parsePreferredBuildingStrategy } from "./guild-buildings-strategies";
 import {
   emptyProfile,
   normalizeProfile,
@@ -244,6 +250,18 @@ export const devStore = {
     }
     if (update.trialHallLevel !== undefined) {
       next.trial_hall_level = Math.max(0, Math.min(99, Math.floor(Number(update.trialHallLevel)) || 0));
+    }
+    if (update.preferredBuildingStrategy !== undefined) {
+      next.preferred_building_strategy = parsePreferredBuildingStrategy(update.preferredBuildingStrategy);
+    }
+    if (update.plannerCredits !== undefined) {
+      next.planner_credits = Math.max(0, Math.floor(Number(update.plannerCredits)));
+    }
+    if (update.plannerLevels !== undefined) {
+      next.planner_levels = stripCreditHallsFromLevels({
+        ...DEFAULT_GUILD_BUILDING_LEVELS,
+        ...update.plannerLevels,
+      });
     }
     guildConfig = {
       ...next,

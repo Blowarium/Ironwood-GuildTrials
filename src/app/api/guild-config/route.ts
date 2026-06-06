@@ -4,9 +4,13 @@ import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
 import {
   DEFAULT_GUILD_CONFIG,
+  normalizeGuildConfigRow,
+  stripCreditHallsFromLevels,
   type GuildConfig,
   type GuildConfigUpdate,
 } from "@/lib/guild-config";
+import { DEFAULT_GUILD_BUILDING_LEVELS } from "@/lib/guild-buildings-schedule";
+import { parsePreferredBuildingStrategy } from "@/lib/guild-buildings-strategies";
 import {
   assertStaffAuth,
   loadRolesMap,
@@ -36,11 +40,30 @@ function mergeUpdate(current: GuildConfig, body: GuildConfigUpdate): GuildConfig
     throw new Error("Invalid hall level.");
   }
 
+  let plannerCredits = current.planner_credits;
+  if (body.plannerCredits !== undefined) {
+    plannerCredits = Math.max(0, Math.floor(Number(body.plannerCredits)));
+  }
+
+  let plannerLevels = current.planner_levels;
+  if (body.plannerLevels !== undefined) {
+    plannerLevels = stripCreditHallsFromLevels({
+      ...DEFAULT_GUILD_BUILDING_LEVELS,
+      ...body.plannerLevels,
+    });
+  }
+
   return {
     ...current,
     guild_hall_level: guildHall ?? current.guild_hall_level,
     guild_event_hall_level: eventHall ?? current.guild_event_hall_level,
     trial_hall_level: trialHall ?? current.trial_hall_level,
+    preferred_building_strategy:
+      body.preferredBuildingStrategy !== undefined
+        ? parsePreferredBuildingStrategy(body.preferredBuildingStrategy)
+        : current.preferred_building_strategy,
+    planner_credits: plannerCredits,
+    planner_levels: plannerLevels,
   };
 }
 
@@ -56,12 +79,15 @@ export async function GET() {
       guild_hall_level,
       guild_event_hall_level,
       trial_hall_level,
+      preferred_building_strategy,
+      planner_credits,
+      planner_levels,
       updated_at::text,
       updated_by
     FROM guild_config WHERE id = 1
-  `) as GuildConfig[];
+  `) as Record<string, unknown>[];
 
-  const config = rows[0] ?? DEFAULT_GUILD_CONFIG;
+  const config = normalizeGuildConfigRow(rows[0] ?? DEFAULT_GUILD_CONFIG);
   return NextResponse.json({ config, mode: "database" as const });
 }
 
@@ -113,14 +139,17 @@ export async function PUT(request: NextRequest) {
       guild_hall_level,
       guild_event_hall_level,
       trial_hall_level,
+      preferred_building_strategy,
+      planner_credits,
+      planner_levels,
       updated_at::text,
       updated_by
     FROM guild_config WHERE id = 1
-  `) as GuildConfig[];
+  `) as Record<string, unknown>[];
 
   let merged: GuildConfig;
   try {
-    merged = mergeUpdate(existing[0] ?? DEFAULT_GUILD_CONFIG, body);
+    merged = mergeUpdate(normalizeGuildConfigRow(existing[0] ?? DEFAULT_GUILD_CONFIG), body);
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Invalid hall level." },
@@ -128,12 +157,18 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  const plannerLevelsJson =
+    merged.planner_levels == null ? null : JSON.stringify(merged.planner_levels);
+
   const rows = (await db`
     INSERT INTO guild_config (
       id,
       guild_hall_level,
       guild_event_hall_level,
       trial_hall_level,
+      preferred_building_strategy,
+      planner_credits,
+      planner_levels,
       updated_by
     )
     VALUES (
@@ -141,6 +176,9 @@ export async function PUT(request: NextRequest) {
       ${merged.guild_hall_level},
       ${merged.guild_event_hall_level},
       ${merged.trial_hall_level},
+      ${merged.preferred_building_strategy},
+      ${merged.planner_credits},
+      ${plannerLevelsJson},
       ${actorMember}
     )
     ON CONFLICT (id)
@@ -148,15 +186,21 @@ export async function PUT(request: NextRequest) {
       guild_hall_level = EXCLUDED.guild_hall_level,
       guild_event_hall_level = EXCLUDED.guild_event_hall_level,
       trial_hall_level = EXCLUDED.trial_hall_level,
+      preferred_building_strategy = EXCLUDED.preferred_building_strategy,
+      planner_credits = EXCLUDED.planner_credits,
+      planner_levels = EXCLUDED.planner_levels,
       updated_by = EXCLUDED.updated_by,
       updated_at = NOW()
     RETURNING
       guild_hall_level,
       guild_event_hall_level,
       trial_hall_level,
+      preferred_building_strategy,
+      planner_credits,
+      planner_levels,
       updated_at::text,
       updated_by
-  `) as GuildConfig[];
+  `) as Record<string, unknown>[];
 
-  return NextResponse.json({ config: rows[0], mode: "database" });
+  return NextResponse.json({ config: normalizeGuildConfigRow(rows[0]), mode: "database" });
 }

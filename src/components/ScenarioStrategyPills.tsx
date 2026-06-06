@@ -14,6 +14,7 @@ export function ScenarioStrategyPills({
   accent = "violet",
   selected,
   enabled,
+  preferred,
   onSelect,
   onToggle,
 }: {
@@ -21,6 +22,7 @@ export function ScenarioStrategyPills({
   accent?: Accent;
   selected?: UpgradeStrategyId;
   enabled?: Record<UpgradeStrategyId, boolean>;
+  preferred?: UpgradeStrategyId;
   onSelect?: (id: UpgradeStrategyId) => void;
   onToggle?: (id: UpgradeStrategyId) => void;
 }) {
@@ -29,6 +31,7 @@ export function ScenarioStrategyPills({
       {UPGRADE_STRATEGIES.map((s) => {
         const isActive =
           mode === "select" ? selected === s.id : (enabled?.[s.id] ?? false);
+        const isPreferred = mode === "select" && preferred === s.id;
         return (
           <button
             key={s.id}
@@ -40,9 +43,10 @@ export function ScenarioStrategyPills({
             }}
             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
               isActive ? accentActive[accent] : "border-slate-700 text-slate-500 hover:border-slate-600"
-            }`}
+            } ${isPreferred ? "ring-1 ring-emerald-500/60" : ""}`}
           >
             {s.name}
+            {isPreferred ? " ★" : ""}
           </button>
         );
       })}

@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS guild_config (
   guild_hall_level INTEGER NOT NULL DEFAULT 8,
   guild_event_hall_level INTEGER NOT NULL DEFAULT 6,
   trial_hall_level INTEGER NOT NULL DEFAULT 5,
+  preferred_building_strategy TEXT NOT NULL DEFAULT 'max_income',
+  planner_credits INTEGER,
+  planner_levels TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by TEXT
 );
