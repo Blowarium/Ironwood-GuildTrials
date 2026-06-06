@@ -1,4 +1,5 @@
 import type { Skill } from "./constants";
+import { guildInstantFromLocal } from "./guild-timezone";
 import { formatDateTimeLabel, WEEK_DURATION_MS, weekBoundsLocal } from "./trial-schedule";
 
 export type GuildEventType = "gathering" | "crafting" | "combat";
@@ -19,9 +20,9 @@ export const GUILD_EVENT_COOLDOWN_MS = 36 * 60 * 60 * 1000;
 export const GUILD_EVENT_SLOT_MS = GUILD_EVENT_DURATION_MS + GUILD_EVENT_COOLDOWN_MS;
 export const GUILD_EVENT_ROTATION_MS = GUILD_EVENT_SLOT_MS * GUILD_EVENT_ORDER.length;
 
-/** Next known event start: 7 Jun 2026 02:00 local — Gathering Event. */
+/** Next known event start: 7 Jun 2026 02:00 UTC+2 — Gathering Event. */
 export const GUILD_EVENT_ANCHOR: { at: Date; type: GuildEventType } = {
-  at: new Date(2026, 5, 7, 2, 0, 0, 0),
+  at: new Date(guildInstantFromLocal("2026-06-07", 2, 0)),
   type: "gathering",
 };
 

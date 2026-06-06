@@ -1,40 +1,47 @@
-/** Ironwood guild daily reset — local time. */
+import {
+  GUILD_DAY_MS,
+  guildAddDays,
+  guildDateFromInstant,
+  guildDayOfWeek,
+  guildInstantFromLocal,
+  guildTimeParts,
+} from "./guild-timezone";
+
+/** Ironwood guild daily reset — 02:00 UTC+2. */
 export const IRONWOOD_DAILY_RESET_HOUR = 2;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** Most recent daily reset at or before `at`. */
+/** Most recent daily reset at or before `at` (guild clock). */
 export function snapToLastDailyReset(at: Date): Date {
-  const d = new Date(at);
-  d.setHours(IRONWOOD_DAILY_RESET_HOUR, 0, 0, 0);
-  if (at.getTime() < d.getTime()) {
-    d.setDate(d.getDate() - 1);
-  }
-  return d;
+  const date = guildDateFromInstant(at);
+  const { hours, minutes } = guildTimeParts(at);
+  const pastResetToday =
+    hours > IRONWOOD_DAILY_RESET_HOUR ||
+    (hours === IRONWOOD_DAILY_RESET_HOUR && minutes >= 0);
+  const resetDate = pastResetToday ? date : guildAddDays(date, -1);
+  return new Date(guildInstantFromLocal(resetDate, IRONWOOD_DAILY_RESET_HOUR, 0));
 }
 
-/** Next daily reset strictly after `at`. */
+/** Next daily reset strictly after `at` (guild clock). */
 export function nextDailyResetAfter(at: Date): Date {
-  const d = snapToLastDailyReset(at);
-  d.setDate(d.getDate() + 1);
-  return d;
+  const last = snapToLastDailyReset(at);
+  return new Date(last.getTime() + GUILD_DAY_MS);
 }
 
 /**
- * Trial week identity: Monday 02:00 local that opened the current week.
+ * Trial week identity: Monday 02:00 UTC+2 that opened the current week.
  * Returns epoch ms of that instant (stable comparison key).
  */
 export function trialWeekResetKey(at: Date): number {
   const lastReset = snapToLastDailyReset(at);
-  const day = lastReset.getDay();
+  const resetDate = guildDateFromInstant(lastReset);
+  const day = guildDayOfWeek(guildInstantFromLocal(resetDate, 12, 0));
   const mondayOffset = day === 0 ? -6 : 1 - day;
-  const monday = new Date(lastReset);
-  monday.setDate(monday.getDate() + mondayOffset);
-  return monday.getTime();
+  const mondayDate = guildAddDays(resetDate, mondayOffset);
+  return new Date(guildInstantFromLocal(mondayDate, IRONWOOD_DAILY_RESET_HOUR, 0)).getTime();
 }
 
 export function formatDailyResetLabel(): string {
-  return `${String(IRONWOOD_DAILY_RESET_HOUR).padStart(2, "0")}:00 local`;
+  return `${String(IRONWOOD_DAILY_RESET_HOUR).padStart(2, "0")}:00 UTC+2`;
 }
 
-export { DAY_MS as GUILD_DAY_MS };
+export { GUILD_DAY_MS };

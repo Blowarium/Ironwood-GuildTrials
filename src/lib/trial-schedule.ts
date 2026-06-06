@@ -1,43 +1,43 @@
 import type { TrialStatus } from "./constants";
 import type { TrialSignup } from "./types";
-import { parseISODate, toISODate } from "./weeks";
+import {
+  GUILD_DAY_MS,
+  GUILD_TIMEZONE,
+  guildDateFromInstant,
+  guildFormatLabel,
+  guildInstantFromLocal,
+  guildMidnight,
+  guildTimeParts,
+} from "./guild-timezone";
 
 export const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 export const WEEK_DURATION_MS = 7 * TRIAL_DURATION_MS;
 
 export function weekBoundsLocal(weekStartIso: string): { start: Date; end: Date } {
-  const start = parseISODate(weekStartIso);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
+  const start = guildMidnight(weekStartIso);
+  const end = new Date(start.getTime() + WEEK_DURATION_MS);
   return { start, end };
 }
 
-/** Map 0–1 position on the week bar to a local start timestamp (Mon 00:00 → next Mon 00:00). */
+/** Map 0–1 position on the week bar to a guild-local start timestamp (Mon 00:00 → next Mon 00:00). */
 export function buildStartAtFromWeekFraction(weekStartIso: string, fraction: number): string {
   const clamped = Math.max(0, Math.min(1, fraction));
   const { start } = weekBoundsLocal(weekStartIso);
   return new Date(start.getTime() + Math.floor(clamped * WEEK_DURATION_MS)).toISOString();
 }
 
-/** Default trial start: 08:00 local on the chosen day. */
+/** Default trial start: 08:00 guild time on the chosen day. */
 export function defaultStartAtForDate(dateIso: string): string {
-  const d = parseISODate(dateIso);
-  if (Number.isNaN(d.getTime())) {
-    const fallback = parseISODate(new Date().toISOString().slice(0, 10));
-    fallback.setHours(8, 0, 0, 0);
-    return fallback.toISOString();
+  if (!dateIso || Number.isNaN(guildMidnight(dateIso).getTime())) {
+    return guildInstantFromLocal(guildDateFromInstant(new Date()), 8, 0);
   }
-  d.setHours(8, 0, 0, 0);
-  return d.toISOString();
+  return guildInstantFromLocal(dateIso, 8, 0);
 }
 
 export function buildStartAt(dateIso: string, hours: number, minutes: number): string {
-  if (!dateIso) return defaultStartAtForDate(new Date().toISOString().slice(0, 10));
-  const d = parseISODate(dateIso);
-  if (Number.isNaN(d.getTime())) return defaultStartAtForDate(dateIso);
-  d.setHours(hours, minutes, 0, 0);
-  return d.toISOString();
+  if (!dateIso) return defaultStartAtForDate(guildDateFromInstant(new Date()));
+  if (Number.isNaN(guildMidnight(dateIso).getTime())) return defaultStartAtForDate(dateIso);
+  return guildInstantFromLocal(dateIso, hours, minutes);
 }
 
 export function buildStartAtFromDayFraction(dateIso: string, fraction: number): string {
@@ -49,44 +49,25 @@ export function buildStartAtFromDayFraction(dateIso: string, fraction: number): 
 }
 
 export function dateFromStartAt(iso: string): string {
-  return toISODate(new Date(iso));
-}
-
-/** Calendar date for an instant in a specific IANA timezone (e.g. Europe/Amsterdam). */
-export function localDateFromInstant(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(iso));
-}
-
-/** Browser timezone for signup payloads so the server can validate local dates. */
-export function clientTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
+  return guildDateFromInstant(iso);
 }
 
 export function formatTimeLabel(iso: string, short = false): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return guildFormatLabel(iso, {
     hour: "numeric",
     minute: "2-digit",
     hour12: !short,
-  }).format(new Date(iso));
+  });
 }
 
 export function formatDateTimeLabel(iso: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return guildFormatLabel(iso, {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  }).format(new Date(iso));
+  });
 }
 
 export function getTrialEndAt(startIso: string): Date {
@@ -112,9 +93,8 @@ export function syncSignups(signups: TrialSignup[], now = new Date()): TrialSign
 
 /** 0–100 position of trial start within its start-day column. */
 export function startPercentInDay(startIso: string): number {
-  const d = new Date(startIso);
-  const minutes = d.getHours() * 60 + d.getMinutes();
-  return (minutes / (24 * 60)) * 100;
+  const { hours, minutes } = guildTimeParts(startIso);
+  return ((hours * 60 + minutes) / (24 * 60)) * 100;
 }
 
 /** How much of the 24h trial remains visible in the start-day column (percent height). */
@@ -134,10 +114,8 @@ export interface TrialDaySegment {
 }
 
 function dayBoundsLocal(dateIso: string): { start: Date; end: Date } {
-  const start = parseISODate(dateIso);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const start = guildMidnight(dateIso);
+  const end = new Date(start.getTime() + GUILD_DAY_MS);
   return { start, end };
 }
 
@@ -153,7 +131,7 @@ export function trialSegmentForDay(signup: TrialSignup, dayIso: string): TrialDa
 
   const segStart = start > dayStart ? start : dayStart;
   const segEnd = end < dayEnd ? end : dayEnd;
-  const dayMs = 24 * 60 * 60 * 1000;
+  const dayMs = GUILD_DAY_MS;
 
   const topPercent = ((segStart.getTime() - dayStart.getTime()) / dayMs) * 100;
   const heightPercent = ((segEnd.getTime() - segStart.getTime()) / dayMs) * 100;
@@ -252,10 +230,8 @@ export function trialSegmentInWeek(
 }
 
 export function timeInputValue(iso: string): string {
-  const d = new Date(iso);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
+  const { hours, minutes } = guildTimeParts(iso);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 export function applyTimeToDate(dateIso: string, timeValue: string): string {
@@ -274,3 +250,6 @@ export function normalizeSignupTiming(signup: Partial<TrialSignup> & Pick<TrialS
   const planned_date = dateFromStartAt(planned_start_at);
   return { planned_date, planned_start_at };
 }
+
+/** Re-export for callers that need the guild IANA zone id. */
+export { GUILD_TIMEZONE };

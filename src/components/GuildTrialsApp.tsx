@@ -480,7 +480,10 @@ export function GuildTrialsApp() {
 
       <main className="mx-auto max-w-[1600px] space-y-4 px-4 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-400">{formatWeekRange(weekStart)}</p>
+          <p className="text-sm text-slate-400">
+            {formatWeekRange(weekStart)}
+            <span className="text-slate-500"> · All times UTC+2</span>
+          </p>
           <div className="flex flex-wrap gap-2">
             {[0, 1, 2].map((offset) => {
               const start = getWeekStart(new Date(), offset);

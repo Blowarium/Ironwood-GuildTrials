@@ -27,7 +27,7 @@ import {
   nextDailyResetAfter,
   trialWeekResetKey,
 } from "./guild-reset";
-import { toISODate } from "./weeks";
+import { guildDateFromInstant } from "./guild-timezone";
 
 const DAY_MS = GUILD_DAY_MS;
 
@@ -407,7 +407,7 @@ export function buildGuildBuildingsSchedule(
   const startDate = input.startDate ?? new Date();
   const notes: string[] = [
     "Assumes full daily quest, event, and trial completion.",
-    `Daily quest credits and trial week turnover at ${formatDailyResetLabel()} (Mon 02:00 opens a new trial week).`,
+    `Daily quest credits and trial week turnover at ${formatDailyResetLabel()} (new trial week each Monday at the same time).`,
     "Daily quests: Guild Hall level × 20 × 13 per day.",
     "Events: Event Hall level × 400 per completed event.",
     "Trials: Trial Hall level × 50 × 16 per week.",
@@ -444,7 +444,7 @@ export function buildGuildBuildingsSchedule(
       fromLevel,
       toLevel: fromLevel + 1,
       creditCost,
-      date: toISODate(state.date),
+      date: guildDateFromInstant(state.date),
       dayOffset: state.dayOffset,
       creditsBefore,
       creditsAfter: state.credits,
@@ -459,7 +459,7 @@ export function buildGuildBuildingsSchedule(
     state.dayOffset,
   );
   const completionDate =
-    upgrades.length > 0 ? upgrades[upgrades.length - 1].date : toISODate(startDate);
+    upgrades.length > 0 ? upgrades[upgrades.length - 1].date : guildDateFromInstant(startDate);
 
   return {
     strategy,

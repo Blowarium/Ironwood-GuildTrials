@@ -19,10 +19,10 @@ import {
 import { buildRolesMap } from "@/lib/roles";
 import {
   getEffectiveStatus,
-  localDateFromInstant,
   normalizeSignupTiming,
   syncSignups,
 } from "@/lib/trial-schedule";
+import { guildDateFromInstant } from "@/lib/guild-timezone";
 import type {
   PatchSignupPayload,
   SignupPayload,
@@ -75,8 +75,8 @@ function validatePayload(body: SignupPayload): string | null {
   if (!isDateInWeek(body.plannedDate, body.weekStart)) {
     return "Planned day must be within the selected trial week.";
   }
-  if (body.plannedStartAt && body.timeZone) {
-    const startDate = localDateFromInstant(body.plannedStartAt, body.timeZone);
+  if (body.plannedStartAt) {
+    const startDate = guildDateFromInstant(body.plannedStartAt);
     if (!isDateInWeek(startDate, body.weekStart)) {
       return "Start time must fall within the selected trial week.";
     }

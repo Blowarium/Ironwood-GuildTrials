@@ -1,13 +1,14 @@
-const DAY_MS = 24 * 60 * 60 * 1000;
+import {
+  GUILD_TIMEZONE,
+  guildAddDays,
+  guildFormatLabel,
+  guildInstantFromLocal,
+  guildWeekStart,
+} from "./guild-timezone";
 
-/** Monday 00:00 local time for the trial week containing `date`, plus `weekOffset` weeks. */
+/** Monday 00:00 guild time (UTC+2) for the trial week containing `date`, plus `weekOffset` weeks. */
 export function getWeekStart(date = new Date(), weekOffset = 0): string {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const mondayDelta = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + mondayDelta + weekOffset * 7);
-  return toISODate(d);
+  return guildWeekStart(date, weekOffset);
 }
 
 export function toISODate(d: Date): string {
@@ -17,38 +18,31 @@ export function toISODate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+/** UTC instant for guild-local midnight on `iso` (YYYY-MM-DD). */
 export function parseISODate(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(guildInstantFromLocal(iso, 0, 0));
 }
 
 export function getWeekDays(weekStart: string): string[] {
-  const start = parseISODate(weekStart);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(d.getDate() + i);
-    return toISODate(d);
-  });
+  return Array.from({ length: 7 }, (_, i) => guildAddDays(weekStart, i));
 }
 
 export function formatWeekRange(weekStart: string): string {
   const days = getWeekDays(weekStart);
-  const start = parseISODate(days[0]);
-  const end = parseISODate(days[6]);
   const fmt = new Intl.DateTimeFormat(undefined, {
+    timeZone: GUILD_TIMEZONE,
     month: "short",
     day: "numeric",
   });
-  return `${fmt.format(start)} – ${fmt.format(end)}`;
+  return `${fmt.format(parseISODate(days[0]))} – ${fmt.format(parseISODate(days[6]))}`;
 }
 
 export function formatDayLabel(iso: string, short = false): string {
-  const d = parseISODate(iso);
-  return new Intl.DateTimeFormat(undefined, {
+  return guildFormatLabel(guildInstantFromLocal(iso, 12, 0), {
     weekday: short ? "short" : "long",
     month: "short",
     day: "numeric",
-  }).format(d);
+  });
 }
 
 export function isDateInWeek(iso: string, weekStart: string): boolean {
@@ -64,8 +58,10 @@ export function weekLabel(weekOffset: number): string {
 
 /** Tab label e.g. "Week of Jun 2" */
 export function formatWeekTabLabel(weekStart: string): string {
-  const d = parseISODate(weekStart);
-  return `Week of ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d)}`;
+  return `Week of ${guildFormatLabel(guildInstantFromLocal(weekStart, 12, 0), {
+    month: "short",
+    day: "numeric",
+  })}`;
 }
 
 /** Trial window copy for the UI */
