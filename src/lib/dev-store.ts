@@ -6,6 +6,7 @@ import {
 } from "./guild-config";
 import { DEFAULT_GUILD_BUILDING_LEVELS } from "./guild-buildings-schedule";
 import { parsePreferredBuildingStrategy } from "./guild-buildings-strategies";
+import { parsePlannerMaterialDepositsJson } from "./guild-buildings-materials";
 import {
   emptyProfile,
   normalizeProfile,
@@ -262,6 +263,11 @@ export const devStore = {
         ...DEFAULT_GUILD_BUILDING_LEVELS,
         ...update.plannerLevels,
       });
+    }
+    if (update.plannerMaterialDeposits !== undefined) {
+      next.planner_material_deposits = parsePlannerMaterialDepositsJson(
+        update.plannerMaterialDeposits,
+      );
     }
     guildConfig = {
       ...next,

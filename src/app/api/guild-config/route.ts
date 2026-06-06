@@ -11,6 +11,7 @@ import {
 } from "@/lib/guild-config";
 import { DEFAULT_GUILD_BUILDING_LEVELS } from "@/lib/guild-buildings-schedule";
 import { parsePreferredBuildingStrategy } from "@/lib/guild-buildings-strategies";
+import { parsePlannerMaterialDepositsJson } from "@/lib/guild-buildings-materials";
 import {
   assertStaffAuth,
   loadRolesMap,
@@ -53,6 +54,11 @@ function mergeUpdate(current: GuildConfig, body: GuildConfigUpdate): GuildConfig
     });
   }
 
+  let plannerMaterialDeposits = current.planner_material_deposits;
+  if (body.plannerMaterialDeposits !== undefined) {
+    plannerMaterialDeposits = parsePlannerMaterialDepositsJson(body.plannerMaterialDeposits);
+  }
+
   return {
     ...current,
     guild_hall_level: guildHall ?? current.guild_hall_level,
@@ -64,6 +70,7 @@ function mergeUpdate(current: GuildConfig, body: GuildConfigUpdate): GuildConfig
         : current.preferred_building_strategy,
     planner_credits: plannerCredits,
     planner_levels: plannerLevels,
+    planner_material_deposits: plannerMaterialDeposits,
   };
 }
 
@@ -82,6 +89,7 @@ export async function GET() {
       preferred_building_strategy,
       planner_credits,
       planner_levels,
+      planner_material_deposits,
       updated_at::text,
       updated_by
     FROM guild_config WHERE id = 1
@@ -142,6 +150,7 @@ export async function PUT(request: NextRequest) {
       preferred_building_strategy,
       planner_credits,
       planner_levels,
+      planner_material_deposits,
       updated_at::text,
       updated_by
     FROM guild_config WHERE id = 1
@@ -159,6 +168,10 @@ export async function PUT(request: NextRequest) {
 
   const plannerLevelsJson =
     merged.planner_levels == null ? null : JSON.stringify(merged.planner_levels);
+  const plannerMaterialDepositsJson =
+    merged.planner_material_deposits == null
+      ? null
+      : JSON.stringify(merged.planner_material_deposits);
 
   const rows = (await db`
     INSERT INTO guild_config (
@@ -169,6 +182,7 @@ export async function PUT(request: NextRequest) {
       preferred_building_strategy,
       planner_credits,
       planner_levels,
+      planner_material_deposits,
       updated_by
     )
     VALUES (
@@ -179,6 +193,7 @@ export async function PUT(request: NextRequest) {
       ${merged.preferred_building_strategy},
       ${merged.planner_credits},
       ${plannerLevelsJson},
+      ${plannerMaterialDepositsJson},
       ${actorMember}
     )
     ON CONFLICT (id)
@@ -189,6 +204,7 @@ export async function PUT(request: NextRequest) {
       preferred_building_strategy = EXCLUDED.preferred_building_strategy,
       planner_credits = EXCLUDED.planner_credits,
       planner_levels = EXCLUDED.planner_levels,
+      planner_material_deposits = EXCLUDED.planner_material_deposits,
       updated_by = EXCLUDED.updated_by,
       updated_at = NOW()
     RETURNING
@@ -198,6 +214,7 @@ export async function PUT(request: NextRequest) {
       preferred_building_strategy,
       planner_credits,
       planner_levels,
+      planner_material_deposits,
       updated_at::text,
       updated_by
   `) as Record<string, unknown>[];

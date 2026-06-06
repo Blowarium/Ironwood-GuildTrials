@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Member } from "@/lib/constants";
 import { saveGuildConfig } from "@/lib/api-client";
 import {
@@ -30,6 +30,14 @@ import {
   weeklyCreditIncome,
 } from "@/lib/guild-buildings-schedule";
 import { DEFAULT_PREFERRED_BUILDING_STRATEGY } from "@/lib/guild-buildings-strategies";
+import {
+  clearStepMaterials,
+  markStepMaterialsReady,
+  normalizeMaterialDeposits,
+  setMaterialDeposit,
+  upgradeStepKey,
+  type PlannerMaterialDeposits,
+} from "@/lib/guild-buildings-materials";
 import { formatDailyResetLabel } from "@/lib/guild-reset";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
 import { GuildBuildingsScenarioCompare } from "./GuildBuildingsScenarioCompare";
@@ -136,6 +144,15 @@ export function GuildBuildingsView({
   const [credits, setCredits] = useState(loadLocalCredits);
   const [detailStrategy, setDetailStrategy] = useState<UpgradeStrategyId>(preferredStrategy);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [materialDeposits, setMaterialDeposits] = useState<PlannerMaterialDeposits>(() =>
+    normalizeMaterialDeposits(guildConfig?.planner_material_deposits),
+  );
+  const [materialSaveMessage, setMaterialSaveMessage] = useState<string | null>(null);
+  const materialSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMaterialDeposits(normalizeMaterialDeposits(guildConfig?.planner_material_deposits));
+  }, [guildConfig?.planner_material_deposits]);
 
   useEffect(() => {
     if (!canEditHalls || !guildConfig) return;
@@ -246,6 +263,60 @@ export function GuildBuildingsView({
     if (saved) onGuildConfigSaved(saved);
   }
 
+  const persistMaterialDeposits = useCallback(
+    (next: PlannerMaterialDeposits) => {
+      if (!canEditHalls) return;
+      if (materialSaveTimerRef.current) clearTimeout(materialSaveTimerRef.current);
+      materialSaveTimerRef.current = setTimeout(async () => {
+        setMaterialSaveMessage(null);
+        const { config: saved, error } = await saveGuildConfig(
+          { plannerMaterialDeposits: next },
+          currentUser,
+        );
+        if (error) {
+          setMaterialSaveMessage(error);
+          return;
+        }
+        if (saved) onGuildConfigSaved(saved);
+      }, 500);
+    },
+    [canEditHalls, currentUser, onGuildConfigSaved],
+  );
+
+  function findUpgradeStep(stepKey: string) {
+    return detailScenario.schedule.upgrades.find(
+      (step) => upgradeStepKey(step.buildingId, step.fromLevel) === stepKey,
+    );
+  }
+
+  function handleMaterialDepositChange(stepKey: string, materialId: string, amount: number) {
+    const next = setMaterialDeposit(materialDeposits, stepKey, materialId, amount);
+    setMaterialDeposits(next);
+    persistMaterialDeposits(next);
+  }
+
+  function handleMarkStepMaterialsReady(stepKey: string) {
+    const step = findUpgradeStep(stepKey);
+    if (!step) return;
+    const next = markStepMaterialsReady(materialDeposits, step);
+    setMaterialDeposits(next);
+    persistMaterialDeposits(next);
+  }
+
+  function handleClearStepMaterials(stepKey: string) {
+    const next = clearStepMaterials(materialDeposits, stepKey);
+    setMaterialDeposits(next);
+    persistMaterialDeposits(next);
+  }
+
+  const materialPanelProps = {
+    materialDeposits,
+    canEditMaterials: canEditHalls,
+    onMaterialDepositChange: canEditHalls ? handleMaterialDepositChange : undefined,
+    onMarkStepMaterialsReady: canEditHalls ? handleMarkStepMaterialsReady : undefined,
+    onClearStepMaterials: canEditHalls ? handleClearStepMaterials : undefined,
+  };
+
   if (!canEditHalls) {
     return (
       <div className="space-y-6">
@@ -270,6 +341,7 @@ export function GuildBuildingsView({
           preferredUpdatedAt={guildConfig?.updated_at}
           showMechanics
           mechanicsItems={mechanicsItems}
+          {...materialPanelProps}
         />
       </div>
     );
@@ -388,7 +460,11 @@ export function GuildBuildingsView({
         actorMember={currentUser}
         showMechanics
         mechanicsItems={mechanicsItems}
+        {...materialPanelProps}
       />
+      {materialSaveMessage && (
+        <p className="text-xs text-red-300">{materialSaveMessage}</p>
+      )}
     </div>
   );
 }

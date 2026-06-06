@@ -41,6 +41,7 @@ ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS guild_event_hall_level INTEGER
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS preferred_building_strategy TEXT NOT NULL DEFAULT 'max_income';
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_credits INTEGER;
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_levels TEXT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_material_deposits TEXT;
 
 CREATE TABLE IF NOT EXISTS guild_member_roles (
   member_name TEXT PRIMARY KEY,

@@ -1,6 +1,6 @@
 {
   "source": "ironwood-main-bundle",
-  "generatedAt": "2026-06-06T14:56:03.258Z",
+  "generatedAt": "2026-06-06T17:33:16.339Z",
   "constants": {
     "dailyQuestMultiplier": 20,
     "dailyQuestTierCount": 13,
@@ -61,6 +61,184 @@
           "coins": 100000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "CopperOre",
+            "amount": 5000
+          },
+          {
+            "id": "Peony",
+            "amount": 5000
+          },
+          {
+            "id": "RawShrimp",
+            "amount": 5000
+          },
+          {
+            "id": "Bone",
+            "amount": 5000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "IronOre",
+            "amount": 10000
+          },
+          {
+            "id": "Tulip",
+            "amount": 10000
+          },
+          {
+            "id": "RawCod",
+            "amount": 10000
+          },
+          {
+            "id": "Fang",
+            "amount": 10000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "SilverOre",
+            "amount": 25000
+          },
+          {
+            "id": "Rose",
+            "amount": 25000
+          },
+          {
+            "id": "RawSalmon",
+            "amount": 25000
+          },
+          {
+            "id": "MediumBone",
+            "amount": 25000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GoldOre",
+            "amount": 50000
+          },
+          {
+            "id": "Daisy",
+            "amount": 50000
+          },
+          {
+            "id": "RawBass",
+            "amount": 50000
+          },
+          {
+            "id": "MediumFang",
+            "amount": 50000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "CobaltOre",
+            "amount": 100000
+          },
+          {
+            "id": "Lilac",
+            "amount": 100000
+          },
+          {
+            "id": "RawLobster",
+            "amount": 100000
+          },
+          {
+            "id": "LargeBone",
+            "amount": 100000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "ObsidianOre",
+            "amount": 150000
+          },
+          {
+            "id": "Hyacinth",
+            "amount": 150000
+          },
+          {
+            "id": "RawSwordfish",
+            "amount": 150000
+          },
+          {
+            "id": "LargeFang",
+            "amount": 150000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "AstralOre",
+            "amount": 200000
+          },
+          {
+            "id": "Nemesia",
+            "amount": 200000
+          },
+          {
+            "id": "RawShark",
+            "amount": 200000
+          },
+          {
+            "id": "GiantBone",
+            "amount": 200000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "InfernalOre",
+            "amount": 250000
+          },
+          {
+            "id": "Snapdragon",
+            "amount": 250000
+          },
+          {
+            "id": "RawKingCrab",
+            "amount": 250000
+          },
+          {
+            "id": "GiantFang",
+            "amount": 250000
+          }
+        ]
       }
     },
     "GuildLibrary": {
@@ -108,6 +286,88 @@
           "coins": 100000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "Apple",
+            "amount": 250
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "Grapes",
+            "amount": 500
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "Cherry",
+            "amount": 1250
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GreenApple",
+            "amount": 2500
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "Blackcurrant",
+            "amount": 5000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "Raspberry",
+            "amount": 7500
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "Blueberry",
+            "amount": 10000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "Banana",
+            "amount": 15000
+          }
+        ]
       }
     },
     "GuildBank": {
@@ -155,6 +415,88 @@
           "coins": 100000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "Ruby",
+            "amount": 500
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "Topaz",
+            "amount": 1000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "Emerald",
+            "amount": 2500
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "Amethyst",
+            "amount": 5000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "Citrine",
+            "amount": 10000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "Diamond",
+            "amount": 15000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "Moonstone",
+            "amount": 20000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "Onyx",
+            "amount": 25000
+          }
+        ]
       }
     },
     "GuildStorehouse": {
@@ -202,6 +544,88 @@
           "coins": 100000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "CopperBar",
+            "amount": 1000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "IronBar",
+            "amount": 2000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "SilverBar",
+            "amount": 5000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GoldBar",
+            "amount": 10000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "CobaltBar",
+            "amount": 20000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "ObsidianBar",
+            "amount": 30000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "AstralBar",
+            "amount": 40000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "InfernalBar",
+            "amount": 50000
+          }
+        ]
       }
     },
     "GuildWorkshop": {
@@ -249,6 +673,88 @@
           "coins": 50000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "CopperBar",
+            "amount": 1000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "IronBar",
+            "amount": 2000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "SilverBar",
+            "amount": 5000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GoldBar",
+            "amount": 10000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "CobaltBar",
+            "amount": 20000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "ObsidianBar",
+            "amount": 30000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "AstralBar",
+            "amount": 40000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "InfernalBar",
+            "amount": 50000
+          }
+        ]
       }
     },
     "GuildArmoury": {
@@ -296,6 +802,88 @@
           "coins": 50000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "CopperBar",
+            "amount": 1000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "IronBar",
+            "amount": 2000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "SilverBar",
+            "amount": 5000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GoldBar",
+            "amount": 10000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "CobaltBar",
+            "amount": 20000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "ObsidianBar",
+            "amount": 30000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "AstralBar",
+            "amount": 40000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "InfernalBar",
+            "amount": 50000
+          }
+        ]
       }
     },
     "GuildEventHall": {
@@ -343,6 +931,184 @@
           "coins": 50000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "CopperOre",
+            "amount": 5000
+          },
+          {
+            "id": "Peony",
+            "amount": 5000
+          },
+          {
+            "id": "RawShrimp",
+            "amount": 5000
+          },
+          {
+            "id": "Bone",
+            "amount": 5000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "IronOre",
+            "amount": 10000
+          },
+          {
+            "id": "Tulip",
+            "amount": 10000
+          },
+          {
+            "id": "RawCod",
+            "amount": 10000
+          },
+          {
+            "id": "Fang",
+            "amount": 10000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "SilverOre",
+            "amount": 25000
+          },
+          {
+            "id": "Rose",
+            "amount": 25000
+          },
+          {
+            "id": "RawSalmon",
+            "amount": 25000
+          },
+          {
+            "id": "MediumBone",
+            "amount": 25000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "GoldOre",
+            "amount": 50000
+          },
+          {
+            "id": "Daisy",
+            "amount": 50000
+          },
+          {
+            "id": "RawBass",
+            "amount": 50000
+          },
+          {
+            "id": "MediumFang",
+            "amount": 50000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "CobaltOre",
+            "amount": 100000
+          },
+          {
+            "id": "Lilac",
+            "amount": 100000
+          },
+          {
+            "id": "RawLobster",
+            "amount": 100000
+          },
+          {
+            "id": "LargeBone",
+            "amount": 100000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "ObsidianOre",
+            "amount": 150000
+          },
+          {
+            "id": "Hyacinth",
+            "amount": 150000
+          },
+          {
+            "id": "RawSwordfish",
+            "amount": 150000
+          },
+          {
+            "id": "LargeFang",
+            "amount": 150000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "AstralOre",
+            "amount": 200000
+          },
+          {
+            "id": "Nemesia",
+            "amount": 200000
+          },
+          {
+            "id": "RawShark",
+            "amount": 200000
+          },
+          {
+            "id": "GiantBone",
+            "amount": 200000
+          }
+        ],
+        "7": [
+          {
+            "id": "AncientLog",
+            "amount": 250000
+          },
+          {
+            "id": "InfernalOre",
+            "amount": 250000
+          },
+          {
+            "id": "Snapdragon",
+            "amount": 250000
+          },
+          {
+            "id": "RawKingCrab",
+            "amount": 250000
+          },
+          {
+            "id": "GiantFang",
+            "amount": 250000
+          }
+        ]
       }
     },
     "GuildTrialHall": {
@@ -390,6 +1156,106 @@
           "coins": 50000000,
           "credits": 150000
         }
+      },
+      "materials": {
+        "0": [
+          {
+            "id": "PineLog",
+            "amount": 5000
+          },
+          {
+            "id": "Logbook1",
+            "amount": 5000
+          },
+          {
+            "id": "RubyCrystal",
+            "amount": 5000
+          }
+        ],
+        "1": [
+          {
+            "id": "SpruceLog",
+            "amount": 10000
+          },
+          {
+            "id": "Logbook10",
+            "amount": 10000
+          },
+          {
+            "id": "TopazCrystal",
+            "amount": 10000
+          }
+        ],
+        "2": [
+          {
+            "id": "BirchLog",
+            "amount": 25000
+          },
+          {
+            "id": "Logbook25",
+            "amount": 25000
+          },
+          {
+            "id": "EmeraldCrystal",
+            "amount": 25000
+          }
+        ],
+        "3": [
+          {
+            "id": "TeakLog",
+            "amount": 50000
+          },
+          {
+            "id": "Logbook40",
+            "amount": 50000
+          },
+          {
+            "id": "AmethystCrystal",
+            "amount": 50000
+          }
+        ],
+        "4": [
+          {
+            "id": "MahoganyLog",
+            "amount": 100000
+          },
+          {
+            "id": "Logbook55",
+            "amount": 100000
+          },
+          {
+            "id": "CitrineCrystal",
+            "amount": 100000
+          }
+        ],
+        "5": [
+          {
+            "id": "IronbarkLog",
+            "amount": 150000
+          },
+          {
+            "id": "Logbook70",
+            "amount": 150000
+          },
+          {
+            "id": "DiamondCrystal",
+            "amount": 150000
+          }
+        ],
+        "6": [
+          {
+            "id": "RedwoodLog",
+            "amount": 200000
+          },
+          {
+            "id": "Logbook85",
+            "amount": 200000
+          },
+          {
+            "id": "MoonstoneCrystal",
+            "amount": 200000
+          }
+        ]
       }
     }
   }

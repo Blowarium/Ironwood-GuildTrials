@@ -75,11 +75,25 @@ for (const id of BUILDINGS) {
       credits: Number(m[4]),
     };
   }
+  const materials = {};
+  const matStart = chunk.indexOf("materials:{");
+  if (matStart >= 0) {
+    const matEnd = chunk.indexOf("}},[n.dZ.", matStart);
+    const matChunk = chunk.slice(matStart + 11, matEnd > 0 ? matEnd : matStart + 3000);
+    for (const m of matChunk.matchAll(/(\d+):\[(.*?)\](?=,\d+:|$)/gs)) {
+      const items = [];
+      for (const im of m[2].matchAll(/\{id:n\.AM\.(\w+),amount:(\d+(?:e\d+)?)\}/g)) {
+        items.push({ id: im[1], amount: Number(im[2]) });
+      }
+      materials[Number(m[1])] = items;
+    }
+  }
   buildings[id] = {
     id,
     name: DISPLAY_NAMES[id],
     maxLevel: 8,
     requirements,
+    materials,
   };
 }
 
@@ -104,8 +118,14 @@ const data = {
 };
 
 const outPath = path.join(process.cwd(), "public/guild-buildings-data.json");
+const materialsPath = path.join(process.cwd(), "src/data/guild-building-materials.json");
 fs.writeFileSync(outPath, JSON.stringify(data, null, 2));
+const materialsOnly = Object.fromEntries(
+  Object.entries(buildings).map(([id, def]) => [id, def.materials ?? {}]),
+);
+fs.writeFileSync(materialsPath, JSON.stringify(materialsOnly, null, 2));
 console.log("Wrote", outPath);
+console.log("Wrote", materialsPath);
 for (const id of BUILDINGS) {
   const levels = Object.keys(buildings[id]?.requirements ?? {}).length;
   console.log(`  ${id}: ${levels} upgrade steps`);

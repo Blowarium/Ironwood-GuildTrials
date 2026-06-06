@@ -7,7 +7,9 @@ import { strategyDef, type UpgradeStrategyId } from "@/lib/guild-buildings-strat
 import { DEFAULT_GUILD_MEMBER_COUNT } from "@/lib/guild-buildings-data";
 import { ScenarioStrategyPills } from "./ScenarioStrategyPills";
 import { LastEditedNote } from "./LastEditedNote";
+import { UpgradeStepMaterialsCell } from "./UpgradeStepMaterialsCell";
 import type { Member } from "@/lib/constants";
+import type { PlannerMaterialDeposits } from "@/lib/guild-buildings-materials";
 
 export function GuildUpgradePathPanel({
   detailScenario,
@@ -23,6 +25,11 @@ export function GuildUpgradePathPanel({
   actorMember,
   showMechanics,
   mechanicsItems,
+  materialDeposits,
+  canEditMaterials,
+  onMaterialDepositChange,
+  onMarkStepMaterialsReady,
+  onClearStepMaterials,
 }: {
   detailScenario: ScenarioComparisonRow;
   remainingCredits: number;
@@ -37,6 +44,11 @@ export function GuildUpgradePathPanel({
   actorMember?: Member;
   showMechanics?: boolean;
   mechanicsItems?: string[];
+  materialDeposits?: PlannerMaterialDeposits;
+  canEditMaterials?: boolean;
+  onMaterialDepositChange?: (stepKey: string, materialId: string, amount: number) => void;
+  onMarkStepMaterialsReady?: (stepKey: string) => void;
+  onClearStepMaterials?: (stepKey: string) => void;
 }) {
   const detailSchedule = detailScenario.schedule;
   const [savingPreferred, setSavingPreferred] = useState(false);
@@ -175,13 +187,14 @@ export function GuildUpgradePathPanel({
       )}
 
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
               <th className="py-2 pr-3">#</th>
               <th className="py-2 pr-3">Building</th>
               <th className="py-2 pr-3">Upgrade</th>
               <th className="py-2 pr-3">Cost</th>
+              <th className="py-2 pr-3">Materials</th>
               <th className="py-2 pr-3">Target date</th>
               <th className="py-2">Day</th>
             </tr>
@@ -195,6 +208,16 @@ export function GuildUpgradePathPanel({
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
                 </td>
                 <td className="py-2 pr-3 text-amber-200">{formatCredits(step.creditCost)}</td>
+                <td className="py-2 pr-3 align-top">
+                  <UpgradeStepMaterialsCell
+                    step={step}
+                    deposits={materialDeposits ?? {}}
+                    canEdit={canEditMaterials ?? false}
+                    onDepositChange={onMaterialDepositChange}
+                    onMarkReady={onMarkStepMaterialsReady}
+                    onClear={onClearStepMaterials}
+                  />
+                </td>
                 <td className="py-2 pr-3 text-sky-300">{step.date}</td>
                 <td className="py-2 text-slate-500">+{Math.round(step.dayOffset)}d</td>
               </tr>

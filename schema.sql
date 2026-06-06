@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS guild_config (
   preferred_building_strategy TEXT NOT NULL DEFAULT 'max_income',
   planner_credits INTEGER,
   planner_levels TEXT,
+  planner_material_deposits TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by TEXT
 );
