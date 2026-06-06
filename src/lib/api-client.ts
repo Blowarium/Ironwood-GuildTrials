@@ -180,13 +180,13 @@ export async function fetchGuildConfig(): Promise<{
 }
 
 export async function saveGuildConfig(
-  trialHallLevel: number,
+  update: import("./guild-config").GuildConfigUpdate,
   actorMember: Member,
 ): Promise<{ config?: GuildConfig; error?: string }> {
   const res = await fetch("/api/guild-config", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(withStaffAuth({ trialHallLevel, actorMember })),
+    body: JSON.stringify(withStaffAuth({ ...update, actorMember })),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not save guild config." };

@@ -55,12 +55,13 @@ import { MemberView } from "./MemberView";
 import { ProfileHeaderBar } from "./ProfileHeaderBar";
 import { ProfileModal } from "./ProfileModal";
 import { SkillCoverageList } from "./SkillCoverageList";
+import { GuildBuildingsView } from "./GuildBuildingsView";
 import { SuggestionsView } from "./SuggestionsView";
 import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
 
-type ViewTab = "planner" | "members" | "suggestions" | "roster";
+type ViewTab = "planner" | "members" | "suggestions" | "buildings" | "roster";
 
 export function GuildTrialsApp() {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -418,6 +419,7 @@ export function GuildTrialsApp() {
     ["planner", "Weekly planner"],
     ["members", "Members"],
     ["suggestions", "Smart suggestions"],
+    ["buildings", "Guild buildings"],
   ];
   if (isStaff) tabItems.push(["roster", "Guild roster"]);
 
@@ -556,6 +558,13 @@ export function GuildTrialsApp() {
             saving={saving}
             onApplySuggestion={applySuggestion}
             onApplyAllUnassigned={applySuggestionsBatch}
+          />
+        ) : view === "buildings" ? (
+          <GuildBuildingsView
+            guildConfig={guildConfig}
+            currentUser={currentUser}
+            canEditHalls={isStaff}
+            onGuildConfigSaved={setGuildConfig}
           />
         ) : view === "roster" ? (
           <MemberRosterView

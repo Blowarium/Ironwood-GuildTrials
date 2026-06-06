@@ -1,0 +1,396 @@
+{
+  "source": "ironwood-main-bundle",
+  "generatedAt": "2026-06-06T14:56:03.258Z",
+  "constants": {
+    "dailyQuestMultiplier": 20,
+    "dailyQuestTierCount": 13,
+    "eventCreditsPerLevel": 400,
+    "trialCreditsPerSkill": 50,
+    "guildTrialSkillsPerWeek": 16,
+    "guildEventDurationHours": 48,
+    "guildEventCooldownHours": 36
+  },
+  "creditFormulas": {
+    "dailyQuestsPerDay": "guildHallLevel * 20 * 13",
+    "eventPerCompletion": "eventHallLevel * 400",
+    "trialWeekly": "trialHallLevel * 50 * 16"
+  },
+  "buildings": {
+    "GuildHall": {
+      "id": "GuildHall",
+      "name": "Guild Hall",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 500000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 1000000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 2500000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 5000000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 10000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 25000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 50000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 100000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildLibrary": {
+      "id": "GuildLibrary",
+      "name": "Guild Library",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 500000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 1000000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 2500000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 5000000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 10000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 25000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 50000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 100000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildBank": {
+      "id": "GuildBank",
+      "name": "Guild Bank",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 500000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 1000000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 2500000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 5000000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 10000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 25000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 50000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 100000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildStorehouse": {
+      "id": "GuildStorehouse",
+      "name": "Guild Storehouse",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 500000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 1000000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 2500000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 5000000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 10000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 25000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 50000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 100000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildWorkshop": {
+      "id": "GuildWorkshop",
+      "name": "Guild Workshop",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 250000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 500000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 1000000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 2500000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 5000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 10000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 25000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 50000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildArmoury": {
+      "id": "GuildArmoury",
+      "name": "Guild Armoury",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 250000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 500000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 1000000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 2500000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 5000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 10000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 25000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 50000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildEventHall": {
+      "id": "GuildEventHall",
+      "name": "Guild Event Hall",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 250000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 500000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 1000000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 2500000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 5000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 10000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 25000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 50000000,
+          "credits": 150000
+        }
+      }
+    },
+    "GuildTrialHall": {
+      "id": "GuildTrialHall",
+      "name": "Guild Trial Hall",
+      "maxLevel": 8,
+      "requirements": {
+        "0": {
+          "playerLevel": 25,
+          "coins": 250000,
+          "credits": 100
+        },
+        "1": {
+          "playerLevel": 50,
+          "coins": 500000,
+          "credits": 1000
+        },
+        "2": {
+          "playerLevel": 75,
+          "coins": 1000000,
+          "credits": 5000
+        },
+        "3": {
+          "playerLevel": 100,
+          "coins": 2500000,
+          "credits": 10000
+        },
+        "4": {
+          "playerLevel": 125,
+          "coins": 5000000,
+          "credits": 25000
+        },
+        "5": {
+          "playerLevel": 150,
+          "coins": 10000000,
+          "credits": 50000
+        },
+        "6": {
+          "playerLevel": 175,
+          "coins": 25000000,
+          "credits": 100000
+        },
+        "7": {
+          "playerLevel": 200,
+          "coins": 50000000,
+          "credits": 150000
+        }
+      }
+    }
+  }
+}

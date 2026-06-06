@@ -30,12 +30,15 @@ CREATE TABLE IF NOT EXISTS member_preferences (
 
 CREATE TABLE IF NOT EXISTS guild_config (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
-  trial_hall_level INTEGER NOT NULL DEFAULT 0,
+  guild_hall_level INTEGER NOT NULL DEFAULT 8,
+  guild_event_hall_level INTEGER NOT NULL DEFAULT 6,
+  trial_hall_level INTEGER NOT NULL DEFAULT 5,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by TEXT
 );
 
-INSERT INTO guild_config (id, trial_hall_level) VALUES (1, 0)
+INSERT INTO guild_config (id, guild_hall_level, guild_event_hall_level, trial_hall_level)
+VALUES (1, 8, 6, 5)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS guild_member_roles (

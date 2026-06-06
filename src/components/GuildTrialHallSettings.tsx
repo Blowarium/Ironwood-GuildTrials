@@ -31,7 +31,7 @@ export function GuildTrialHallSettings({
   async function handleSave() {
     setSaving(true);
     setMessage(null);
-    const { config: saved, error } = await saveGuildConfig(level, actorMember);
+    const { config: saved, error } = await saveGuildConfig({ trialHallLevel: level }, actorMember);
     setSaving(false);
     if (error) {
       setMessage(error);

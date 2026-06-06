@@ -231,9 +231,22 @@ export const devStore = {
     return guildConfig;
   },
 
-  setGuildConfig(level: number, updatedBy: Member | null): GuildConfig {
+  setGuildConfig(update: import("./guild-config").GuildConfigUpdate, updatedBy: Member | null): GuildConfig {
+    const next = { ...guildConfig };
+    if (update.guildHallLevel !== undefined) {
+      next.guild_hall_level = Math.max(0, Math.min(8, Math.floor(Number(update.guildHallLevel)) || 0));
+    }
+    if (update.eventHallLevel !== undefined) {
+      next.guild_event_hall_level = Math.max(
+        0,
+        Math.min(8, Math.floor(Number(update.eventHallLevel)) || 0),
+      );
+    }
+    if (update.trialHallLevel !== undefined) {
+      next.trial_hall_level = Math.max(0, Math.min(99, Math.floor(Number(update.trialHallLevel)) || 0));
+    }
     guildConfig = {
-      trial_hall_level: level,
+      ...next,
       updated_at: new Date().toISOString(),
       updated_by: updatedBy,
     };

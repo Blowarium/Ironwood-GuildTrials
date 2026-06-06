@@ -36,6 +36,8 @@ WHERE planned_start_at IS NULL;
 
 ALTER TABLE trial_signups ADD COLUMN IF NOT EXISTS last_edited_by TEXT;
 ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS updated_by TEXT;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS guild_hall_level INTEGER NOT NULL DEFAULT 8;
+ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS guild_event_hall_level INTEGER NOT NULL DEFAULT 6;
 
 CREATE TABLE IF NOT EXISTS guild_member_roles (
   member_name TEXT PRIMARY KEY,
