@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS guild_config (
   planner_credits INTEGER,
   planner_levels TEXT,
   planner_material_deposits TEXT,
+  planner_coin_deposits TEXT,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by TEXT
 );

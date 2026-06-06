@@ -15,6 +15,11 @@ import {
   parsePlannerMaterialDepositsJson,
   type PlannerMaterialDeposits,
 } from "./guild-buildings-materials";
+import {
+  normalizeCoinDeposits,
+  parsePlannerCoinDepositsJson,
+  type PlannerCoinDeposits,
+} from "./guild-buildings-coins";
 
 const CREDIT_HALL_IDS: GuildBuildingId[] = ["GuildHall", "GuildEventHall", "GuildTrialHall"];
 
@@ -26,6 +31,7 @@ export interface GuildConfig {
   planner_credits: number | null;
   planner_levels: Partial<GuildBuildingLevels> | null;
   planner_material_deposits: PlannerMaterialDeposits | null;
+  planner_coin_deposits: PlannerCoinDeposits | null;
   updated_at: string;
   updated_by: Member | null;
 }
@@ -38,6 +44,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
   planner_credits: null,
   planner_levels: null,
   planner_material_deposits: null,
+  planner_coin_deposits: null,
   updated_at: new Date().toISOString(),
   updated_by: null,
 };
@@ -50,6 +57,7 @@ export type GuildConfigUpdate = {
   plannerCredits?: number;
   plannerLevels?: Partial<GuildBuildingLevels>;
   plannerMaterialDeposits?: PlannerMaterialDeposits;
+  plannerCoinDeposits?: PlannerCoinDeposits;
 };
 
 export function creditHallLevelsFromConfig(
@@ -130,6 +138,7 @@ export function normalizeGuildConfigRow(row: Partial<GuildConfig> & Record<strin
       row.planner_credits == null ? null : Math.max(0, Math.floor(Number(row.planner_credits))),
     planner_levels: parsePlannerLevelsJson(row.planner_levels),
     planner_material_deposits: parsePlannerMaterialDepositsJson(row.planner_material_deposits),
+    planner_coin_deposits: parsePlannerCoinDepositsJson(row.planner_coin_deposits),
     updated_at: String(row.updated_at ?? new Date().toISOString()),
     updated_by: (row.updated_by as Member | null) ?? null,
   };

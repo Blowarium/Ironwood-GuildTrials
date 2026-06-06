@@ -38,6 +38,13 @@ import {
   upgradeStepKey,
   type PlannerMaterialDeposits,
 } from "@/lib/guild-buildings-materials";
+import {
+  clearStepCoins,
+  markStepCoinsReady,
+  normalizeCoinDeposits,
+  setCoinDeposit,
+  type PlannerCoinDeposits,
+} from "@/lib/guild-buildings-coins";
 import { formatDailyResetLabel } from "@/lib/guild-reset";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
 import { GuildBuildingsScenarioCompare } from "./GuildBuildingsScenarioCompare";
@@ -147,12 +154,16 @@ export function GuildBuildingsView({
   const [materialDeposits, setMaterialDeposits] = useState<PlannerMaterialDeposits>(() =>
     normalizeMaterialDeposits(guildConfig?.planner_material_deposits),
   );
-  const [materialSaveMessage, setMaterialSaveMessage] = useState<string | null>(null);
-  const materialSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [coinDeposits, setCoinDeposits] = useState<PlannerCoinDeposits>(() =>
+    normalizeCoinDeposits(guildConfig?.planner_coin_deposits),
+  );
+  const [plannerSaveMessage, setPlannerSaveMessage] = useState<string | null>(null);
+  const plannerSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMaterialDeposits(normalizeMaterialDeposits(guildConfig?.planner_material_deposits));
-  }, [guildConfig?.planner_material_deposits]);
+    setCoinDeposits(normalizeCoinDeposits(guildConfig?.planner_coin_deposits));
+  }, [guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits]);
 
   useEffect(() => {
     if (!canEditHalls || !guildConfig) return;
@@ -263,24 +274,30 @@ export function GuildBuildingsView({
     if (saved) onGuildConfigSaved(saved);
   }
 
-  const persistMaterialDeposits = useCallback(
-    (next: PlannerMaterialDeposits) => {
+  const persistPlannerDeposits = useCallback(
+    (patch: {
+      materialDeposits?: PlannerMaterialDeposits;
+      coinDeposits?: PlannerCoinDeposits;
+    }) => {
       if (!canEditHalls) return;
-      if (materialSaveTimerRef.current) clearTimeout(materialSaveTimerRef.current);
-      materialSaveTimerRef.current = setTimeout(async () => {
-        setMaterialSaveMessage(null);
+      if (plannerSaveTimerRef.current) clearTimeout(plannerSaveTimerRef.current);
+      plannerSaveTimerRef.current = setTimeout(async () => {
+        setPlannerSaveMessage(null);
         const { config: saved, error } = await saveGuildConfig(
-          { plannerMaterialDeposits: next },
+          {
+            plannerMaterialDeposits: patch.materialDeposits ?? materialDeposits,
+            plannerCoinDeposits: patch.coinDeposits ?? coinDeposits,
+          },
           currentUser,
         );
         if (error) {
-          setMaterialSaveMessage(error);
+          setPlannerSaveMessage(error);
           return;
         }
         if (saved) onGuildConfigSaved(saved);
       }, 500);
     },
-    [canEditHalls, currentUser, onGuildConfigSaved],
+    [canEditHalls, currentUser, onGuildConfigSaved, materialDeposits, coinDeposits],
   );
 
   function findUpgradeStep(stepKey: string) {
@@ -292,7 +309,7 @@ export function GuildBuildingsView({
   function handleMaterialDepositChange(stepKey: string, materialId: string, amount: number) {
     const next = setMaterialDeposit(materialDeposits, stepKey, materialId, amount);
     setMaterialDeposits(next);
-    persistMaterialDeposits(next);
+    persistPlannerDeposits({ materialDeposits: next });
   }
 
   function handleMarkStepMaterialsReady(stepKey: string) {
@@ -300,21 +317,46 @@ export function GuildBuildingsView({
     if (!step) return;
     const next = markStepMaterialsReady(materialDeposits, step);
     setMaterialDeposits(next);
-    persistMaterialDeposits(next);
+    persistPlannerDeposits({ materialDeposits: next });
   }
 
   function handleClearStepMaterials(stepKey: string) {
     const next = clearStepMaterials(materialDeposits, stepKey);
     setMaterialDeposits(next);
-    persistMaterialDeposits(next);
+    persistPlannerDeposits({ materialDeposits: next });
   }
 
-  const materialPanelProps = {
+  function handleCoinDepositChange(stepKey: string, amount: number) {
+    const next = setCoinDeposit(coinDeposits, stepKey, amount);
+    setCoinDeposits(next);
+    persistPlannerDeposits({ coinDeposits: next });
+  }
+
+  function handleMarkStepCoinsReady(stepKey: string) {
+    const step = findUpgradeStep(stepKey);
+    if (!step) return;
+    const next = markStepCoinsReady(coinDeposits, step);
+    setCoinDeposits(next);
+    persistPlannerDeposits({ coinDeposits: next });
+  }
+
+  function handleClearStepCoins(stepKey: string) {
+    const next = clearStepCoins(coinDeposits, stepKey);
+    setCoinDeposits(next);
+    persistPlannerDeposits({ coinDeposits: next });
+  }
+
+  const requirementPanelProps = {
     materialDeposits,
     canEditMaterials: canEditHalls,
     onMaterialDepositChange: canEditHalls ? handleMaterialDepositChange : undefined,
     onMarkStepMaterialsReady: canEditHalls ? handleMarkStepMaterialsReady : undefined,
     onClearStepMaterials: canEditHalls ? handleClearStepMaterials : undefined,
+    coinDeposits,
+    canEditCoins: canEditHalls,
+    onCoinDepositChange: canEditHalls ? handleCoinDepositChange : undefined,
+    onMarkStepCoinsReady: canEditHalls ? handleMarkStepCoinsReady : undefined,
+    onClearStepCoins: canEditHalls ? handleClearStepCoins : undefined,
   };
 
   if (!canEditHalls) {
@@ -341,7 +383,7 @@ export function GuildBuildingsView({
           preferredUpdatedAt={guildConfig?.updated_at}
           showMechanics
           mechanicsItems={mechanicsItems}
-          {...materialPanelProps}
+          {...requirementPanelProps}
         />
       </div>
     );
@@ -460,10 +502,10 @@ export function GuildBuildingsView({
         actorMember={currentUser}
         showMechanics
         mechanicsItems={mechanicsItems}
-        {...materialPanelProps}
+        {...requirementPanelProps}
       />
-      {materialSaveMessage && (
-        <p className="text-xs text-red-300">{materialSaveMessage}</p>
+      {plannerSaveMessage && (
+        <p className="text-xs text-red-300">{plannerSaveMessage}</p>
       )}
     </div>
   );
