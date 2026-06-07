@@ -90,19 +90,21 @@ export function SuggestionsView({
       <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
         <h2 className="text-lg font-semibold text-white">Smart schedule</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Suggests assignments for members not yet signed up this week. Priority: complete all
-          16 skill trials (coverage + trial XP at hall level {plan.hallLevel}), then seat members
-          on their highest-ranked preferred skills — XP/h only breaks ties when rank is equal.
+          Suggests assignments for members not yet signed up this week. Each member is seated on
+          their highest-ranked preferred skill that still helps complete the week — profile
+          preferences come first, XP/h only breaks ties. All 16 trials get coverage, then trial XP
+          at hall level {plan.hallLevel} is filled before anyone is placed on a lower-ranked skill.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <Stat label="Suggested" value={String(plan.stats.totalSuggestions)} />
           <Stat label="Skills covered" value={`${plan.stats.skillsCoveredAfterPlan}/16`} />
           <Stat
             label="XP complete (plan)"
             value={`${plan.stats.skillsXpCompleteAfterPlan}/16`}
           />
-          <Stat label="Solo 24h completes" value={String(plan.stats.soloCompletesCount)} />
+          <Stat label="Top 8 pref" value={String(plan.stats.gotTopEightChoice)} />
           <Stat label="Got 1st choice" value={String(plan.stats.gotFirstChoice)} />
+          <Stat label="Solo 24h completes" value={String(plan.stats.soloCompletesCount)} />
         </div>
         {plan.suggestions.length > 0 && canUseStaffTools && (
           <button

@@ -42,6 +42,7 @@ export interface SchedulePlan {
     gotFirstChoice: number;
     gotSecondChoice: number;
     gotThirdChoice: number;
+    gotTopEightChoice: number;
     noPreferenceMatch: number;
     skillsCoveredAfterPlan: number;
     skillsXpCompleteAfterPlan: number;
@@ -51,6 +52,12 @@ export interface SchedulePlan {
 }
 
 type SkillState = { contributed: number; memberCount: number };
+
+/** Rank 1 → 16, rank 16 → 1. Higher = better preference fit. */
+function preferenceBonus(rank: number | null): number {
+  if (rank == null || rank < 1) return 0;
+  return 17 - Math.min(rank, 16);
+}
 
 function pickDay(weekDays: string[], dayLoad: Map<string, number>): string {
   let best = weekDays[0];
@@ -71,12 +78,6 @@ function pickStartAt(day: string, dayLoad: Map<string, number>): string {
   const count = dayLoad.get(day) ?? 0;
   const hour = Math.min(22, 6 + (count % 9) * 2);
   return buildStartAt(day, hour, 0);
-}
-
-/** Rank 1 → 16, rank 16 → 1. Used to compare preference fit across ranks 1–16. */
-function preferenceBonus(rank: number | null): number {
-  if (rank == null || rank < 1) return 0;
-  return 17 - Math.min(rank, 16);
 }
 
 function initSkillState(
@@ -128,7 +129,10 @@ function allTrialsComplete(skillState: Map<Skill, SkillState>, required: number)
   });
 }
 
-/** Don't pull members onto off-pref skills while a higher-ranked pref still needs coverage or XP. */
+/**
+ * Don't seat a member on a lower-ranked skill while a higher-ranked pref trial
+ * still needs coverage or trial XP.
+ */
 function canAssignMemberToSkill(
   member: Member,
   skill: Skill,
@@ -147,98 +151,41 @@ function canAssignMemberToSkill(
   return true;
 }
 
-function pickBestScoredMember(
-  candidates: Member[],
-  skill: Skill,
-  profiles: ProfilesMap,
-  scoreFn: (rank: number | null, xpContribution: number) => number,
-): Member | null {
-  let best: Member | null = null;
-  let bestScore = -Infinity;
-  for (const member of candidates) {
-    const profile = profiles.get(member);
-    const rank = getPreferenceRankFromProfile(profile, skill);
-    const xp = memberContributionForSkill(profile, skill);
-    const score = scoreFn(rank, xp);
-    if (score > bestScore || (score === bestScore && best && member.localeCompare(best) < 0)) {
-      bestScore = score;
-      best = member;
-    }
-  }
-  return best;
+/** 2 = uncovered, 1 = needs XP, 0 = complete */
+function assignmentNeedTier(st: SkillState, required: number): number {
+  if (st.memberCount === 0) return 2;
+  if (st.contributed < required) return 1;
+  return 0;
 }
 
-function scoreMemberPreferenceFirst(rank: number | null, xp: number): number {
-  return preferenceBonus(rank) * 1_000_000 + xp;
-}
-
-/** Priority: preferences first, XP/h as tiebreaker (initial seat on an uncovered skill). */
-function pickMemberForSkillCoverage(
-  pool: Member[],
-  skill: Skill,
-  profiles: ProfilesMap,
-  skillState: Map<Skill, SkillState>,
-  required: number,
-): Member | null {
-  const eligible = pool.filter((m) =>
-    canAssignMemberToSkill(m, skill, profiles, skillState, required),
-  );
-  if (eligible.length === 0) return null;
-
-  return pickBestScoredMember(eligible, skill, profiles, scoreMemberPreferenceFirst);
-}
-
-/** Same member scoring as coverage: pref rank first, XP/h tiebreaker. */
-function pickMemberForSkillXpGap(
-  pool: Member[],
-  skill: Skill,
-  profiles: ProfilesMap,
-  skillState: Map<Skill, SkillState>,
-  required: number,
-): Member | null {
-  const eligible = pool.filter((m) =>
-    canAssignMemberToSkill(m, skill, profiles, skillState, required),
-  );
-  if (eligible.length === 0) return null;
-
-  return pickBestScoredMember(eligible, skill, profiles, scoreMemberPreferenceFirst);
-}
-
-/** After trials are complete (or as fallback), seat member on their highest viable pref. */
-function pickBestSkillForMemberPreferences(
+/**
+ * Score a member→skill pairing. Preference rank dominates within the same need tier;
+ * XP/h only breaks ties. Uncovered skills beat XP gaps; XP gaps beat already-complete skills.
+ */
+function scoreAssignment(
   member: Member,
+  skill: Skill,
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
-): Skill | null {
-  const profile = profiles.get(member);
-  const ranked = memberPreferredSkills(profile);
-  const trialsDone = allTrialsComplete(skillState, required);
+  trialsComplete: boolean,
+): number {
+  if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) return -1;
 
-  for (const skill of ranked) {
-    if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) continue;
-    const st = skillState.get(skill)!;
-    if (trialsDone) return skill;
-    if (st.memberCount === 0 || st.contributed < required) return skill;
+  const st = skillState.get(skill)!;
+  const needTier = assignmentNeedTier(st, required);
+  if (needTier === 0 && !trialsComplete) return -1;
+
+  const rank = getPreferenceRankFromProfile(profiles.get(member), skill);
+  const pref = preferenceBonus(rank);
+  const xp = memberContributionForSkill(profiles.get(member), skill);
+
+  if (trialsComplete && needTier === 0) {
+    return pref * 1_000_000 + xp;
   }
 
-  let bestSkill: Skill | null = null;
-  let bestScore = -Infinity;
-  for (const skill of SKILLS) {
-    if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) continue;
-    const st = skillState.get(skill)!;
-    const remaining = Math.max(0, required - st.contributed);
-    const needMembers = st.memberCount === 0 ? 1_000_000 : 0;
-    const rank = getPreferenceRankFromProfile(profile, skill);
-    const xp = memberContributionForSkill(profile, skill);
-    const score =
-      needMembers + remaining * 2 + preferenceBonus(rank) * 10_000 + xp;
-    if (score > bestScore) {
-      bestScore = score;
-      bestSkill = skill;
-    }
-  }
-  return bestSkill;
+  const remaining = Math.max(0, required - st.contributed);
+  return needTier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
 }
 
 function pushSuggestion(
@@ -278,30 +225,15 @@ function applyAssignment(
   st.contributed += memberContributionForSkill(profiles.get(member), skill);
 }
 
-function skillsByNeed(
-  skillState: Map<Skill, SkillState>,
-  required: number,
-): Skill[] {
-  return [...SKILLS].sort((a, b) => {
-    const sa = skillState.get(a)!;
-    const sb = skillState.get(b)!;
-    const uncoveredA = sa.memberCount === 0 ? 1 : 0;
-    const uncoveredB = sb.memberCount === 0 ? 1 : 0;
-    if (uncoveredB !== uncoveredA) return uncoveredB - uncoveredA;
-    const ra = Math.max(0, required - sa.contributed);
-    const rb = Math.max(0, required - sb.contributed);
-    if (rb !== ra) return rb - ra;
-    return sa.memberCount - sb.memberCount;
-  });
-}
-
 /**
  * Build suggested assignments for unscheduled members.
  *
- * Priority order:
- * 1. Complete all trials — every skill gets coverage, then enough trial XP
- * 2. Preferences — members seated on highest-ranked pref first; pref rank beats XP when picking who
- * 3. XP/h — used to pick which skill still needs help and as a tiebreaker only
+ * Each step picks the best member→skill pair globally:
+ * 1. Cover every skill (at least one member each)
+ * 2. Fill trial XP gaps until all skills meet the hall requirement
+ * 3. Seat any remaining members on their best available preference
+ *
+ * Within each need tier, profile preference rank is primary; XP/h breaks ties only.
  */
 export function buildOptimalSchedule(
   profiles: ProfilesMap,
@@ -331,63 +263,40 @@ export function buildOptimalSchedule(
     pool = pool.filter((m) => m !== member);
   }
 
-  // Phase 1: at least one member per skill (all 16 trials have coverage)
-  // 1a — member-first: seat each member on their highest-ranked pref that still has no one
-  for (const member of [...pool]) {
-    for (const skill of memberPreferredSkills(profiles.get(member))) {
-      if ((skillState.get(skill)?.memberCount ?? 0) > 0) continue;
-      if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) continue;
-      assign(member, skill);
-      break;
-    }
-  }
-
-  // 1b — fill any remaining uncovered skills (pref rank first, XP/h tiebreak)
-  for (const skill of SKILLS) {
-    if ((skillState.get(skill)?.memberCount ?? 0) > 0) continue;
-    const member = pickMemberForSkillCoverage(
-      pool,
-      skill,
-      profiles,
-      skillState,
-      required,
-    );
-    if (!member) continue;
-    assign(member, skill);
-  }
-
-  // Phase 2: fill trial XP gaps until every skill meets the hall requirement
   let safety = 500;
   while (pool.length > 0 && safety-- > 0) {
-    const needy = skillsByNeed(skillState, required).filter(
-      (sk) => (skillState.get(sk)?.contributed ?? 0) < required,
-    );
-    if (needy.length === 0) break;
-    const skill = needy[0];
-    const member = pickMemberForSkillXpGap(
-      pool,
-      skill,
-      profiles,
-      skillState,
-      required,
-    );
-    if (!member) break;
-    assign(member, skill);
-  }
+    const trialsComplete = allTrialsComplete(skillState, required);
+    let bestMember: Member | null = null;
+    let bestSkill: Skill | null = null;
+    let bestScore = -1;
 
-  // Phase 3: remaining members — highest ranked pref once trials are done, else best fallback
-  for (const member of [...pool]) {
-    const skill = pickBestSkillForMemberPreferences(
-      member,
-      profiles,
-      skillState,
-      required,
-    );
-    if (skill) assign(member, skill);
+    for (const member of pool) {
+      for (const skill of SKILLS) {
+        const score = scoreAssignment(
+          member,
+          skill,
+          profiles,
+          skillState,
+          required,
+          trialsComplete,
+        );
+        if (score < 0) continue;
+        if (
+          score > bestScore ||
+          (score === bestScore && bestMember != null && member.localeCompare(bestMember) < 0)
+        ) {
+          bestScore = score;
+          bestMember = member;
+          bestSkill = skill;
+        }
+      }
+    }
+
+    if (!bestMember || !bestSkill) break;
+    assign(bestMember, bestSkill);
   }
 
   const membersWithPreferences = membersWithRankedProfiles(profiles);
-
   const skillProgress = buildSkillProgress(skillState, required);
   const skillsCoveredAfterPlan = skillProgress.filter((s) => s.memberCount > 0).length;
   const skillsXpCompleteAfterPlan = skillProgress.filter((s) => s.remaining <= 0).length;
@@ -403,6 +312,9 @@ export function buildOptimalSchedule(
       gotFirstChoice: suggestions.filter((s) => s.preferenceRank === 1).length,
       gotSecondChoice: suggestions.filter((s) => s.preferenceRank === 2).length,
       gotThirdChoice: suggestions.filter((s) => s.preferenceRank === 3).length,
+      gotTopEightChoice: suggestions.filter(
+        (s) => s.preferenceRank != null && s.preferenceRank <= 8,
+      ).length,
       noPreferenceMatch: suggestions.filter((s) => s.preferenceRank == null).length,
       skillsCoveredAfterPlan,
       skillsXpCompleteAfterPlan,
