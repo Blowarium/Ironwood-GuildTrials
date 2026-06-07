@@ -252,7 +252,7 @@ export function ProfileModal({
             <span>Rank</span>
             <span title="Lock out of smart schedule">Lock</span>
           </div>
-          <ul className="mt-1 space-y-1.5 sm:space-y-1">
+          <ul className="mt-0.5 space-y-1 sm:mt-1 sm:space-y-1">
             {displayRows.map((row) => (
               <li
                 key={row.skill}
@@ -260,7 +260,7 @@ export function ProfileModal({
                 onDragStart={() => setDragSkill(row.skill)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(row.skill)}
-                className={`rounded-lg border px-2 py-2 sm:grid sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px] sm:items-center sm:gap-x-2 sm:px-2 sm:py-1.5 ${
+                className={`rounded-md border sm:grid sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px] sm:items-center sm:gap-x-2 sm:rounded-lg sm:px-2 sm:py-1.5 ${
                   row.skill_locked
                     ? "border-red-500/30 bg-red-950/20 opacity-80"
                     : dragSkill === row.skill
@@ -268,42 +268,102 @@ export function ProfileModal({
                       : "border-slate-700/50 bg-slate-900/40"
                 }`}
               >
-                <div className="flex items-center gap-2 sm:contents">
-                  <span
-                    className={`cursor-grab text-slate-500 ${canEdit ? "" : "opacity-30"}`}
-                    title="Drag to reorder priority"
-                  >
-                    ⋮⋮
-                  </span>
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm text-slate-200 sm:flex-none">
+                <div className="px-1.5 py-1 sm:hidden">
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={`shrink-0 cursor-grab text-[10px] leading-none text-slate-500 ${canEdit ? "" : "opacity-30"}`}
+                      title="Drag to reorder priority"
+                    >
+                      ⋮⋮
+                    </span>
                     <SkillIcon skill={row.skill} size="xs" />
-                    <span className="truncate font-medium">{row.skill}</span>
-                  </span>
-                  <button
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() =>
-                      updateSkill(row.skill, { skill_locked: !row.skill_locked })
-                    }
-                    title={
-                      row.skill_locked
-                        ? "Locked — excluded from smart schedule suggestions"
-                        : "Lock this skill out of smart schedule suggestions"
-                    }
-                    className={`rounded border px-2 py-1 text-xs sm:hidden disabled:opacity-50 ${
-                      row.skill_locked
-                        ? "border-red-500/50 bg-red-950/50 text-red-300"
-                        : "border-slate-600 bg-slate-900 text-slate-500"
-                    }`}
-                    aria-pressed={row.skill_locked}
-                  >
-                    {row.skill_locked ? "🔒 Locked" : "○ Lock"}
-                  </button>
+                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-200">
+                      {row.skill}
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={SKILLS.length}
+                      disabled={!canEdit || row.skill_locked}
+                      placeholder="#"
+                      title="Preference rank"
+                      value={row.preference_rank ?? ""}
+                      onChange={(e) => handleRankInput(row.skill, e.target.value)}
+                      className="w-9 shrink-0 rounded border border-slate-600 bg-slate-900 px-0.5 py-0.5 text-center text-[11px] text-white disabled:opacity-50"
+                    />
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() =>
+                        updateSkill(row.skill, { skill_locked: !row.skill_locked })
+                      }
+                      title={
+                        row.skill_locked
+                          ? "Locked — excluded from smart schedule"
+                          : "Lock out of smart schedule"
+                      }
+                      className={`shrink-0 rounded border px-1 py-0.5 text-[10px] leading-none disabled:opacity-50 ${
+                        row.skill_locked
+                          ? "border-red-500/50 bg-red-950/50 text-red-300"
+                          : "border-slate-600 bg-slate-900 text-slate-500"
+                      }`}
+                      aria-pressed={row.skill_locked}
+                    >
+                      {row.skill_locked ? "🔒" : "○"}
+                    </button>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1">
+                    <select
+                      disabled={!canEdit}
+                      aria-label={`${row.skill} Ironwood action`}
+                      value={
+                        resolveProfileActionId(row.skill, row.ironwood_action_id) ?? ""
+                      }
+                      onChange={(e) =>
+                        updateSkill(row.skill, {
+                          ironwood_action_id: e.target.value
+                            ? Number(e.target.value)
+                            : null,
+                        })
+                      }
+                      className="min-w-0 flex-1 rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-[10px] text-white disabled:opacity-50"
+                    >
+                      {getCatalogActions(row.skill).map((action) => (
+                        <option key={action.actionId} value={action.actionId}>
+                          {formatCatalogActionLabel(action)}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      disabled={!canEdit}
+                      placeholder="XP/h"
+                      aria-label={`${row.skill} XP per hour`}
+                      value={row.xp_per_hour ? String(row.xp_per_hour) : ""}
+                      onChange={(e) =>
+                        updateSkill(row.skill, {
+                          xp_per_hour: e.target.value.replace(/[^\d]/g, "")
+                            ? Number(e.target.value.replace(/[^\d]/g, ""))
+                            : null,
+                        })
+                      }
+                      className="w-[4.25rem] shrink-0 rounded border border-slate-600 bg-slate-900 px-1 py-0.5 text-right text-[11px] text-white disabled:opacity-50"
+                    />
+                  </div>
                 </div>
-                <label className="mt-2 block sm:mt-0 sm:contents">
-                  <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
-                    Ironwood action
-                  </span>
+
+                <span
+                  className={`hidden cursor-grab text-slate-500 sm:block ${canEdit ? "" : "opacity-30"}`}
+                  title="Drag to reorder priority"
+                >
+                  ⋮⋮
+                </span>
+                <span className="hidden min-w-0 items-center gap-1.5 text-sm text-slate-200 sm:flex">
+                  <SkillIcon skill={row.skill} size="xs" />
+                  <span className="truncate font-medium">{row.skill}</span>
+                </span>
+                <label className="hidden sm:contents">
                   <select
                     disabled={!canEdit}
                     value={
@@ -316,7 +376,7 @@ export function ProfileModal({
                           : null,
                       })
                     }
-                    className="min-w-0 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-[11px]"
+                    className="min-w-0 w-full rounded border border-slate-600 bg-slate-900 px-1 py-1 text-[11px] text-white disabled:opacity-50"
                   >
                     {getCatalogActions(row.skill).map((action) => (
                       <option key={action.actionId} value={action.actionId}>
@@ -325,43 +385,35 @@ export function ProfileModal({
                     ))}
                   </select>
                 </label>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-0 sm:contents">
-                  <label className="block sm:contents">
-                    <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
-                      XP / hour
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      disabled={!canEdit}
-                      placeholder="—"
-                      value={row.xp_per_hour ? String(row.xp_per_hour) : ""}
-                      onChange={(e) =>
-                        updateSkill(row.skill, {
-                          xp_per_hour: e.target.value.replace(/[^\d]/g, "")
-                            ? Number(e.target.value.replace(/[^\d]/g, ""))
-                            : null,
-                        })
-                      }
-                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:py-1 sm:text-xs"
-                    />
-                  </label>
-                  <label className="block sm:contents">
-                    <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
-                      Rank
-                    </span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={SKILLS.length}
-                      disabled={!canEdit || row.skill_locked}
-                      placeholder="—"
-                      value={row.preference_rank ?? ""}
-                      onChange={(e) => handleRankInput(row.skill, e.target.value)}
-                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-xs"
-                    />
-                  </label>
-                </div>
+                <label className="hidden sm:contents">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    disabled={!canEdit}
+                    placeholder="—"
+                    value={row.xp_per_hour ? String(row.xp_per_hour) : ""}
+                    onChange={(e) =>
+                      updateSkill(row.skill, {
+                        xp_per_hour: e.target.value.replace(/[^\d]/g, "")
+                          ? Number(e.target.value.replace(/[^\d]/g, ""))
+                          : null,
+                      })
+                    }
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs text-white disabled:opacity-50"
+                  />
+                </label>
+                <label className="hidden sm:contents">
+                  <input
+                    type="number"
+                    min={1}
+                    max={SKILLS.length}
+                    disabled={!canEdit || row.skill_locked}
+                    placeholder="—"
+                    value={row.preference_rank ?? ""}
+                    onChange={(e) => handleRankInput(row.skill, e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs text-white disabled:opacity-50"
+                  />
+                </label>
                 <button
                   type="button"
                   disabled={!canEdit}
@@ -387,7 +439,7 @@ export function ProfileModal({
           </ul>
         </div>
 
-        <div className="shrink-0 border-t border-slate-700/60 px-4 py-3 sm:px-5">
+        <div className="shrink-0 border-t border-slate-700/60 px-3 py-2 sm:px-5 sm:py-3">
           {!canEdit && (
             <p className="mb-2 text-xs text-amber-300">
               Only {targetMember} or the Guild Leader can edit this profile.
@@ -399,7 +451,7 @@ export function ProfileModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
+              className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-400 sm:px-4 sm:py-2 sm:text-sm"
             >
               Close
             </button>
