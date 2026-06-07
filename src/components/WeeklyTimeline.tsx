@@ -31,6 +31,135 @@ const ROW_PAD = 2;
 const LANE_GAP = 2;
 const BLOCK_HEIGHT = TIMELINE_HEIGHT - ROW_PAD * 2;
 const TIMELINE_MIN_WIDTH = 720;
+const MOBILE_TRACK_PAD = 2;
+const MOBILE_LANE_GAP = 1;
+const MOBILE_BLOCK_HEIGHT = 22;
+
+function mobileTrackHeightForLanes(laneCount: number): number {
+  if (laneCount <= 0) return MOBILE_BLOCK_HEIGHT + MOBILE_TRACK_PAD * 2;
+  return (
+    MOBILE_TRACK_PAD * 2 +
+    laneCount * MOBILE_BLOCK_HEIGHT +
+    (laneCount - 1) * MOBILE_LANE_GAP
+  );
+}
+
+function DayColumnGuides({ weekDays }: { weekDays: string[] }) {
+  return weekDays.slice(1).map((d, i) => (
+    <div
+      key={d}
+      className="pointer-events-none absolute inset-y-0 border-l border-slate-700/35"
+      style={{ left: `${((i + 1) / 7) * 100}%` }}
+    />
+  ));
+}
+
+function MobileSkillWeekTrack({
+  skill,
+  weekStart,
+  weekDays,
+  rowSignups,
+  eventType,
+  onSlotClick,
+  onSignupClick,
+  canOpenSignup,
+}: {
+  skill: Skill;
+  weekStart: string;
+  weekDays: string[];
+  rowSignups: TrialSignup[];
+  eventType: ReturnType<typeof guildEventForSkill>;
+  onSlotClick: (target: CellTarget) => void;
+  onSignupClick: (signup: TrialSignup) => void;
+  canOpenSignup: (signup: TrialSignup) => boolean;
+}) {
+  const segments = stackTrialWeekSegments(
+    rowSignups
+      .map((signup) => trialSegmentInWeek(signup, weekStart))
+      .filter((seg) => seg !== null),
+  );
+  const laneCount = segments.length > 0 ? segments[0].laneCount : 1;
+  const trackHeight = mobileTrackHeightForLanes(laneCount);
+
+  return (
+    <div className="mt-1.5 overflow-hidden rounded border border-slate-700/40">
+      <div className="relative h-5 border-b border-slate-700/30 bg-slate-950/40">
+        <DayColumnGuides weekDays={weekDays} />
+        <GuildEventWeekBar weekStart={weekStart} height={20} matchType={eventType} overlay />
+      </div>
+
+      <div
+        style={{ height: trackHeight }}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("[data-trial-block]")) return;
+          onSlotClick(slotTargetFromEvent(skill, weekStart, e.currentTarget, e.clientX));
+        }}
+        className={`relative cursor-crosshair bg-gradient-to-r from-slate-900/30 to-slate-950/50 ${
+          segments.length > 0
+            ? "border-b border-slate-700/30"
+            : "border-b border-dashed border-slate-700/40"
+        }`}
+      >
+        <DayColumnGuides weekDays={weekDays} />
+        {segments.map((seg) => {
+          const { signup, plannedStartAt, plannedEndAt, lane } = seg;
+          const topPx = MOBILE_TRACK_PAD + lane * (MOBILE_BLOCK_HEIGHT + MOBILE_LANE_GAP);
+          const effective = getEffectiveStatus({
+            ...signup,
+            planned_start_at: plannedStartAt,
+          });
+          const blockClass = TRIAL_BLOCK_STYLES[effective];
+          const narrow = seg.widthPercent < 12;
+
+          return (
+            <button
+              key={signup.id}
+              type="button"
+              data-trial-block
+              disabled={!canOpenSignup(signup)}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onSignupClick(signup);
+              }}
+              style={{
+                left: `${seg.leftPercent}%`,
+                width: `${seg.widthPercent}%`,
+                top: topPx,
+                height: MOBILE_BLOCK_HEIGHT,
+              }}
+              className={`absolute z-[1] min-w-[2px] overflow-hidden rounded border px-0.5 py-px text-left ${blockClass} disabled:opacity-70`}
+              title={formatTrialWindowLabel(plannedStartAt)}
+            >
+              <span className="block truncate text-[8px] font-semibold leading-tight text-white">
+                {narrow ? signup.member_name.split(" ")[0] : signup.member_name}
+              </span>
+              {!narrow && (
+                <span className="block truncate text-[7px] leading-tight text-slate-300">
+                  {formatTimeLabel(plannedStartAt, true)} →{" "}
+                  {formatTimeLabel(plannedEndAt.toISOString(), true)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-7">
+        {weekDays.map((d, i) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => onSlotClick(slotTargetForDay(skill, weekStart, i, d))}
+            className="border-l border-slate-700/35 py-1 text-[9px] font-medium text-slate-400 first:border-l-0 hover:bg-sky-950/30 hover:text-sky-300"
+            title={`Schedule on ${DAY_HEADERS[i]}`}
+          >
+            {DAY_HEADERS[i].charAt(0)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function timelineHeightForLanes(laneCount: number): number {
   if (laneCount <= 0) return TIMELINE_HEIGHT;
@@ -122,7 +251,10 @@ function MobileWeeklyTimeline({
     <div className="divide-y divide-slate-800/60">
       <div className="mobile-panel space-y-1">
         <GuildEventLegend />
-        <GuildEventWeekBar weekStart={weekStart} height={24} />
+        <div className="relative h-6 overflow-hidden rounded border border-slate-700/40 bg-slate-950/40">
+          <DayColumnGuides weekDays={weekDays} />
+          <GuildEventWeekBar weekStart={weekStart} height={24} />
+        </div>
       </div>
       {SKILLS.map((skill) => {
         const cov = coverageBySkill.get(skill);
@@ -166,64 +298,16 @@ function MobileWeeklyTimeline({
               )}
             </div>
 
-            <div className="relative mt-1.5 h-5 overflow-hidden rounded border border-slate-700/40 bg-slate-950/40">
-              <GuildEventWeekBar
-                weekStart={weekStart}
-                height={20}
-                matchType={eventType}
-                overlay
-              />
-            </div>
-
-            <div className="mt-1.5 grid grid-cols-7 gap-0.5">
-              {weekDays.map((d, i) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => onSlotClick(slotTargetForDay(skill, weekStart, i, d))}
-                  className="rounded border border-slate-700/50 bg-slate-900/50 py-1 text-[9px] font-medium text-slate-400 hover:border-sky-500/40 hover:text-sky-300"
-                  title={`Schedule on ${DAY_HEADERS[i]}`}
-                >
-                  {DAY_HEADERS[i].charAt(0)}
-                </button>
-              ))}
-            </div>
-
-            {rowSignups.length > 0 ? (
-              <ul className="mt-1.5 space-y-1">
-                {rowSignups.map((signup) => {
-                  const effective = getEffectiveStatus(signup);
-                  const blockClass = TRIAL_BLOCK_STYLES[effective];
-                  return (
-                    <li key={signup.id}>
-                      <button
-                        type="button"
-                        disabled={!canOpenSignup(signup)}
-                        onClick={() => onSignupClick(signup)}
-                        className={`flex w-full items-center justify-between gap-2 rounded border px-2 py-1 text-left ${blockClass} disabled:opacity-70`}
-                        title={formatTrialWindowLabel(signup.planned_start_at)}
-                      >
-                        <span className="min-w-0 truncate text-[11px] font-semibold text-white">
-                          {signup.member_name}
-                        </span>
-                        <span className="shrink-0 text-[9px] text-slate-300">
-                          {formatDayLabel(signup.planned_date, true)}{" "}
-                          {formatTimeLabel(signup.planned_start_at, true)}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onSlotClick(slotTargetForDay(skill, weekStart, 0, weekDays[0]))}
-                className="mt-1.5 w-full rounded border border-dashed border-slate-600 py-1 text-[10px] text-slate-500 hover:border-sky-500/40 hover:text-sky-300"
-              >
-                Tap a day or here to schedule
-              </button>
-            )}
+            <MobileSkillWeekTrack
+              skill={skill}
+              weekStart={weekStart}
+              weekDays={weekDays}
+              rowSignups={rowSignups}
+              eventType={eventType}
+              onSlotClick={onSlotClick}
+              onSignupClick={onSignupClick}
+              canOpenSignup={canOpenSignup}
+            />
           </div>
         );
       })}
@@ -276,7 +360,7 @@ export function WeeklyTimeline({
           assign · drag to move
         </p>
         <p className="text-[10px] text-sky-400/90 sm:hidden">
-          Tap a day to schedule · tap a trial to edit
+          Tap track or day to schedule · tap a trial block to edit
         </p>
       </div>
 
