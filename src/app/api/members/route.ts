@@ -295,6 +295,7 @@ export async function POST(request: NextRequest) {
         xp_filled_count: stats.xp_filled_count,
         total_skills: SKILLS.length,
         profile_complete: stats.profile_complete,
+        preferences_customized: profile?.preferences_customized ?? false,
       };
     });
     return NextResponse.json({ roster, mode: "dev" });
@@ -320,6 +321,7 @@ export async function POST(request: NextRequest) {
       xp_filled_count: stats.xp_filled_count,
       total_skills: SKILLS.length,
       profile_complete: stats.profile_complete,
+      preferences_customized: profile.preferences_customized,
     });
   }
 

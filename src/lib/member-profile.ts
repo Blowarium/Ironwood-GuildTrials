@@ -28,6 +28,7 @@ export interface MemberRosterEntry {
   xp_filled_count: number;
   total_skills: number;
   profile_complete: boolean;
+  preferences_customized: boolean;
 }
 
 export type ProfilesMap = Map<Member, MemberProfile>;

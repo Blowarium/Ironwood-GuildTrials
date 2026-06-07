@@ -43,6 +43,7 @@ export function MemberRosterView({
   }
 
   const complete = roster.filter((r) => r.profile_complete).length;
+  const prefsCustomized = roster.filter((r) => r.preferences_customized).length;
 
   return (
     <div className="space-y-4">
@@ -52,6 +53,22 @@ export function MemberRosterView({
           Track who has filled in skill XP/h and preference ranks. {complete}/{roster.length}{" "}
           profiles look ready (3+ ranks with XP/h).
         </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg bg-slate-900/50 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">Profiles ready</p>
+            <p className="text-lg font-bold text-white">
+              {complete}/{roster.length}
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-900/50 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wide text-slate-500">
+              Preferences customized
+            </p>
+            <p className="text-lg font-bold text-white">
+              {prefsCustomized}/{roster.length}
+            </p>
+          </div>
+        </div>
         {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
       </div>
 
@@ -62,6 +79,7 @@ export function MemberRosterView({
               <th className="px-3 py-2">Member</th>
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Ranks set</th>
+              <th className="px-3 py-2">Prefs set</th>
               <th className="px-3 py-2">XP/h filled</th>
               <th className="px-3 py-2">Profile</th>
               <th className="px-3 py-2">Last updated</th>
@@ -94,6 +112,15 @@ export function MemberRosterView({
                 </td>
                 <td className="px-3 py-2 text-slate-300">
                   {row.ranked_skill_count}/{row.total_skills}
+                </td>
+                <td className="px-3 py-2">
+                  <span
+                    className={`text-xs font-medium ${
+                      row.preferences_customized ? "text-emerald-400" : "text-slate-500"
+                    }`}
+                  >
+                    {row.preferences_customized ? "Yes" : "Default"}
+                  </span>
                 </td>
                 <td className="px-3 py-2 text-slate-300">
                   {row.xp_filled_count}/{row.total_skills}
