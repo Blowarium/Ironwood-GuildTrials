@@ -1,4 +1,10 @@
 import { neon, NeonQueryFunction } from "@neondatabase/serverless";
+import { MEMBERS, type Skill } from "./constants";
+import {
+  inferPreferencesCustomized,
+  isLegacyFactoryDefaultRanks,
+  NEUTRAL_PREFERENCE_RANK,
+} from "./member-profile";
 import { DEFAULT_GUILD_LEADER } from "./roles";
 
 let sql: NeonQueryFunction<false, false> | null = null;
@@ -124,8 +130,59 @@ export async function ensureSchema(): Promise<void> {
   `;
 
   await db`
+    ALTER TABLE member_profile_meta
+    ADD COLUMN IF NOT EXISTS preferences_customized BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+
+  await migrateNeutralPreferenceDefaults(db);
+
+  await db`
     INSERT INTO guild_member_roles (member_name, role)
     VALUES (${DEFAULT_GUILD_LEADER}, 'guild_leader')
     ON CONFLICT (member_name) DO NOTHING
   `;
+}
+
+async function migrateNeutralPreferenceDefaults(db: NeonQueryFunction<false, false>): Promise<void> {
+  for (const memberName of MEMBERS) {
+    const metaRows = (await db`
+      SELECT preferences_customized FROM member_profile_meta WHERE member_name = ${memberName}
+    `) as { preferences_customized: boolean }[];
+
+    if (metaRows[0]?.preferences_customized) continue;
+
+    const skillRows = (await db`
+      SELECT skill, preference_rank
+      FROM member_skill_profiles
+      WHERE member_name = ${memberName}
+    `) as { skill: string; preference_rank: number | null }[];
+
+    if (skillRows.length === 0) continue;
+
+    const rows = skillRows.map((r) => ({
+      skill: r.skill as Skill,
+      xp_per_hour: null,
+      preference_rank: r.preference_rank,
+      ironwood_action_id: null,
+    }));
+
+    const customized = inferPreferencesCustomized(rows);
+    if (customized) {
+      await db`
+        INSERT INTO member_profile_meta (member_name, preferences_customized)
+        VALUES (${memberName}, TRUE)
+        ON CONFLICT (member_name)
+        DO UPDATE SET preferences_customized = TRUE
+      `;
+      continue;
+    }
+
+    if (isLegacyFactoryDefaultRanks(rows)) {
+      await db`
+        UPDATE member_skill_profiles
+        SET preference_rank = ${NEUTRAL_PREFERENCE_RANK}
+        WHERE member_name = ${memberName}
+      `;
+    }
+  }
 }

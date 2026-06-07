@@ -15,6 +15,8 @@ export interface MemberProfile {
   skills: MemberSkillProfileRow[];
   updated_at: string;
   updated_by: Member | null;
+  /** When true, stored preference ranks are kept as-is (member set them explicitly). */
+  preferences_customized: boolean;
 }
 
 export interface MemberRosterEntry {
@@ -30,10 +32,39 @@ export interface MemberRosterEntry {
 
 export type ProfilesMap = Map<Member, MemberProfile>;
 
-/** Default rank follows SKILLS order (Woodcutting = 1 … Defense = 16). */
-export function defaultPreferenceRank(skill: Skill): number {
+/** Rank used when a member has not set preferences yet (all skills tied). */
+export const NEUTRAL_PREFERENCE_RANK = 1;
+
+/** Legacy auto-default: Woodcutting = 1 … Defense = 16 (before neutral defaults). */
+export function legacyFactoryPreferenceRank(skill: Skill): number {
   const index = SKILLS.indexOf(skill);
   return index >= 0 ? index + 1 : 1;
+}
+
+/** @deprecated Use NEUTRAL_PREFERENCE_RANK / legacyFactoryPreferenceRank instead. */
+export function defaultPreferenceRank(skill: Skill): number {
+  return legacyFactoryPreferenceRank(skill);
+}
+
+export function isLegacyFactoryDefaultRanks(rows: MemberSkillProfileRow[]): boolean {
+  if (rows.length !== SKILLS.length) return false;
+  return SKILLS.every((skill, index) => {
+    const row = rows.find((r) => r.skill === skill);
+    return row?.preference_rank === index + 1;
+  });
+}
+
+export function isNeutralDefaultRanks(rows: MemberSkillProfileRow[]): boolean {
+  return rows.every((r) => r.preference_rank === NEUTRAL_PREFERENCE_RANK);
+}
+
+/** True when stored ranks look like the member chose them (not factory or neutral defaults). */
+export function inferPreferencesCustomized(rows: MemberSkillProfileRow[]): boolean {
+  const hasAnyRank = rows.some((s) => s.preference_rank != null && s.preference_rank > 0);
+  if (!hasAnyRank) return false;
+  if (isLegacyFactoryDefaultRanks(rows)) return false;
+  if (isNeutralDefaultRanks(rows)) return false;
+  return true;
 }
 
 /** Lower rank number = higher priority; ties keep SKILLS list order. */
@@ -51,18 +82,26 @@ export function emptySkillRows(): MemberSkillProfileRow[] {
   return SKILLS.map((skill) => ({
     skill,
     xp_per_hour: null,
-    preference_rank: defaultPreferenceRank(skill),
+    preference_rank: NEUTRAL_PREFERENCE_RANK,
     ironwood_action_id: null,
   }));
 }
 
-function applyDefaultRanksIfEmpty(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
-  const hasRank = rows.some((s) => s.preference_rank != null && s.preference_rank > 0);
-  if (hasRank) return rows;
-  return rows.map((row) => ({
-    ...row,
-    preference_rank: defaultPreferenceRank(row.skill),
-  }));
+function applyNeutralRanksIfUnchanged(
+  rows: MemberSkillProfileRow[],
+  preferencesCustomized: boolean,
+): MemberSkillProfileRow[] {
+  if (preferencesCustomized) return rows;
+
+  const hasAnyRank = rows.some((s) => s.preference_rank != null && s.preference_rank > 0);
+  if (!hasAnyRank || isLegacyFactoryDefaultRanks(rows)) {
+    return rows.map((row) => ({
+      ...row,
+      preference_rank: NEUTRAL_PREFERENCE_RANK,
+    }));
+  }
+
+  return rows;
 }
 
 export function emptyProfile(member: Member): MemberProfile {
@@ -71,6 +110,7 @@ export function emptyProfile(member: Member): MemberProfile {
     skills: emptySkillRows(),
     updated_at: new Date().toISOString(),
     updated_by: null,
+    preferences_customized: false,
   };
 }
 
@@ -84,19 +124,23 @@ export function buildProfilesMap(rows: MemberProfile[]): ProfilesMap {
 
 export function normalizeProfile(profile: MemberProfile): MemberProfile {
   const bySkill = new Map(profile.skills.map((s) => [s.skill, s]));
+  const mergedRows = SKILLS.map((skill) => {
+    const existing = bySkill.get(skill);
+    return {
+      skill,
+      xp_per_hour: existing?.xp_per_hour ?? null,
+      preference_rank: existing?.preference_rank ?? null,
+      ironwood_action_id: existing?.ironwood_action_id ?? null,
+    };
+  });
+
+  const preferencesCustomized =
+    profile.preferences_customized || inferPreferencesCustomized(mergedRows);
+
   return {
     ...profile,
-    skills: applyDefaultRanksIfEmpty(
-      SKILLS.map((skill) => {
-        const existing = bySkill.get(skill);
-        return {
-          skill,
-          xp_per_hour: existing?.xp_per_hour ?? null,
-          preference_rank: existing?.preference_rank ?? null,
-          ironwood_action_id: existing?.ironwood_action_id ?? null,
-        };
-      }),
-    ),
+    preferences_customized: preferencesCustomized,
+    skills: applyNeutralRanksIfUnchanged(mergedRows, preferencesCustomized),
   };
 }
 

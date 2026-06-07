@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS member_skill_profiles (
 CREATE TABLE IF NOT EXISTS member_profile_meta (
   member_name TEXT PRIMARY KEY,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_by TEXT
+  updated_by TEXT,
+  preferences_customized BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS skill_week_completions (

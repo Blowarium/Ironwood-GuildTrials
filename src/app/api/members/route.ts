@@ -5,6 +5,9 @@ import { devStore } from "@/lib/dev-store";
 import {
   buildProfilesMap,
   emptySkillRows,
+  inferPreferencesCustomized,
+  isLegacyFactoryDefaultRanks,
+  NEUTRAL_PREFERENCE_RANK,
   normalizeProfile,
   rosterStats,
   type MemberProfile,
@@ -33,8 +36,9 @@ async function fetchProfileFromDb(
   memberName: Member,
 ): Promise<MemberProfile> {
   const metaRows = (await db`
-    SELECT updated_at::text, updated_by FROM member_profile_meta WHERE member_name = ${memberName}
-  `) as { updated_at: string; updated_by: Member | null }[];
+    SELECT updated_at::text, updated_by, preferences_customized
+    FROM member_profile_meta WHERE member_name = ${memberName}
+  `) as { updated_at: string; updated_by: Member | null; preferences_customized: boolean }[];
 
   const skillRows = (await db`
     SELECT skill, xp_per_hour, preference_rank, ironwood_action_id
@@ -59,6 +63,7 @@ async function fetchProfileFromDb(
       : emptySkillRows(),
     updated_at: metaRows[0]?.updated_at ?? new Date(0).toISOString(),
     updated_by: metaRows[0]?.updated_by ?? null,
+    preferences_customized: metaRows[0]?.preferences_customized ?? false,
   });
 }
 
@@ -172,6 +177,14 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: perm.error }, { status: perm.status });
   }
 
+  const existingMeta = (await db`
+    SELECT preferences_customized FROM member_profile_meta WHERE member_name = ${body.memberName}
+  `) as { preferences_customized: boolean }[];
+
+  const preferencesCustomized =
+    existingMeta[0]?.preferences_customized === true ||
+    inferPreferencesCustomized(parsed.rows);
+
   await db`DELETE FROM member_skill_profiles WHERE member_name = ${body.memberName}`;
   for (const row of parsed.rows) {
     await db`
@@ -180,10 +193,13 @@ export async function PUT(request: NextRequest) {
     `;
   }
   await db`
-    INSERT INTO member_profile_meta (member_name, updated_by)
-    VALUES (${body.memberName}, ${actorMember})
+    INSERT INTO member_profile_meta (member_name, updated_by, preferences_customized)
+    VALUES (${body.memberName}, ${actorMember}, ${preferencesCustomized})
     ON CONFLICT (member_name)
-    DO UPDATE SET updated_at = NOW(), updated_by = EXCLUDED.updated_by
+    DO UPDATE SET
+      updated_at = NOW(),
+      updated_by = EXCLUDED.updated_by,
+      preferences_customized = EXCLUDED.preferences_customized
   `;
 
   const profile = await fetchProfileFromDb(db, body.memberName);

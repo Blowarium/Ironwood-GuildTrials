@@ -70,6 +70,9 @@ CREATE TABLE IF NOT EXISTS member_profile_meta (
   updated_by TEXT
 );
 
+ALTER TABLE member_profile_meta
+ADD COLUMN IF NOT EXISTS preferences_customized BOOLEAN NOT NULL DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS skill_week_completions (
   week_start DATE NOT NULL,
   skill TEXT NOT NULL,

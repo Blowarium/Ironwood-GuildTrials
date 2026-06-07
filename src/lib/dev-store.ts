@@ -10,6 +10,7 @@ import { parsePlannerMaterialDepositsJson } from "./guild-buildings-materials";
 import { parsePlannerCoinDepositsJson } from "./guild-buildings-coins";
 import {
   emptyProfile,
+  inferPreferencesCustomized,
   normalizeProfile,
   type MemberProfile,
   type MemberSkillProfileRow,
@@ -30,7 +31,10 @@ const preferences = new Map<string, MemberPreferences>();
 const roles = new Map<string, MemberRoleRow>(
   buildDefaultRoles().map((r) => [r.member_name, r]),
 );
-const profileMeta = new Map<string, { updated_at: string; updated_by: Member | null }>();
+const profileMeta = new Map<
+  string,
+  { updated_at: string; updated_by: Member | null; preferences_customized: boolean }
+>();
 const skillProfiles = new Map<string, MemberSkillProfileRow[]>();
 let guildConfig: GuildConfig = { ...DEFAULT_GUILD_CONFIG };
 let nextSignupId = 1;
@@ -221,6 +225,7 @@ export const devStore = {
       skills: getProfileRows(memberName),
       updated_at: meta?.updated_at ?? new Date(0).toISOString(),
       updated_by: meta?.updated_by ?? null,
+      preferences_customized: meta?.preferences_customized ?? false,
     });
   },
 
@@ -231,7 +236,14 @@ export const devStore = {
   ): MemberProfile {
     skillProfiles.set(memberName, skills);
     const now = new Date().toISOString();
-    profileMeta.set(memberName, { updated_at: now, updated_by: updatedBy });
+    const existing = profileMeta.get(memberName);
+    const preferencesCustomized =
+      existing?.preferences_customized === true || inferPreferencesCustomized(skills);
+    profileMeta.set(memberName, {
+      updated_at: now,
+      updated_by: updatedBy,
+      preferences_customized: preferencesCustomized,
+    });
     return this.getProfile(memberName);
   },
 
