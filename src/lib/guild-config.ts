@@ -106,16 +106,12 @@ export function plannerCreditsFromConfig(
   return localFallback;
 }
 
-export function plannerCreditsAsOfFromConfig(config: GuildConfig | null): Date {
+export function plannerCreditsAsOfFromConfig(config: GuildConfig | null): Date | null {
   if (config?.planner_credits_as_of) {
     const parsed = new Date(config.planner_credits_as_of);
     if (!Number.isNaN(parsed.getTime())) return parsed;
   }
-  if (config?.updated_at) {
-    const parsed = new Date(config.updated_at);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-  return new Date();
+  return null;
 }
 
 export function resolvedPlannerCredits(
@@ -126,6 +122,7 @@ export function resolvedPlannerCredits(
 ): number {
   const anchor = plannerCreditsFromConfig(config, localFallback);
   const asOf = plannerCreditsAsOfFromConfig(config);
+  if (!asOf) return anchor;
   return projectGuildCreditsAtDate(anchor, levels, asOf, at);
 }
 
