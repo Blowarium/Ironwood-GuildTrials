@@ -160,6 +160,30 @@ function createSimulationState(input: {
   };
 }
 
+/** Project guild credit balance forward using daily quest, event, and trial income. */
+export function projectGuildCreditsAtDate(
+  startCredits: number,
+  levels: GuildBuildingLevels,
+  fromDate: Date,
+  toDate: Date,
+  fullDailyQuests = true,
+): number {
+  const anchor = Math.max(0, Math.floor(startCredits));
+  if (toDate.getTime() <= fromDate.getTime()) return anchor;
+
+  const state = createSimulationState({
+    levels,
+    credits: anchor,
+    startDate: fromDate,
+  });
+  const targetMs = toDate.getTime();
+  let guard = 0;
+  while (state.date.getTime() < targetMs && guard++ < 10_000) {
+    advanceOneDay(state, fullDailyQuests);
+  }
+  return Math.max(0, Math.floor(state.credits));
+}
+
 function pendingUpgrades(levels: GuildBuildingLevels, targetLevel: number): GuildBuildingId[] {
   return GUILD_BUILDING_ORDER.filter((id) => levels[id] < targetLevel);
 }

@@ -176,12 +176,12 @@ export function GuildUpgradePathPanel({
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
               <th className="py-2 pr-3">#</th>
+              <th className="py-2 pr-3">Target date</th>
               <th className="py-2 pr-3">Building</th>
               <th className="py-2 pr-3">Upgrade</th>
               <th className="py-2 pr-3">Credits</th>
               <th className="py-2 pr-3">Coins</th>
               <th className="py-2 pr-3">Materials</th>
-              <th className="py-2 pr-3">Target date</th>
               <th className="py-2">Day</th>
             </tr>
           </thead>
@@ -189,6 +189,7 @@ export function GuildUpgradePathPanel({
             {detailSchedule.upgrades.map((step, idx) => (
               <tr key={`${step.buildingId}-${step.toLevel}-${idx}`} className="border-b border-slate-800/60">
                 <td className="py-2 pr-3 text-slate-500">{idx + 1}</td>
+                <td className="py-2 pr-3 text-sky-300">{step.date}</td>
                 <td className="py-2 pr-3 text-white">{GUILD_BUILDINGS[step.buildingId].name}</td>
                 <td className="py-2 pr-3 text-slate-300">
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
@@ -214,7 +215,6 @@ export function GuildUpgradePathPanel({
                     onClear={onClearStepMaterials}
                   />
                 </td>
-                <td className="py-2 pr-3 text-sky-300">{step.date}</td>
                 <td className="py-2 text-slate-500">+{Math.round(step.dayOffset)}d</td>
               </tr>
             ))}

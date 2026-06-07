@@ -43,8 +43,10 @@ function mergeUpdate(current: GuildConfig, body: GuildConfigUpdate): GuildConfig
   }
 
   let plannerCredits = current.planner_credits;
+  let plannerCreditsAsOf = current.planner_credits_as_of;
   if (body.plannerCredits !== undefined) {
     plannerCredits = Math.max(0, Math.floor(Number(body.plannerCredits)));
+    plannerCreditsAsOf = new Date().toISOString();
   }
 
   let plannerLevels = current.planner_levels;
@@ -75,6 +77,7 @@ function mergeUpdate(current: GuildConfig, body: GuildConfigUpdate): GuildConfig
         ? parsePreferredBuildingStrategy(body.preferredBuildingStrategy)
         : current.preferred_building_strategy,
     planner_credits: plannerCredits,
+    planner_credits_as_of: plannerCreditsAsOf,
     planner_levels: plannerLevels,
     planner_material_deposits: plannerMaterialDeposits,
     planner_coin_deposits: plannerCoinDeposits,
@@ -95,6 +98,7 @@ export async function GET() {
       trial_hall_level,
       preferred_building_strategy,
       planner_credits,
+      planner_credits_as_of::text,
       planner_levels,
       planner_material_deposits,
       planner_coin_deposits,
@@ -157,6 +161,7 @@ export async function PUT(request: NextRequest) {
       trial_hall_level,
       preferred_building_strategy,
       planner_credits,
+      planner_credits_as_of::text,
       planner_levels,
       planner_material_deposits,
       planner_coin_deposits,
@@ -192,6 +197,7 @@ export async function PUT(request: NextRequest) {
       trial_hall_level,
       preferred_building_strategy,
       planner_credits,
+      planner_credits_as_of,
       planner_levels,
       planner_material_deposits,
       planner_coin_deposits,
@@ -204,6 +210,7 @@ export async function PUT(request: NextRequest) {
       ${merged.trial_hall_level},
       ${merged.preferred_building_strategy},
       ${merged.planner_credits},
+      ${merged.planner_credits_as_of},
       ${plannerLevelsJson},
       ${plannerMaterialDepositsJson},
       ${plannerCoinDepositsJson},
@@ -216,6 +223,7 @@ export async function PUT(request: NextRequest) {
       trial_hall_level = EXCLUDED.trial_hall_level,
       preferred_building_strategy = EXCLUDED.preferred_building_strategy,
       planner_credits = EXCLUDED.planner_credits,
+      planner_credits_as_of = EXCLUDED.planner_credits_as_of,
       planner_levels = EXCLUDED.planner_levels,
       planner_material_deposits = EXCLUDED.planner_material_deposits,
       planner_coin_deposits = EXCLUDED.planner_coin_deposits,
@@ -227,6 +235,7 @@ export async function PUT(request: NextRequest) {
       trial_hall_level,
       preferred_building_strategy,
       planner_credits,
+      planner_credits_as_of::text,
       planner_levels,
       planner_material_deposits,
       planner_coin_deposits,

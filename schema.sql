@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS guild_config (
   trial_hall_level INTEGER NOT NULL DEFAULT 5,
   preferred_building_strategy TEXT NOT NULL DEFAULT 'max_income',
   planner_credits INTEGER,
+  planner_credits_as_of TIMESTAMPTZ,
   planner_levels TEXT,
   planner_material_deposits TEXT,
   planner_coin_deposits TEXT,

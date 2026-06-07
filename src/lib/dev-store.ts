@@ -270,6 +270,7 @@ export const devStore = {
     }
     if (update.plannerCredits !== undefined) {
       next.planner_credits = Math.max(0, Math.floor(Number(update.plannerCredits)));
+      next.planner_credits_as_of = new Date().toISOString();
     }
     if (update.plannerLevels !== undefined) {
       next.planner_levels = stripCreditHallsFromLevels({

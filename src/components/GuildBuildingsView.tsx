@@ -18,7 +18,8 @@ import type { GuildConfig } from "@/lib/guild-config";
 import {
   mergeBuildingLevelsWithConfig,
   plannerBuildingLevelsFromConfig,
-  plannerCreditsFromConfig,
+  plannerCreditsAsOfFromConfig,
+  resolvedPlannerCredits,
   stripCreditHallsFromLevels,
 } from "@/lib/guild-config";
 import {
@@ -26,6 +27,7 @@ import {
   DEFAULT_GUILD_BUILDING_LEVELS,
   DEFAULT_GUILD_CREDITS,
   eventsPerWeek,
+  projectGuildCreditsAtDate,
   type UpgradeStrategyId,
   weeklyCreditIncome,
 } from "@/lib/guild-buildings-schedule";
@@ -68,16 +70,40 @@ function loadLocalBuildingLevels(): GuildBuildingLevels {
   }
 }
 
-function loadLocalCredits(): number {
-  if (typeof window === "undefined") return DEFAULT_GUILD_CREDITS;
+function loadLocalCreditAnchor(): { anchor: number; asOf: string | null } {
+  if (typeof window === "undefined") {
+    return { anchor: DEFAULT_GUILD_CREDITS, asOf: null };
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_GUILD_CREDITS;
-    const parsed = JSON.parse(raw) as { credits: number };
-    return Number(parsed.credits) || DEFAULT_GUILD_CREDITS;
+    if (!raw) return { anchor: DEFAULT_GUILD_CREDITS, asOf: null };
+    const parsed = JSON.parse(raw) as {
+      credits?: number;
+      creditsAnchor?: number;
+      creditsAsOf?: string | null;
+    };
+    return {
+      anchor: Number(parsed.creditsAnchor ?? parsed.credits) || DEFAULT_GUILD_CREDITS,
+      asOf: parsed.creditsAsOf ?? null,
+    };
   } catch {
-    return DEFAULT_GUILD_CREDITS;
+    return { anchor: DEFAULT_GUILD_CREDITS, asOf: null };
   }
+}
+
+function persistLocalPlannerState(
+  levels: GuildBuildingLevels,
+  creditAnchor: number,
+  creditAnchorAsOf: string | null,
+) {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      levels: stripCreditHallsFromLevels(levels),
+      creditsAnchor: creditAnchor,
+      creditsAsOf: creditAnchorAsOf,
+    }),
+  );
 }
 
 function IncomeRow({ label, value }: { label: string; value: number }) {
@@ -150,7 +176,11 @@ export function GuildBuildingsView({
     guildConfig?.preferred_building_strategy ?? DEFAULT_PREFERRED_BUILDING_STRATEGY;
 
   const [localLevels, setLocalLevels] = useState<GuildBuildingLevels>(loadLocalBuildingLevels);
-  const [credits, setCredits] = useState(loadLocalCredits);
+  const initialLocalCredits = loadLocalCreditAnchor();
+  const [creditAnchor, setCreditAnchor] = useState(initialLocalCredits.anchor);
+  const [creditAnchorAsOf, setCreditAnchorAsOf] = useState<string | null>(initialLocalCredits.asOf);
+  const [creditInput, setCreditInput] = useState<string | null>(null);
+  const [plannerNow, setPlannerNow] = useState(() => new Date());
   const [detailStrategy, setDetailStrategy] = useState<UpgradeStrategyId>(preferredStrategy);
   const [materialDeposits, setMaterialDeposits] = useState<PlannerMaterialDeposits>(() =>
     normalizeMaterialDeposits(guildConfig?.planner_material_deposits),
@@ -167,6 +197,11 @@ export function GuildBuildingsView({
   }, [guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits]);
 
   useEffect(() => {
+    const id = setInterval(() => setPlannerNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (!canEditHalls || !guildConfig) return;
     if (guildConfig.planner_levels) {
       setLocalLevels((prev) => ({
@@ -176,7 +211,10 @@ export function GuildBuildingsView({
       }));
     }
     if (guildConfig.planner_credits != null) {
-      setCredits(guildConfig.planner_credits);
+      setCreditAnchor(guildConfig.planner_credits);
+      setCreditAnchorAsOf(
+        guildConfig.planner_credits_as_of ?? guildConfig.updated_at ?? null,
+      );
     }
   }, [canEditHalls, guildConfig]);
 
@@ -193,10 +231,23 @@ export function GuildBuildingsView({
     return plannerBuildingLevelsFromConfig(guildConfig, DEFAULT_GUILD_BUILDING_LEVELS);
   }, [canEditHalls, localLevels, guildConfig]);
 
+  const creditAsOfDate = useMemo(() => {
+    if (creditAnchorAsOf) {
+      const parsed = new Date(creditAnchorAsOf);
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    return plannerCreditsAsOfFromConfig(guildConfig);
+  }, [creditAnchorAsOf, guildConfig]);
+
+  const projectedCredits = useMemo(
+    () => projectGuildCreditsAtDate(creditAnchor, levels, creditAsOfDate, plannerNow),
+    [creditAnchor, levels, creditAsOfDate, plannerNow],
+  );
+
   const effectiveCredits = useMemo(() => {
-    if (canEditHalls) return credits;
-    return plannerCreditsFromConfig(guildConfig, DEFAULT_GUILD_CREDITS);
-  }, [canEditHalls, credits, guildConfig]);
+    if (canEditHalls) return projectedCredits;
+    return resolvedPlannerCredits(guildConfig, levels, DEFAULT_GUILD_CREDITS, plannerNow);
+  }, [canEditHalls, projectedCredits, guildConfig, levels, plannerNow]);
 
   const scenarios = useMemo(
     () => buildScenarioComparison({ levels, credits: effectiveCredits }),
@@ -234,17 +285,10 @@ export function GuildBuildingsView({
     }));
   }
 
-  async function saveState(): Promise<string | null> {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        levels: stripCreditHallsFromLevels(localLevels),
-        credits,
-      }),
-    );
+  async function savePlannerLevels(): Promise<string | null> {
+    persistLocalPlannerState(localLevels, creditAnchor, creditAnchorAsOf);
     const { config: saved, error } = await saveGuildConfig(
       {
-        plannerCredits: credits,
         plannerLevels: stripCreditHallsFromLevels(localLevels),
       },
       currentUser,
@@ -254,16 +298,47 @@ export function GuildBuildingsView({
     return null;
   }
 
-  const plannerStateKey = JSON.stringify({ localLevels, credits });
+  async function saveCreditAnchor(nextAnchor: number): Promise<string | null> {
+    persistLocalPlannerState(localLevels, nextAnchor, new Date().toISOString());
+    const { config: saved, error } = await saveGuildConfig(
+      { plannerCredits: nextAnchor },
+      currentUser,
+    );
+    if (error) return error;
+    if (saved) {
+      setCreditAnchorAsOf(saved.planner_credits_as_of ?? saved.updated_at ?? null);
+      onGuildConfigSaved(saved);
+    }
+    return null;
+  }
+
+  const plannerLevelsKey = JSON.stringify(localLevels);
   const plannerAutoSave = useDebouncedAutoSave({
     enabled: canEditHalls,
-    deps: [plannerStateKey],
-    save: saveState,
+    deps: [plannerLevelsKey],
+    save: savePlannerLevels,
   });
+
+  const creditSaveKey = `${creditAnchor}|${creditAnchorAsOf ?? ""}`;
+  const creditAutoSave = useDebouncedAutoSave({
+    enabled: canEditHalls,
+    deps: [creditSaveKey],
+    save: () => saveCreditAnchor(creditAnchor),
+  });
+
+  function commitCreditInput(raw: string) {
+    const next = Math.max(0, Math.floor(Number(raw.replace(/[^\d]/g, "")) || 0));
+    setCreditAnchor(next);
+    const asOf = new Date().toISOString();
+    setCreditAnchorAsOf(asOf);
+    persistLocalPlannerState(localLevels, next, asOf);
+  }
 
   function resetDefaults() {
     setLocalLevels(DEFAULT_GUILD_BUILDING_LEVELS);
-    setCredits(DEFAULT_GUILD_CREDITS);
+    setCreditAnchor(DEFAULT_GUILD_CREDITS);
+    setCreditAnchorAsOf(new Date().toISOString());
+    setCreditInput(null);
     localStorage.removeItem(STORAGE_KEY);
   }
 
@@ -434,16 +509,31 @@ export function GuildBuildingsView({
           </div>
 
           <div className="mb-4">
-            <label className="text-xs text-slate-400">Guild credits in bank</label>
-            <div className="mt-1 flex items-center gap-2">
+            <label className="text-xs text-slate-400">
+              Guild credits in bank
+              <span className="text-slate-500"> — auto from daily quests, events & trials</span>
+            </label>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min={0}
-                value={credits}
-                onChange={(e) => setCredits(Math.max(0, Number(e.target.value) || 0))}
+                value={creditInput ?? String(projectedCredits)}
+                onFocus={() => setCreditInput(String(projectedCredits))}
+                onChange={(e) => setCreditInput(e.target.value)}
+                onBlur={() => {
+                  if (creditInput != null) commitCreditInput(creditInput);
+                  setCreditInput(null);
+                }}
                 className="w-32 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
               />
+              <AutoSaveIndicator status={creditAutoSave.status} error={creditAutoSave.error} />
             </div>
+            {projectedCredits > creditAnchor && (
+              <p className="mt-1 text-[11px] text-emerald-300">
+                +{formatCredits(projectedCredits - creditAnchor)} income since last correction
+              </p>
+            )}
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">

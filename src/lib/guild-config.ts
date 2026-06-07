@@ -10,6 +10,7 @@ import {
   parsePreferredBuildingStrategy,
   type UpgradeStrategyId,
 } from "./guild-buildings-strategies";
+import { projectGuildCreditsAtDate } from "./guild-buildings-schedule";
 import {
   normalizeMaterialDeposits,
   parsePlannerMaterialDepositsJson,
@@ -29,6 +30,7 @@ export interface GuildConfig {
   trial_hall_level: number;
   preferred_building_strategy: UpgradeStrategyId;
   planner_credits: number | null;
+  planner_credits_as_of: string | null;
   planner_levels: Partial<GuildBuildingLevels> | null;
   planner_material_deposits: PlannerMaterialDeposits | null;
   planner_coin_deposits: PlannerCoinDeposits | null;
@@ -42,6 +44,7 @@ export const DEFAULT_GUILD_CONFIG: GuildConfig = {
   trial_hall_level: DEFAULT_GUILD_BUILDING_LEVELS.GuildTrialHall,
   preferred_building_strategy: DEFAULT_PREFERRED_BUILDING_STRATEGY,
   planner_credits: null,
+  planner_credits_as_of: null,
   planner_levels: null,
   planner_material_deposits: null,
   planner_coin_deposits: null,
@@ -103,6 +106,29 @@ export function plannerCreditsFromConfig(
   return localFallback;
 }
 
+export function plannerCreditsAsOfFromConfig(config: GuildConfig | null): Date {
+  if (config?.planner_credits_as_of) {
+    const parsed = new Date(config.planner_credits_as_of);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  if (config?.updated_at) {
+    const parsed = new Date(config.updated_at);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date();
+}
+
+export function resolvedPlannerCredits(
+  config: GuildConfig | null,
+  levels: GuildBuildingLevels,
+  localFallback: number,
+  at: Date = new Date(),
+): number {
+  const anchor = plannerCreditsFromConfig(config, localFallback);
+  const asOf = plannerCreditsAsOfFromConfig(config);
+  return projectGuildCreditsAtDate(anchor, levels, asOf, at);
+}
+
 export function stripCreditHallsFromLevels(
   levels: GuildBuildingLevels,
 ): Partial<GuildBuildingLevels> {
@@ -136,6 +162,8 @@ export function normalizeGuildConfigRow(row: Partial<GuildConfig> & Record<strin
     preferred_building_strategy: parsePreferredBuildingStrategy(row.preferred_building_strategy),
     planner_credits:
       row.planner_credits == null ? null : Math.max(0, Math.floor(Number(row.planner_credits))),
+    planner_credits_as_of:
+      row.planner_credits_as_of == null ? null : String(row.planner_credits_as_of),
     planner_levels: parsePlannerLevelsJson(row.planner_levels),
     planner_material_deposits: parsePlannerMaterialDepositsJson(row.planner_material_deposits),
     planner_coin_deposits: parsePlannerCoinDepositsJson(row.planner_coin_deposits),

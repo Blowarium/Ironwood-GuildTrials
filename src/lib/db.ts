@@ -92,6 +92,7 @@ export async function ensureSchema(): Promise<void> {
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS guild_event_hall_level INTEGER NOT NULL DEFAULT 6`;
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS preferred_building_strategy TEXT NOT NULL DEFAULT 'max_income'`;
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_credits INTEGER`;
+  await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_credits_as_of TIMESTAMPTZ`;
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_levels TEXT`;
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_material_deposits TEXT`;
   await db`ALTER TABLE guild_config ADD COLUMN IF NOT EXISTS planner_coin_deposits TEXT`;
