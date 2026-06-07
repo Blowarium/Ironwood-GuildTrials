@@ -26,10 +26,10 @@ import { GuildEventLegend, GuildEventWeekBar } from "./GuildEventWeekBar";
 import { guildEventForSkill } from "@/lib/guild-events";
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const TIMELINE_HEIGHT = 44;
+const DESKTOP_TIMELINE_HEIGHT = 56;
 const ROW_PAD = 2;
 const LANE_GAP = 2;
-const BLOCK_HEIGHT = TIMELINE_HEIGHT - ROW_PAD * 2;
+const DESKTOP_BLOCK_HEIGHT = DESKTOP_TIMELINE_HEIGHT - ROW_PAD * 2;
 const TIMELINE_MIN_WIDTH = 720;
 const MOBILE_TRACK_PAD = 2;
 const MOBILE_LANE_GAP = 1;
@@ -162,8 +162,8 @@ function MobileSkillWeekTrack({
 }
 
 function timelineHeightForLanes(laneCount: number): number {
-  if (laneCount <= 0) return TIMELINE_HEIGHT;
-  return ROW_PAD * 2 + laneCount * BLOCK_HEIGHT + (laneCount - 1) * LANE_GAP;
+  if (laneCount <= 0) return DESKTOP_TIMELINE_HEIGHT;
+  return ROW_PAD * 2 + laneCount * DESKTOP_BLOCK_HEIGHT + (laneCount - 1) * LANE_GAP;
 }
 
 function slotTargetFromEvent(
@@ -485,7 +485,7 @@ export function WeeklyTimeline({
                       </div>
                       {segments.map((seg) => {
                         const { signup, plannedStartAt, plannedEndAt, lane } = seg;
-                        const topPx = ROW_PAD + lane * (BLOCK_HEIGHT + LANE_GAP);
+                        const topPx = ROW_PAD + lane * (DESKTOP_BLOCK_HEIGHT + LANE_GAP);
                         const effective = getEffectiveStatus({
                           ...signup,
                           planned_start_at: plannedStartAt,
@@ -515,15 +515,15 @@ export function WeeklyTimeline({
                               left: `${seg.leftPercent}%`,
                               width: `${seg.widthPercent}%`,
                               top: topPx,
-                              height: BLOCK_HEIGHT,
+                              height: DESKTOP_BLOCK_HEIGHT,
                             }}
-                            className={`absolute z-[1] min-w-[2px] cursor-pointer overflow-hidden rounded border px-1 py-0.5 text-left ${blockClass}`}
+                            className={`absolute z-[1] min-w-[2px] cursor-pointer overflow-hidden rounded border px-1 py-0.5 text-left leading-none ${blockClass}`}
                             title={formatTrialWindowLabel(plannedStartAt)}
                           >
-                            <span className="block truncate text-[9px] font-semibold text-white">
+                            <span className="mt-px block truncate text-[9px] font-semibold leading-tight text-white">
                               {signup.member_name}
                             </span>
-                            <span className="block truncate text-[8px] text-slate-300">
+                            <span className="block truncate text-[8px] leading-tight text-slate-300">
                               {formatTimeLabel(plannedStartAt, true)} →{" "}
                               {formatTimeLabel(plannedEndAt.toISOString(), true)}
                             </span>
