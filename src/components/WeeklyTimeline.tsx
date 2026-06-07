@@ -31,7 +31,6 @@ const ROW_PAD = 2;
 const LANE_GAP = 2;
 const BLOCK_HEIGHT = TIMELINE_HEIGHT - ROW_PAD * 2;
 const TIMELINE_MIN_WIDTH = 720;
-const TIMELINE_MIN_WIDTH_MOBILE = 480;
 
 function timelineHeightForLanes(laneCount: number): number {
   if (laneCount <= 0) return TIMELINE_HEIGHT;
@@ -55,9 +54,26 @@ function slotTargetFromEvent(
   };
 }
 
+function slotTargetForDay(
+  skill: Skill,
+  weekStart: string,
+  dayIndex: number,
+  plannedDate: string,
+): CellTarget {
+  const plannedStartAt = buildStartAtFromWeekFraction(weekStart, dayIndex / 7 + 1 / 14);
+  return { skill, plannedDate, plannedStartAt };
+}
+
+function skillRowClass(weekState: SkillCoverageRow["weekState"] | undefined): string {
+  if (weekState === "complete") return "bg-emerald-950/10";
+  if (weekState === "in_progress") return "bg-sky-950/10";
+  if (weekState === "needs_signup") return "bg-amber-950/10";
+  return "";
+}
+
 function WeekTimelineHeader({ weekDays }: { weekDays: string[] }) {
   return (
-    <div className="relative h-7 min-w-[480px] border-b border-slate-700/40 sm:h-9 sm:min-w-[720px]">
+    <div className="relative h-9 w-full border-b border-slate-700/40">
       {weekDays.map((d, i) => (
         <div
           key={d}
@@ -70,6 +86,147 @@ function WeekTimelineHeader({ weekDays }: { weekDays: string[] }) {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function MobileWeeklyTimeline({
+  weekStart,
+  weekDays,
+  signups,
+  skillCoverage,
+  xpCoverage,
+  togglingSkill,
+  currentUser,
+  onToggleSkillComplete,
+  onSlotClick,
+  onSignupClick,
+  canOpenSignup,
+}: {
+  weekStart: string;
+  weekDays: string[];
+  signups: TrialSignup[];
+  skillCoverage: SkillCoverageRow[];
+  xpCoverage: SkillXpCoverage[];
+  togglingSkill: Skill | null;
+  currentUser: Member | "";
+  onToggleSkillComplete: (skill: Skill, completed: boolean) => void;
+  onSlotClick: (target: CellTarget) => void;
+  onSignupClick: (signup: TrialSignup) => void;
+  canOpenSignup: (signup: TrialSignup) => boolean;
+}) {
+  const coverageBySkill = new Map(skillCoverage.map((c) => [c.skill, c]));
+  const xpBySkill = new Map(xpCoverage.map((c) => [c.skill, c]));
+
+  return (
+    <div className="divide-y divide-slate-800/60">
+      <div className="mobile-panel space-y-1">
+        <GuildEventLegend />
+        <GuildEventWeekBar weekStart={weekStart} height={24} />
+      </div>
+      {SKILLS.map((skill) => {
+        const cov = coverageBySkill.get(skill);
+        const xp = xpBySkill.get(skill);
+        const rowSignups = signups.filter((s) => s.skill === skill);
+        const eventType = guildEventForSkill(skill);
+
+        return (
+          <div
+            key={skill}
+            className={`mobile-panel ${skillRowClass(cov?.weekState)}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <SkillIcon skill={skill} size="xs" />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium text-slate-200">{skill}</p>
+                  <p className="text-[10px] text-slate-500">
+                    {cov && cov.contributorCount > 0
+                      ? `${cov.contributorCount} signed up`
+                      : "No signups"}
+                    {xp && xp.adequacy !== "none" && cov?.weekState !== "complete" && (
+                      <span className={adequacyClass(xp.adequacy)}>
+                        {" "}
+                        · {adequacyLabel(xp.adequacy)}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {cov && (
+                <SkillCompletionToggle
+                  skill={skill}
+                  weekState={cov.weekState}
+                  contributorCount={cov.contributorCount}
+                  markedBy={cov.markedBy}
+                  compact
+                  disabled={!currentUser || togglingSkill === skill}
+                  onToggle={(completed) => onToggleSkillComplete(skill, completed)}
+                />
+              )}
+            </div>
+
+            <div className="relative mt-1.5 h-5 overflow-hidden rounded border border-slate-700/40 bg-slate-950/40">
+              <GuildEventWeekBar
+                weekStart={weekStart}
+                height={20}
+                matchType={eventType}
+                overlay
+              />
+            </div>
+
+            <div className="mt-1.5 grid grid-cols-7 gap-0.5">
+              {weekDays.map((d, i) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => onSlotClick(slotTargetForDay(skill, weekStart, i, d))}
+                  className="rounded border border-slate-700/50 bg-slate-900/50 py-1 text-[9px] font-medium text-slate-400 hover:border-sky-500/40 hover:text-sky-300"
+                  title={`Schedule on ${DAY_HEADERS[i]}`}
+                >
+                  {DAY_HEADERS[i].charAt(0)}
+                </button>
+              ))}
+            </div>
+
+            {rowSignups.length > 0 ? (
+              <ul className="mt-1.5 space-y-1">
+                {rowSignups.map((signup) => {
+                  const effective = getEffectiveStatus(signup);
+                  const blockClass = TRIAL_BLOCK_STYLES[effective];
+                  return (
+                    <li key={signup.id}>
+                      <button
+                        type="button"
+                        disabled={!canOpenSignup(signup)}
+                        onClick={() => onSignupClick(signup)}
+                        className={`flex w-full items-center justify-between gap-2 rounded border px-2 py-1 text-left ${blockClass} disabled:opacity-70`}
+                        title={formatTrialWindowLabel(signup.planned_start_at)}
+                      >
+                        <span className="min-w-0 truncate text-[11px] font-semibold text-white">
+                          {signup.member_name}
+                        </span>
+                        <span className="shrink-0 text-[9px] text-slate-300">
+                          {formatDayLabel(signup.planned_date, true)}{" "}
+                          {formatTimeLabel(signup.planned_start_at, true)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSlotClick(slotTargetForDay(skill, weekStart, 0, weekDays[0]))}
+                className="mt-1.5 w-full rounded border border-dashed border-slate-600 py-1 text-[10px] text-slate-500 hover:border-sky-500/40 hover:text-sky-300"
+              >
+                Tap a day or here to schedule
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -109,7 +266,7 @@ export function WeeklyTimeline({
   const xpBySkill = new Map(xpCoverage.map((c) => [c.skill, c]));
 
   return (
-    <div className="rounded-xl border border-slate-700/50 bg-[#131f36]">
+    <div className="overflow-hidden rounded-xl border border-slate-700/50 bg-[#131f36]">
       <div className="space-y-0.5 border-b border-slate-700/50 px-2 py-1 sm:space-y-1 sm:px-3 sm:py-2">
         <div className="hidden sm:block">
           <GuildEventLegend />
@@ -118,37 +275,50 @@ export function WeeklyTimeline({
           One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · tap to
           assign · drag to move
         </p>
-        <p className="text-[10px] text-sky-400/90 sm:hidden">Swipe timeline → · tap to assign</p>
+        <p className="text-[10px] text-sky-400/90 sm:hidden">
+          Tap a day to schedule · tap a trial to edit
+        </p>
       </div>
-      <div className="mobile-scroll-x overflow-x-auto">
-        <table className="w-full min-w-[600px] border-collapse text-sm sm:min-w-[940px]">
+
+      <div className="md:hidden">
+        <MobileWeeklyTimeline
+          weekStart={weekStart}
+          weekDays={weekDays}
+          signups={signups}
+          skillCoverage={skillCoverage}
+          xpCoverage={xpCoverage}
+          togglingSkill={togglingSkill}
+          currentUser={currentUser}
+          onToggleSkillComplete={onToggleSkillComplete}
+          onSlotClick={onSlotClick}
+          onSignupClick={onSignupClick}
+          canOpenSignup={canOpenSignup}
+        />
+      </div>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-700/60">
-              <th className="sticky left-0 z-10 w-[4.25rem] bg-[#131f36] px-1 py-1 text-left text-[10px] font-medium text-slate-400 sm:w-44 sm:px-3 sm:py-2 sm:text-xs">
+              <th className="sticky left-0 z-10 w-44 bg-[#131f36] px-3 py-2 text-left text-xs font-medium text-slate-400">
                 Skill
               </th>
               <th className="p-0 text-left text-xs font-medium text-slate-400">
                 <WeekTimelineHeader weekDays={weekDays} />
               </th>
-              <th className="sticky right-0 z-10 w-10 bg-[#131f36] px-0.5 py-1 text-right text-[10px] font-medium text-slate-500 sm:w-24 sm:px-2 sm:py-2 sm:text-xs">
-                <span className="hidden sm:inline">Week done?</span>
-                <span className="sm:hidden">Done?</span>
+              <th className="sticky right-0 z-10 w-24 bg-[#131f36] px-2 py-2 text-right text-xs font-medium text-slate-500">
+                Week done?
               </th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-slate-700/60 bg-slate-900/20">
-              <td className="sticky left-0 z-10 bg-[#131f36] px-1 py-1 align-middle sm:px-3 sm:py-2">
-                <span className="text-[10px] font-medium text-slate-300 sm:text-xs">Events</span>
-                <p className="hidden text-[9px] leading-tight text-slate-500 sm:block">48h each</p>
+              <td className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 align-middle">
+                <span className="text-xs font-medium text-slate-300">Guild Events</span>
+                <p className="text-[9px] leading-tight text-slate-500">48h each</p>
               </td>
               <td className="p-1 align-middle">
-                <div className="sm:hidden">
-                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH_MOBILE} />
-                </div>
-                <div className="hidden sm:block">
-                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
-                </div>
+                <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
               </td>
               <td className="sticky right-0 z-10 bg-[#131f36]" />
             </tr>
@@ -164,39 +334,27 @@ export function WeeklyTimeline({
               const laneCount = segments.length > 0 ? segments[0].laneCount : 1;
               const timelineHeight = timelineHeightForLanes(laneCount);
               const dimmed = cov?.weekState === "complete";
-              const rowClass =
-                cov?.weekState === "complete"
-                  ? "bg-emerald-950/10"
-                  : cov?.weekState === "in_progress"
-                    ? "bg-sky-950/10"
-                    : cov?.weekState === "needs_signup"
-                      ? "bg-amber-950/10"
-                      : "";
 
               return (
-                <tr key={skill} className={`border-b border-slate-800/50 ${rowClass}`}>
-                  <td className="sticky left-0 z-10 bg-[#131f36] px-1 py-1 align-middle sm:px-3 sm:py-2">
-                    <div className="flex items-start gap-1 sm:gap-2">
-                      <SkillIcon skill={skill} size="sm" className="sm:hidden" />
-                      <SkillIcon skill={skill} size="lg" className="hidden sm:block" />
+                <tr
+                  key={skill}
+                  className={`border-b border-slate-800/50 ${skillRowClass(cov?.weekState)}`}
+                >
+                  <td className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 align-middle">
+                    <div className="flex items-start gap-2">
+                      <SkillIcon skill={skill} size="lg" />
                       <div className="min-w-0">
-                        <span className="hidden text-sm font-medium text-slate-200 sm:inline">{skill}</span>
-                        <span className="text-[10px] font-medium leading-tight text-slate-200 sm:hidden" title={skill}>
-                          {skill.split(" ")[0]}
-                        </span>
+                        <span className="text-sm font-medium text-slate-200">{skill}</span>
                         {cov && cov.contributorCount > 0 && (
-                          <span className="text-[9px] text-slate-500 sm:text-[10px]">
+                          <span className="ml-1 text-[10px] text-slate-500">
                             ({cov.contributorCount})
                           </span>
                         )}
                         {xp && xp.adequacy !== "none" && cov?.weekState !== "complete" && (
-                          <p className={`hidden text-[9px] leading-tight sm:block ${adequacyClass(xp.adequacy)}`}>
+                          <p className={`mt-0.5 text-[9px] leading-tight ${adequacyClass(xp.adequacy)}`}>
                             {adequacyLabel(xp.adequacy)}
                             {xp.adequacy !== "unknown" && (
-                              <span className="text-slate-500">
-                                {" "}
-                                · {xp.percent}% XP
-                              </span>
+                              <span className="text-slate-500"> · {xp.percent}% XP</span>
                             )}
                           </p>
                         )}
@@ -217,7 +375,7 @@ export function WeeklyTimeline({
                           slotTargetFromEvent(skill, weekStart, e.currentTarget, e.clientX),
                         );
                       }}
-                      className={`relative w-full min-w-[480px] cursor-crosshair rounded-md border bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 sm:min-w-[720px] ${
+                      className={`relative w-full min-w-[720px] cursor-crosshair rounded-md border bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 ${
                         dimmed ? "opacity-60" : ""
                       } ${
                         segments.length > 0
@@ -291,7 +449,7 @@ export function WeeklyTimeline({
                       })}
                     </div>
                   </td>
-                  <td className="sticky right-0 z-10 bg-[#131f36] px-0.5 py-1 align-middle sm:px-2 sm:py-2">
+                  <td className="sticky right-0 z-10 bg-[#131f36] px-2 py-2 align-middle">
                     {cov && (
                       <SkillCompletionToggle
                         skill={skill}

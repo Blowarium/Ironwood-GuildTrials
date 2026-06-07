@@ -53,7 +53,23 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
       <summary className="cursor-pointer px-3 py-2 text-sm text-slate-200 hover:bg-slate-800/40">
         {row.strategyName} — full upgrade order ({row.schedule.upgrades.length} steps)
       </summary>
-      <div className="overflow-x-auto px-3 pb-3">
+      <div className="space-y-1 px-2 pb-2 md:hidden">
+        {row.schedule.upgrades.map((step, idx) => (
+          <div
+            key={`${step.buildingId}-${step.toLevel}-${idx}`}
+            className="mobile-card rounded border border-slate-800/50 bg-slate-950/30"
+          >
+            <p className="text-[11px] font-medium text-white">
+              #{idx + 1} {GUILD_BUILDINGS[step.buildingId].name}
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Lv.{step.fromLevel} → {step.toLevel} · {formatCredits(step.creditCost)} · +
+              {Math.round(step.dayOffset)}d
+            </p>
+          </div>
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto px-3 pb-3 md:block">
         <table className="w-full min-w-[520px] text-left text-xs">
           <thead>
             <tr className="text-slate-500">
@@ -121,7 +137,7 @@ export function GuildBuildingsScenarioCompare({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-violet-800/40 bg-violet-950/15 p-4">
+    <div className="mobile-panel space-y-4 overflow-hidden rounded-xl border border-violet-800/40 bg-violet-950/15 sm:p-4">
       <div>
         <h3 className="text-sm font-semibold text-violet-200">Compare upgrade scenarios</h3>
         <p className="mt-1 text-xs text-slate-400">
@@ -141,7 +157,53 @@ export function GuildBuildingsScenarioCompare({
         <p className="text-sm text-slate-500">Select at least one scenario to compare.</p>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="space-y-2 md:hidden">
+            {visible.map((row, idx) => {
+              const income8 = weeklyIncomeAtDayOffset(levels, row.schedule.upgrades, 56);
+              const bankCoins8 = totalGuildBankCoinsOnPath(levels, row.schedule.upgrades, 56);
+              return (
+                <div
+                  key={row.strategy}
+                  className="mobile-card rounded-lg border border-slate-700/50 bg-slate-900/30"
+                >
+                  <p className="text-sm font-medium text-white">{row.strategyName}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">{row.strategyDescription}</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
+                    <dt className="text-slate-500">All maxed</dt>
+                    <dd
+                      className={
+                        idx === fastestIdx
+                          ? "text-emerald-300"
+                          : idx === slowestIdx
+                            ? "text-amber-300"
+                            : "text-slate-300"
+                      }
+                    >
+                      {row.schedule.completionDate} ({formatWeeks(row.schedule.totalDays)})
+                    </dd>
+                    <dt className="text-slate-500">Bank max</dt>
+                    <dd className={idx === fastestBankIdx ? "text-emerald-300" : "text-slate-300"}>
+                      {formatMilestone(row.milestones.byBuilding.GuildBank)}
+                    </dd>
+                    <dt className="text-slate-500">Bank coins (path)</dt>
+                    <dd className={idx === mostBankCoinsIdx ? "text-emerald-300" : "text-yellow-200/90"}>
+                      {formatCoins(row.schedule.totalBankCoinsOnPath)}
+                    </dd>
+                    <dt className="text-slate-500">Credit halls max</dt>
+                    <dd className={idx === fastestHallsIdx ? "text-emerald-300" : "text-slate-300"}>
+                      {formatMilestone(row.milestones.allHallsMaxDay)}
+                    </dd>
+                    <dt className="text-slate-500">Credits @ 8 wk</dt>
+                    <dd className="text-sky-300">{formatCredits(income8.total)}/wk</dd>
+                    <dt className="text-slate-500">Bank coins @ 8 wk</dt>
+                    <dd className="text-yellow-200/90">{formatCoins(bankCoins8)}</dd>
+                  </dl>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
@@ -218,7 +280,47 @@ export function GuildBuildingsScenarioCompare({
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
               When each building hits max
             </p>
-            <div className="overflow-x-auto">
+            <div className="space-y-1 md:hidden">
+              {GUILD_BUILDING_ORDER.map((buildingId) => {
+                const days = visible.map((r) => r.milestones.byBuilding[buildingId]);
+                const best = bestRowIndex(days, true);
+                const worst = bestRowIndex(
+                  days.map((d) => (d === null || d <= 0 ? null : d)),
+                  false,
+                );
+                return (
+                  <div
+                    key={buildingId}
+                    className="mobile-card rounded-lg border border-slate-700/40 bg-slate-900/20"
+                  >
+                    <p className="text-xs font-medium text-slate-300">
+                      {GUILD_BUILDINGS[buildingId].name}
+                    </p>
+                    <ul className="mt-1 space-y-0.5">
+                      {visible.map((row, colIdx) => (
+                        <li
+                          key={row.strategy}
+                          className={`flex justify-between gap-2 text-[10px] ${
+                            colIdx === best && days.filter((d) => d !== null && d > 0).length > 1
+                              ? "text-emerald-300"
+                              : colIdx === worst &&
+                                  days.filter((d) => d !== null && d > 0).length > 1
+                                ? "text-amber-300"
+                                : "text-slate-400"
+                          }`}
+                        >
+                          <span className="truncate">{row.strategyName}</span>
+                          <span className="shrink-0">
+                            {formatMilestone(row.milestones.byBuilding[buildingId])}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[640px] text-left">
                 <thead>
                   <tr className="border-b border-slate-700/50 text-xs text-slate-500">

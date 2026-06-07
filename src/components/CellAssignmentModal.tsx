@@ -151,7 +151,7 @@ function CellAssignmentForm({
 
         <div className="mt-4">
           <span className="text-xs text-slate-400">Skill</span>
-          <div className="mt-1.5 flex gap-1 overflow-x-auto pb-1">
+          <div className="mt-1.5 flex flex-wrap gap-1 pb-1">
             {SKILLS.map((sk) => (
               <button
                 key={sk}

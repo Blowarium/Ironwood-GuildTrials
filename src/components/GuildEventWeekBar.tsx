@@ -34,7 +34,7 @@ export function GuildEventWeekBar({
   overlay = false,
 }: {
   weekStart: string;
-  minWidth: number;
+  minWidth?: number;
   height?: number;
   /** When set, only show active segments for this event type (skill-row overlay). */
   matchType?: GuildEventType;
@@ -49,7 +49,7 @@ export function GuildEventWeekBar({
   return (
     <div
       className={`relative w-full ${overlay ? "" : "rounded-md border border-slate-700/50 bg-slate-950/40"}`}
-      style={{ height, minWidth }}
+      style={{ height, ...(minWidth != null ? { minWidth } : {}) }}
     >
       {segments.map((seg, i) => (
         <div

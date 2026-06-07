@@ -29,7 +29,7 @@ export function UpgradeStepMaterialsCell({
   }
 
   return (
-    <div className="min-w-[180px] space-y-1">
+    <div className="min-w-0 space-y-1 sm:min-w-[180px]">
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${

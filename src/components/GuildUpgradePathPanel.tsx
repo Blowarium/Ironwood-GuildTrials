@@ -69,7 +69,7 @@ export function GuildUpgradePathPanel({
   const isPreferred = selectedStrategy === preferredStrategy;
 
   return (
-    <div className="rounded-xl border border-sky-800/40 bg-sky-950/20 p-4">
+    <div className="mobile-panel rounded-xl border border-sky-800/40 bg-sky-950/20 sm:p-4">
       <p className="text-sm font-medium text-sky-200">
         {canSelectStrategy ? "Upgrade order" : "Guild upgrade plan"}
       </p>
@@ -171,7 +171,45 @@ export function GuildUpgradePathPanel({
         </>
       )}
 
-      <div className="mt-3 mobile-scroll-x overflow-x-auto">
+      <div className="mt-3 space-y-2 md:hidden">
+        {detailSchedule.upgrades.map((step, idx) => (
+          <div
+            key={`${step.buildingId}-${step.toLevel}-${idx}-mobile`}
+            className="mobile-card rounded-lg border border-slate-700/50 bg-slate-900/30"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-medium text-white">
+                #{idx + 1} {GUILD_BUILDINGS[step.buildingId].name}
+              </p>
+              <span className="shrink-0 text-[10px] text-sky-300">{step.date}</span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-slate-400">
+              Lv.{step.fromLevel} → Lv.{step.toLevel} · {formatCredits(step.creditCost)} credits ·
+              +{Math.round(step.dayOffset)}d
+            </p>
+            <div className="mt-2 space-y-2 border-t border-slate-800/50 pt-2">
+              <UpgradeStepCoinsCell
+                step={step}
+                deposits={coinDeposits ?? {}}
+                canEdit={canEditCoins ?? false}
+                onDepositChange={onCoinDepositChange}
+                onMarkReady={onMarkStepCoinsReady}
+                onClear={onClearStepCoins}
+              />
+              <UpgradeStepMaterialsCell
+                step={step}
+                deposits={materialDeposits ?? {}}
+                canEdit={canEditMaterials ?? false}
+                onDepositChange={onMaterialDepositChange}
+                onMarkReady={onMarkStepMaterialsReady}
+                onClear={onClearStepMaterials}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 hidden overflow-x-auto md:block">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">

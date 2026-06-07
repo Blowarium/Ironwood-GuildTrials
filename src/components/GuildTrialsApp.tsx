@@ -483,13 +483,13 @@ export function GuildTrialsApp() {
         </div>
       )}
 
-      <main className="mx-auto max-w-[1600px] space-y-2 px-2 py-2 sm:space-y-4 sm:px-4 sm:py-4">
+      <main className="mx-auto max-w-[1600px] space-y-2 overflow-x-hidden px-2 py-2 sm:space-y-4 sm:px-4 sm:py-4">
         <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <p className="text-xs text-slate-400 sm:text-sm">
             {formatWeekRange(weekStart)}
             <span className="text-slate-500"> · UTC+2</span>
           </p>
-          <div className="mobile-scroll-x flex gap-1 overflow-x-auto pb-0.5 sm:gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {[0, 1, 2].map((offset) => {
               const start = getWeekStart(new Date(), offset);
               return (
@@ -517,7 +517,7 @@ export function GuildTrialsApp() {
         )}
 
         <div className="flex flex-col gap-1 border-b border-slate-700/50 pb-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-2">
-          <div className="mobile-scroll-x flex gap-1 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible">
+          <div className="flex flex-wrap gap-1 pb-0.5">
             {tabItems.map(({ id, label, shortLabel }) => (
               <button
                 key={id}
