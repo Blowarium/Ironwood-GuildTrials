@@ -669,8 +669,7 @@ export function GuildTrialsApp() {
             existing &&
             existing.skill === skill &&
             existing.planned_date === plannedDate &&
-            existing.planned_start_at === plannedStartAt &&
-            editingSignup?.id === existing.id
+            existing.planned_start_at === plannedStartAt
           ) {
             return null;
           }

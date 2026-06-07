@@ -26,6 +26,8 @@ import {
   getCatalogActions,
   resolveProfileActionId,
 } from "@/lib/ironwood-action-catalog";
+import { useDebouncedAutoSave } from "@/lib/use-auto-save";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 
 function sortForDisplay(rows: MemberSkillProfileRow[]): MemberSkillProfileRow[] {
   return [...rows].sort(compareSkillsByPreferenceRank);
@@ -55,8 +57,6 @@ export function ProfileModal({
   onXpImportApplied: () => void;
 }) {
   const [skills, setSkills] = useState<MemberSkillProfileRow[]>(emptyProfile(targetMember).skills);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [dragSkill, setDragSkill] = useState<Skill | null>(null);
   const [showImportGuide, setShowImportGuide] = useState(false);
@@ -77,15 +77,12 @@ export function ProfileModal({
 
     const base = initialProfile ?? emptyProfile(targetMember);
     setSkills(normalizeProfile(base).skills);
-    setError(null);
     setMessage(null);
     setShowImportGuide(false);
     setLastImportReport(null);
   }, [open, initialProfile, targetMember]);
 
-  async function saveSkills(rows: MemberSkillProfileRow[]) {
-    setSaving(true);
-    setError(null);
+  async function saveSkills(rows: MemberSkillProfileRow[]): Promise<string | null> {
     const { profile, error: err } = await saveMemberProfile({
       actorMember: currentUser,
       memberName: targetMember,
@@ -97,22 +94,17 @@ export function ProfileModal({
         skillLocked: s.skill_locked,
       })),
     });
-    setSaving(false);
-    if (err) {
-      setError(err);
-      return false;
-    }
-    if (profile) {
-      onSaved(profile);
-      setMessage("Profile saved.");
-    }
-    return true;
+    if (err) return err;
+    if (profile) onSaved(profile);
+    return null;
   }
 
-  async function handleSave() {
-    setMessage(null);
-    await saveSkills(skills);
-  }
+  const skillsKey = JSON.stringify(skills);
+  const autoSave = useDebouncedAutoSave({
+    enabled: open && canEdit,
+    deps: [skillsKey],
+    save: () => saveSkills(skills),
+  });
 
   useEffect(() => {
     if (!open || !pendingXpImport) return;
@@ -143,8 +135,8 @@ export function ProfileModal({
 
     void (async () => {
       setMessage("Saving imported XP/h…");
-      const saved = await saveSkills(importedSkills);
-      if (saved) {
+      const err = await saveSkills(importedSkills);
+      if (!err) {
         setMessage(
           errCount > 0
             ? `Imported and saved XP/h for ${count} skills from Ironwood (${errCount} skipped).`
@@ -153,8 +145,8 @@ export function ProfileModal({
       } else {
         setMessage(
           errCount > 0
-            ? `Imported XP/h for ${count} skills (${errCount} skipped) but could not save — use Save profile to retry.`
-            : `Imported XP/h for ${count} skills but could not save — use Save profile to retry.`,
+            ? `Imported XP/h for ${count} skills (${errCount} skipped) but could not save — changes will retry automatically.`
+            : `Imported XP/h for ${count} skills but could not save — changes will retry automatically.`,
         );
       }
     })();
@@ -362,19 +354,9 @@ export function ProfileModal({
               Only {targetMember} or the Guild Leader can edit this profile.
             </p>
           )}
-          {error && <p className="mb-2 text-xs text-red-300">{error}</p>}
           {message && <p className="mb-2 text-xs text-emerald-300">{message}</p>}
-          <div className="flex flex-wrap gap-2">
-            {canEdit && (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save profile"}
-              </button>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit && <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />}
             <button
               type="button"
               onClick={onClose}

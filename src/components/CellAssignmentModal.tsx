@@ -15,11 +15,13 @@ import {
   getEffectiveStatus,
   timeInputValue,
 } from "@/lib/trial-schedule";
+import { useDebouncedAutoSave } from "@/lib/use-auto-save";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { SkillIcon } from "./SkillIcon";
 import { StatusBadge } from "./StatusBadge";
 import { LastEditedNote } from "./LastEditedNote";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 
 export interface CellTarget {
   skill: Skill;
@@ -109,20 +111,23 @@ function CellAssignmentForm({
       existingForMember.planned_date !== plannedDate ||
       existingForMember.planned_start_at !== plannedStartAt);
 
-  async function handleSave() {
-    if (!member || !canEditThis) return;
-    if (
-      isMove &&
-      member === currentUser &&
-      !confirm(
-        `Move your assignment from ${existingForMember!.skill} (${formatDayLabel(existingForMember!.planned_date, true)} ${formatTimeLabel(existingForMember!.planned_start_at)})?`,
-      )
-    ) {
-      return;
-    }
-    const err = await onSave(member, skill, plannedDate, plannedStartAt);
-    if (!err) onClose();
-  }
+  const autoSave = useDebouncedAutoSave({
+    enabled: !!member && canEditThis,
+    deps: [member, skill, plannedDate, timeValue],
+    save: async () => {
+      if (!member || !canEditThis) return null;
+      if (
+        isMove &&
+        member === currentUser &&
+        !confirm(
+          `Move your assignment from ${existingForMember!.skill} (${formatDayLabel(existingForMember!.planned_date, true)} ${formatTimeLabel(existingForMember!.planned_start_at)})?`,
+        )
+      ) {
+        return null;
+      }
+      return onSave(member as Member, skill, plannedDate, plannedStartAt);
+    },
+  });
 
   return (
     <div
@@ -175,8 +180,8 @@ function CellAssignmentForm({
         {isMove && (
           <p className="mt-3 rounded-lg bg-amber-950/40 px-3 py-2 text-sm text-amber-200">
             {member === currentUser
-              ? `${ALREADY_ASSIGNED_MSG} Saving will move you from ${existingForMember!.skill}.`
-              : `${member} already has a trial this week — saving will move them.`}
+              ? `${ALREADY_ASSIGNED_MSG} Changes will move you from ${existingForMember!.skill}.`
+              : `${member} already has a trial this week — changes will move them.`}
           </p>
         )}
 
@@ -237,15 +242,8 @@ function CellAssignmentForm({
           </div>
         )}
 
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !member || !canEditThis}
-            className="flex-1 rounded-lg bg-sky-600 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : editingSignup ? "Update" : "Save"}
-          </button>
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />
           {editingSignup && canEditThis && (
             <button
               type="button"
@@ -262,9 +260,9 @@ function CellAssignmentForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
+            className="ml-auto rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
           >
-            Cancel
+            Close
           </button>
         </div>
       </div>

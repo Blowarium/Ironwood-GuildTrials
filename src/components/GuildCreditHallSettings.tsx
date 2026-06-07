@@ -5,6 +5,8 @@ import type { Member } from "@/lib/constants";
 import { saveGuildConfig } from "@/lib/api-client";
 import type { GuildConfig } from "@/lib/guild-config";
 import { GUILD_BUILDINGS } from "@/lib/guild-buildings-data";
+import { useDebouncedAutoSave } from "@/lib/use-auto-save";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { LastEditedNote } from "./LastEditedNote";
 
 const HALL_FIELDS = [
@@ -33,8 +35,6 @@ export function GuildCreditHallSettings({
   onSaved: (config: GuildConfig) => void;
 }) {
   const [levels, setLevels] = useState({ guildHallLevel: 8, eventHallLevel: 6, trialHallLevel: 5 });
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!config) return;
@@ -45,20 +45,25 @@ export function GuildCreditHallSettings({
     });
   }, [config]);
 
-  async function handleSave() {
-    setSaving(true);
-    setMessage(null);
-    const { config: saved, error } = await saveGuildConfig(levels, actorMember);
-    setSaving(false);
-    if (error) {
-      setMessage(error);
-      return;
-    }
-    if (saved) {
-      onSaved(saved);
-      setMessage("Credit hall levels saved.");
-    }
-  }
+  const levelsKey = JSON.stringify(levels);
+  const autoSave = useDebouncedAutoSave({
+    enabled: canEdit && config != null,
+    deps: [levelsKey],
+    save: async () => {
+      if (
+        !config ||
+        (levels.guildHallLevel === config.guild_hall_level &&
+          levels.eventHallLevel === config.guild_event_hall_level &&
+          levels.trialHallLevel === config.trial_hall_level)
+      ) {
+        return null;
+      }
+      const { config: saved, error } = await saveGuildConfig(levels, actorMember);
+      if (error) return error;
+      if (saved) onSaved(saved);
+      return null;
+    },
+  });
 
   function updateLevel(key: keyof typeof levels, value: number, maxLevel: number) {
     setLevels((prev) => ({
@@ -115,26 +120,12 @@ export function GuildCreditHallSettings({
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-600 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save hall levels"}
-          </button>
+          <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />
         </div>
       )}
       {!canEdit && (
         <p className="mt-2 text-xs text-slate-500">
           Only Guild Leaders and Officers can change these.
-        </p>
-      )}
-      {message && (
-        <p
-          className={`mt-2 text-xs ${message.includes("required") || message.includes("Could not") ? "text-red-300" : "text-emerald-300"}`}
-        >
-          {message}
         </p>
       )}
     </div>

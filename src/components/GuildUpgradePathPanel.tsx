@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { GUILD_BUILDINGS, formatCoins, formatCredits } from "@/lib/guild-buildings-data";
 import type { ScenarioComparisonRow } from "@/lib/guild-buildings-schedule";
 import { strategyDef, type UpgradeStrategyId } from "@/lib/guild-buildings-strategies";
 import { DEFAULT_GUILD_MEMBER_COUNT } from "@/lib/guild-buildings-data";
+import type { AutoSaveStatus } from "@/lib/use-auto-save";
 import { ScenarioStrategyPills } from "./ScenarioStrategyPills";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { LastEditedNote } from "./LastEditedNote";
 import { UpgradeStepMaterialsCell } from "./UpgradeStepMaterialsCell";
 import { UpgradeStepCoinsCell } from "./UpgradeStepCoinsCell";
@@ -21,7 +22,8 @@ export function GuildUpgradePathPanel({
   onSelectStrategy,
   canSelectStrategy,
   canSetPreferred,
-  onSavePreferred,
+  preferredSaveStatus,
+  preferredSaveError,
   preferredUpdatedBy,
   preferredUpdatedAt,
   actorMember,
@@ -45,7 +47,8 @@ export function GuildUpgradePathPanel({
   onSelectStrategy?: (id: UpgradeStrategyId) => void;
   canSelectStrategy: boolean;
   canSetPreferred: boolean;
-  onSavePreferred?: () => Promise<void>;
+  preferredSaveStatus?: AutoSaveStatus;
+  preferredSaveError?: string | null;
   preferredUpdatedBy?: Member | null;
   preferredUpdatedAt?: string;
   actorMember?: Member;
@@ -63,23 +66,7 @@ export function GuildUpgradePathPanel({
   onClearStepCoins?: (stepKey: string) => void;
 }) {
   const detailSchedule = detailScenario.schedule;
-  const [savingPreferred, setSavingPreferred] = useState(false);
-  const [preferredMessage, setPreferredMessage] = useState<string | null>(null);
   const isPreferred = selectedStrategy === preferredStrategy;
-
-  async function handleSavePreferred() {
-    if (!onSavePreferred) return;
-    setSavingPreferred(true);
-    setPreferredMessage(null);
-    try {
-      await onSavePreferred();
-      setPreferredMessage("Guild preferred path saved.");
-    } catch (err) {
-      setPreferredMessage(err instanceof Error ? err.message : "Could not save preferred path.");
-    } finally {
-      setSavingPreferred(false);
-    }
-  }
 
   return (
     <div className="rounded-xl border border-sky-800/40 bg-sky-950/20 p-4">
@@ -88,7 +75,7 @@ export function GuildUpgradePathPanel({
       </p>
       <p className="mt-1 text-xs text-slate-400">
         {canSelectStrategy
-          ? "Preview strategies below. Save one as the guild's official path — members only see that plan."
+          ? "Preview strategies below — selecting one sets it as the guild's official path for all members."
           : "Official upgrade path chosen by guild officers."}
       </p>
 
@@ -121,33 +108,19 @@ export function GuildUpgradePathPanel({
               onSelect={onSelectStrategy}
             />
           </div>
-          {canSetPreferred && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleSavePreferred}
-                disabled={savingPreferred || isPreferred}
-                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-50"
-              >
-                {savingPreferred
-                  ? "Saving…"
-                  : isPreferred
-                    ? "Current guild preferred path"
-                    : "Save as guild preferred path"}
-              </button>
-              {!isPreferred && actorMember && (
-                <span className="text-xs text-slate-500">
-                  Saves &quot;{detailSchedule.strategyName}&quot; for all members
-                </span>
-              )}
-            </div>
-          )}
-          {preferredMessage && (
-            <p
-              className={`mt-2 text-xs ${preferredMessage.includes("Could not") ? "text-red-300" : "text-emerald-300"}`}
-            >
-              {preferredMessage}
+          {canSetPreferred && !isPreferred && actorMember && (
+            <p className="mt-2 text-xs text-slate-500">
+              Selecting &quot;{detailSchedule.strategyName}&quot; updates the guild preferred path
+              for all members.
             </p>
+          )}
+          {canSetPreferred && (
+            <div className="mt-2">
+              <AutoSaveIndicator
+                status={preferredSaveStatus ?? "idle"}
+                error={preferredSaveError}
+              />
+            </div>
           )}
         </>
       )}

@@ -5,6 +5,8 @@ import type { Member } from "@/lib/constants";
 import { saveGuildConfig } from "@/lib/api-client";
 import type { GuildConfig } from "@/lib/guild-config";
 import { formatXp, trialXpRequired } from "@/lib/trial-xp";
+import { useDebouncedAutoSave } from "@/lib/use-auto-save";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { LastEditedNote } from "./LastEditedNote";
 
 export function GuildTrialHallSettings({
@@ -19,8 +21,6 @@ export function GuildTrialHallSettings({
   onSaved: (config: GuildConfig) => void;
 }) {
   const [level, setLevel] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (config) setLevel(config.trial_hall_level);
@@ -28,20 +28,17 @@ export function GuildTrialHallSettings({
 
   const xpPerTrial = trialXpRequired(level);
 
-  async function handleSave() {
-    setSaving(true);
-    setMessage(null);
-    const { config: saved, error } = await saveGuildConfig({ trialHallLevel: level }, actorMember);
-    setSaving(false);
-    if (error) {
-      setMessage(error);
-      return;
-    }
-    if (saved) {
-      onSaved(saved);
-      setMessage("Hall level saved.");
-    }
-  }
+  const autoSave = useDebouncedAutoSave({
+    enabled: canEdit && config != null,
+    deps: [level],
+    save: async () => {
+      if (!config || level === config.trial_hall_level) return null;
+      const { config: saved, error } = await saveGuildConfig({ trialHallLevel: level }, actorMember);
+      if (error) return error;
+      if (saved) onSaved(saved);
+      return null;
+    },
+  });
 
   return (
     <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3">
@@ -67,20 +64,8 @@ export function GuildTrialHallSettings({
             onChange={(e) => setLevel(Math.max(0, Number(e.target.value) || 0))}
             className="w-20 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
           />
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-600 disabled:opacity-50"
-          >
-            {saving ? "Saving…" : "Save level"}
-          </button>
+          <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />
         </div>
-      )}
-      {message && (
-        <p className={`mt-1 text-xs ${message.includes("required") ? "text-red-300" : "text-emerald-300"}`}>
-          {message}
-        </p>
       )}
     </div>
   );

@@ -46,6 +46,8 @@ import {
   type PlannerCoinDeposits,
 } from "@/lib/guild-buildings-coins";
 import { formatDailyResetLabel } from "@/lib/guild-reset";
+import { useDebouncedAutoSave } from "@/lib/use-auto-save";
+import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
 import { GuildBuildingsScenarioCompare } from "./GuildBuildingsScenarioCompare";
 import { GuildUpgradePathPanel } from "./GuildUpgradePathPanel";
@@ -150,7 +152,6 @@ export function GuildBuildingsView({
   const [localLevels, setLocalLevels] = useState<GuildBuildingLevels>(loadLocalBuildingLevels);
   const [credits, setCredits] = useState(loadLocalCredits);
   const [detailStrategy, setDetailStrategy] = useState<UpgradeStrategyId>(preferredStrategy);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [materialDeposits, setMaterialDeposits] = useState<PlannerMaterialDeposits>(() =>
     normalizeMaterialDeposits(guildConfig?.planner_material_deposits),
   );
@@ -233,7 +234,7 @@ export function GuildBuildingsView({
     }));
   }
 
-  async function saveState() {
+  async function saveState(): Promise<string | null> {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -241,7 +242,6 @@ export function GuildBuildingsView({
         credits,
       }),
     );
-    setSaveMessage(null);
     const { config: saved, error } = await saveGuildConfig(
       {
         plannerCredits: credits,
@@ -249,15 +249,17 @@ export function GuildBuildingsView({
       },
       currentUser,
     );
-    if (error) {
-      setSaveMessage(error);
-      return;
-    }
-    if (saved) {
-      onGuildConfigSaved(saved);
-      setSaveMessage("Building levels saved for the guild.");
-    }
+    if (error) return error;
+    if (saved) onGuildConfigSaved(saved);
+    return null;
   }
+
+  const plannerStateKey = JSON.stringify({ localLevels, credits });
+  const plannerAutoSave = useDebouncedAutoSave({
+    enabled: canEditHalls,
+    deps: [plannerStateKey],
+    save: saveState,
+  });
 
   function resetDefaults() {
     setLocalLevels(DEFAULT_GUILD_BUILDING_LEVELS);
@@ -265,14 +267,23 @@ export function GuildBuildingsView({
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  async function savePreferredPath() {
+  async function savePreferredPath(): Promise<string | null> {
+    if (detailStrategy === preferredStrategy) return null;
     const { config: saved, error } = await saveGuildConfig(
       { preferredBuildingStrategy: detailStrategy },
       currentUser,
     );
-    if (error) throw new Error(error);
+    if (error) return error;
     if (saved) onGuildConfigSaved(saved);
+    return null;
   }
+
+  const preferredAutoSave = useDebouncedAutoSave({
+    enabled: canEditHalls,
+    deps: [detailStrategy],
+    delayMs: 300,
+    save: savePreferredPath,
+  });
 
   const persistPlannerDeposits = useCallback(
     (patch: {
@@ -410,14 +421,8 @@ export function GuildBuildingsView({
         <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-white">Current buildings</p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={saveState}
-                className="rounded-md bg-slate-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-600"
-              >
-                Save
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <AutoSaveIndicator status={plannerAutoSave.status} error={plannerAutoSave.error} />
               <button
                 type="button"
                 onClick={resetDefaults}
@@ -427,13 +432,6 @@ export function GuildBuildingsView({
               </button>
             </div>
           </div>
-          {saveMessage && (
-            <p
-              className={`mb-3 text-xs ${saveMessage.includes("Could not") || saveMessage.includes("required") ? "text-red-300" : "text-emerald-300"}`}
-            >
-              {saveMessage}
-            </p>
-          )}
 
           <div className="mb-4">
             <label className="text-xs text-slate-400">Guild credits in bank</label>
@@ -496,7 +494,8 @@ export function GuildBuildingsView({
         onSelectStrategy={setDetailStrategy}
         canSelectStrategy
         canSetPreferred
-        onSavePreferred={savePreferredPath}
+        preferredSaveStatus={preferredAutoSave.status}
+        preferredSaveError={preferredAutoSave.error}
         preferredUpdatedBy={guildConfig?.updated_by}
         preferredUpdatedAt={guildConfig?.updated_at}
         actorMember={currentUser}
