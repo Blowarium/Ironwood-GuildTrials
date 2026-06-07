@@ -20,6 +20,12 @@ export const GUILD_EVENT_COOLDOWN_MS = 36 * 60 * 60 * 1000;
 export const GUILD_EVENT_SLOT_MS = GUILD_EVENT_DURATION_MS + GUILD_EVENT_COOLDOWN_MS;
 export const GUILD_EVENT_ROTATION_MS = GUILD_EVENT_SLOT_MS * GUILD_EVENT_ORDER.length;
 
+/**
+ * 48h active + 36h cooldown slots chain from the anchor. Every other event ends at
+ * 14:00 UTC+2; the others end at 02:00 UTC+2 (daily reset).
+ */
+export const GUILD_EVENT_END_HOURS_UTC2 = [2, 14] as const;
+
 /** Next known event start: 7 Jun 2026 02:00 UTC+2 — Gathering Event. */
 export const GUILD_EVENT_ANCHOR: { at: Date; type: GuildEventType } = {
   at: new Date(guildInstantFromLocal("2026-06-07", 2, 0)),
@@ -162,4 +168,19 @@ export function activeGuildEventAt(at = new Date()): GuildEventInterval | null {
     new Date(at.getTime() + 1),
   );
   return intervals.find((i) => i.phase === "active" && i.startAt <= at && i.endAt > at) ?? null;
+}
+
+/** Next active-phase end strictly after `at` (02:00 or 14:00 UTC+2 depending on rotation slot). */
+export function nextGuildEventActiveEndAfter(at: Date): Date | null {
+  const intervals = guildEventIntervalsInRange(
+    at,
+    new Date(at.getTime() + GUILD_EVENT_ROTATION_MS * 2),
+  );
+  let best: Date | null = null;
+  for (const interval of intervals) {
+    if (interval.phase !== "active") continue;
+    if (interval.endAt.getTime() <= at.getTime()) continue;
+    if (!best || interval.endAt.getTime() < best.getTime()) best = interval.endAt;
+  }
+  return best;
 }

@@ -46,7 +46,8 @@ import {
   setCoinDeposit,
   type PlannerCoinDeposits,
 } from "@/lib/guild-buildings-coins";
-import { formatDailyResetLabel } from "@/lib/guild-reset";
+import { formatDailyResetLabel, nextDailyResetAfter } from "@/lib/guild-reset";
+import { nextGuildEventActiveEndAfter } from "@/lib/guild-events";
 import { useDebouncedAutoSave } from "@/lib/use-auto-save";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { GuildCreditHallSettings } from "./GuildCreditHallSettings";
@@ -196,8 +197,24 @@ export function GuildBuildingsView({
   }, [guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits]);
 
   useEffect(() => {
-    const id = setInterval(() => setPlannerNow(new Date()), 60_000);
-    return () => clearInterval(id);
+    let timer: ReturnType<typeof setTimeout>;
+    const scheduleRefresh = () => {
+      const now = new Date();
+      const nextReset = nextDailyResetAfter(now);
+      const nextEventEnd = nextGuildEventActiveEndAfter(now);
+      const nextAt = [nextReset, nextEventEnd].reduce((earliest, candidate) => {
+        if (!candidate) return earliest;
+        if (!earliest || candidate.getTime() < earliest.getTime()) return candidate;
+        return earliest;
+      }, null as Date | null);
+      const ms = Math.max((nextAt?.getTime() ?? now.getTime() + 60_000) - now.getTime(), 1000);
+      timer = setTimeout(() => {
+        setPlannerNow(new Date());
+        scheduleRefresh();
+      }, ms);
+    };
+    scheduleRefresh();
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -265,7 +282,7 @@ export function GuildBuildingsView({
   const mechanicsItems = useMemo(
     () => [
       `Guild credits — daily quests: Guild Hall level × 20 × 13 — paid at ${formatDailyResetLabel()}`,
-      `Guild credits — events: Event Hall level × 400 per completed event (~${eventsPerWeek()}/wk active)`,
+      `Guild credits — events: Event Hall level × 400 per completed event (ends alternate 02:00 / 14:00 UTC+2, ~${eventsPerWeek()}/wk active)`,
       `Guild credits — trials: Trial Hall level × 50 × 16 per week — Mon ${formatDailyResetLabel()}`,
       `Player coins — Guild Bank: level × 1,000 × 13 per member per day (${DEFAULT_GUILD_MEMBER_COUNT} members each receive the full amount)`,
       "Upgrade costs (credits): 100 → 1k → 5k → 10k → 25k → 50k → 100k → 150k",

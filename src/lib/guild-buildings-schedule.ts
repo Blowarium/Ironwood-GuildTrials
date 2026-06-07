@@ -119,14 +119,11 @@ export function weeklyCreditIncome(
   return { dailyQuests, events, trials, total: dailyQuests + events + trials };
 }
 
-function advanceOneDay(state: SimulationState, fullDailyQuests: boolean): void {
-  const periodStart = state.date;
-  const periodEnd = nextDailyResetAfter(periodStart);
-  state.date = periodEnd;
-  state.dayOffset += (periodEnd.getTime() - periodStart.getTime()) / DAY_MS;
-
-  state.credits += dailyQuestCreditsPerDay(state.levels.GuildHall, fullDailyQuests);
-
+function applyEventCompletionsInRange(
+  state: SimulationState,
+  periodStart: Date,
+  periodEnd: Date,
+): void {
   for (const interval of guildEventIntervalsInRange(periodStart, periodEnd)) {
     if (interval.phase !== "active") continue;
     const endMs = interval.endAt.getTime();
@@ -135,6 +132,16 @@ function advanceOneDay(state: SimulationState, fullDailyQuests: boolean): void {
     state.paidEventEnds.add(endMs);
     state.credits += eventCreditsPerCompletion(state.levels.GuildEventHall);
   }
+}
+
+function advanceOneDay(state: SimulationState, fullDailyQuests: boolean): void {
+  const periodStart = state.date;
+  const periodEnd = nextDailyResetAfter(periodStart);
+  state.date = periodEnd;
+  state.dayOffset += (periodEnd.getTime() - periodStart.getTime()) / DAY_MS;
+
+  state.credits += dailyQuestCreditsPerDay(state.levels.GuildHall, fullDailyQuests);
+  applyEventCompletionsInRange(state, periodStart, periodEnd);
 
   const weekKey = trialWeekResetKey(periodEnd);
   if (weekKey !== state.trialWeekStart) {
@@ -179,7 +186,14 @@ export function projectGuildCreditsAtDate(
   const targetMs = toDate.getTime();
   let guard = 0;
   while (state.date.getTime() < targetMs && guard++ < 10_000) {
-    advanceOneDay(state, fullDailyQuests);
+    const nextReset = nextDailyResetAfter(state.date);
+    if (nextReset.getTime() <= targetMs) {
+      advanceOneDay(state, fullDailyQuests);
+      continue;
+    }
+    // Between daily resets — still credit guild events that finish (often at 14:00 UTC+2).
+    applyEventCompletionsInRange(state, state.date, toDate);
+    break;
   }
   return Math.max(0, Math.floor(state.credits));
 }
@@ -433,7 +447,7 @@ export function buildGuildBuildingsSchedule(
     "Assumes full daily quest, event, and trial completion.",
     `Daily quest credits and trial week turnover at ${formatDailyResetLabel()} (new trial week each Monday at the same time).`,
     "Daily quests: Guild Hall level × 20 × 13 per day.",
-    "Events: Event Hall level × 400 per completed event.",
+    "Events: Event Hall level × 400 per completed event (ends alternate 02:00 / 14:00 UTC+2).",
     "Trials: Trial Hall level × 50 × 16 per week.",
     "Guild Bank: level × 1,000 × 13 coins per member per day (25 members = guild total × 25).",
     "Guild Bank does not affect Guild Credits.",
