@@ -31,6 +31,7 @@ const ROW_PAD = 2;
 const LANE_GAP = 2;
 const BLOCK_HEIGHT = TIMELINE_HEIGHT - ROW_PAD * 2;
 const TIMELINE_MIN_WIDTH = 720;
+const TIMELINE_MIN_WIDTH_MOBILE = 480;
 
 function timelineHeightForLanes(laneCount: number): number {
   if (laneCount <= 0) return TIMELINE_HEIGHT;
@@ -56,7 +57,7 @@ function slotTargetFromEvent(
 
 function WeekTimelineHeader({ weekDays }: { weekDays: string[] }) {
   return (
-    <div className="relative h-10 min-w-[720px] border-b border-slate-700/40">
+    <div className="relative h-10 min-w-[480px] border-b border-slate-700/40 sm:min-w-[720px]">
       {weekDays.map((d, i) => (
         <div
           key={d}
@@ -112,33 +113,40 @@ export function WeeklyTimeline({
       <div className="space-y-1 border-b border-slate-700/50 px-3 py-2">
         <GuildEventLegend />
         <p className="text-[10px] text-slate-500">
-          One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · click to
-          assign · drag to move · faint row tint = matching Guild Event active
+          One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · tap to
+          assign · drag to move
         </p>
+        <p className="text-[10px] text-sky-400/90 sm:hidden">Swipe the timeline horizontally →</p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-sm" style={{ minWidth: TIMELINE_MIN_WIDTH + 220 }}>
+      <div className="mobile-scroll-x overflow-x-auto">
+        <table className="w-full min-w-[600px] border-collapse text-sm sm:min-w-[940px]">
           <thead>
             <tr className="border-b border-slate-700/60">
-              <th className="sticky left-0 z-10 w-44 bg-[#131f36] px-3 py-2 text-left text-xs font-medium text-slate-400">
+              <th className="sticky left-0 z-10 w-24 bg-[#131f36] px-2 py-2 text-left text-xs font-medium text-slate-400 sm:w-44 sm:px-3">
                 Skill
               </th>
               <th className="p-0 text-left text-xs font-medium text-slate-400">
                 <WeekTimelineHeader weekDays={weekDays} />
               </th>
-              <th className="sticky right-0 z-10 w-24 bg-[#131f36] px-2 py-2 text-right text-xs font-medium text-slate-500">
-                Week done?
+              <th className="sticky right-0 z-10 w-[4.5rem] bg-[#131f36] px-1 py-2 text-right text-xs font-medium text-slate-500 sm:w-24 sm:px-2">
+                <span className="hidden sm:inline">Week done?</span>
+                <span className="sm:hidden">Done?</span>
               </th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-b border-slate-700/60 bg-slate-900/20">
-              <td className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 align-middle">
+              <td className="sticky left-0 z-10 bg-[#131f36] px-2 py-2 align-middle sm:px-3">
                 <span className="text-xs font-medium text-slate-300">Guild Events</span>
-                <p className="text-[9px] leading-tight text-slate-500">48h each</p>
+                <p className="hidden text-[9px] leading-tight text-slate-500 sm:block">48h each</p>
               </td>
               <td className="p-1 align-middle">
-                <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+                <div className="sm:hidden">
+                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH_MOBILE} />
+                </div>
+                <div className="hidden sm:block">
+                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+                </div>
               </td>
               <td className="sticky right-0 z-10 bg-[#131f36]" />
             </tr>
@@ -165,11 +173,14 @@ export function WeeklyTimeline({
 
               return (
                 <tr key={skill} className={`border-b border-slate-800/50 ${rowClass}`}>
-                  <td className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 align-middle">
-                    <div className="flex items-start gap-2">
+                  <td className="sticky left-0 z-10 bg-[#131f36] px-2 py-2 align-middle sm:px-3">
+                    <div className="flex items-start gap-1.5 sm:gap-2">
                       <SkillIcon skill={skill} size="lg" />
                       <div className="min-w-0">
-                        <span className="font-medium text-slate-200">{skill}</span>
+                        <span className="hidden text-sm font-medium text-slate-200 sm:inline">{skill}</span>
+                        <span className="text-sm font-medium text-slate-200 sm:hidden" title={skill}>
+                          {skill.split(" ")[0]}
+                        </span>
                         {cov && cov.contributorCount > 0 && (
                           <span className="ml-1 text-[10px] text-slate-500">
                             ({cov.contributorCount})
@@ -191,7 +202,7 @@ export function WeeklyTimeline({
                   </td>
                   <td className="p-1 align-middle">
                     <div
-                      style={{ height: timelineHeight, minWidth: TIMELINE_MIN_WIDTH }}
+                      style={{ height: timelineHeight }}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
                         e.preventDefault();
@@ -203,7 +214,7 @@ export function WeeklyTimeline({
                           slotTargetFromEvent(skill, weekStart, e.currentTarget, e.clientX),
                         );
                       }}
-                      className={`relative w-full cursor-crosshair rounded-md border bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 ${
+                      className={`relative w-full min-w-[480px] cursor-crosshair rounded-md border bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 sm:min-w-[720px] ${
                         dimmed ? "opacity-60" : ""
                       } ${
                         segments.length > 0

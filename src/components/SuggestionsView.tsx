@@ -5,7 +5,7 @@ import type { Member, Skill } from "@/lib/constants";
 import type { GuildConfig } from "@/lib/guild-config";
 import { buildProfilesMap, membersWithRankedProfiles, type ProfilesMap } from "@/lib/member-profile";
 import { buildOptimalSchedule, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
-import { formatXp, TRIAL_XP_FROM_SKILL_XP_RATE } from "@/lib/trial-xp";
+import { formatXp } from "@/lib/trial-xp";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { formatTimeLabel } from "@/lib/trial-schedule";
@@ -112,7 +112,7 @@ export function SuggestionsView({
             type="button"
             disabled={saving}
             onClick={() => onApplyAllUnassigned(plan.suggestions)}
-            className="mt-4 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+            className="mt-4 w-full rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-500 disabled:opacity-50 sm:w-auto"
           >
             Apply all suggestions to planner
           </button>
@@ -174,8 +174,10 @@ export function SuggestionsView({
             <span className="inline-flex items-center gap-1 font-medium text-white">
               <SkillIcon skill={mySuggestion.skill} size="sm" />
               {mySuggestion.skill}
-            </span>{" "}
-            on {formatDayLabel(mySuggestion.plannedDate)} (
+            </span>
+          </p>
+          <p className="mt-1 text-sm text-slate-400">
+            {formatDayLabel(mySuggestion.plannedDate)} ·{" "}
             <span className={rankClass(mySuggestion.preferenceRank)}>
               {rankLabel(mySuggestion.preferenceRank)}
             </span>
@@ -184,21 +186,18 @@ export function SuggestionsView({
                 {" "}
                 · {formatXp(mySuggestion.xpPerHour)} XP/h →{" "}
                 {formatXp(mySuggestion.trialXpContribution)} trial XP (
-                {Math.round(TRIAL_XP_FROM_SKILL_XP_RATE * 100)}% of{" "}
-                {formatXp(mySuggestion.skillXp24h)} skill XP) (
                 <span className={soloClass(mySuggestion.soloCompletes)}>
                   {soloLabel(mySuggestion.soloCompletes)}
                 </span>
                 )
               </>
             )}
-            )
           </p>
           <button
             type="button"
             disabled={saving}
             onClick={() => onApplySuggestion(mySuggestion)}
-            className="mt-2 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500"
+            className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-sky-500 sm:mt-2 sm:w-auto sm:py-1.5 sm:text-xs"
           >
             Apply my suggestion
           </button>
@@ -210,8 +209,26 @@ export function SuggestionsView({
           <h3 className="mb-2 text-sm font-medium text-slate-400">
             Already scheduled ({plan.alreadyScheduled.length})
           </h3>
-          <div className="overflow-hidden rounded-xl border border-slate-700/50">
-            <table className="w-full text-sm">
+          <div className="space-y-2 md:hidden">
+            {plan.alreadyScheduled.map((s) => (
+              <div
+                key={s.id}
+                className="rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2.5"
+              >
+                <p className="font-medium text-slate-200">{s.member_name}</p>
+                <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-300">
+                  <SkillIcon skill={s.skill as Skill} size="xs" />
+                  {s.skill}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {formatDayLabel(s.planned_date, true)}{" "}
+                  {s.planned_start_at ? formatTimeLabel(s.planned_start_at, true) : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
+            <table className="w-full min-w-[480px] text-sm">
               <thead>
                 <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Member</th>
@@ -248,8 +265,51 @@ export function SuggestionsView({
         {plan.suggestions.length === 0 ? (
           <p className="text-sm text-slate-500">Everyone is already scheduled this week.</p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-slate-700/50">
-            <table className="w-full text-sm">
+          <>
+            <div className="space-y-2 md:hidden">
+              {plan.suggestions.map((s) => (
+                <div
+                  key={s.member}
+                  className={`rounded-lg border border-slate-700/50 px-3 py-3 ${
+                    s.member === currentUser ? "border-sky-500/40 bg-sky-950/25" : "bg-slate-900/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-slate-200">{s.member}</p>
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={() => onApplySuggestion(s)}
+                      className="shrink-0 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-slate-300">
+                    <SkillIcon skill={s.skill} size="xs" />
+                    {s.skill}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatDayLabel(s.plannedDate, true)} · {formatTimeLabel(s.plannedStartAt, true)}
+                  </p>
+                  <p className={`mt-2 text-xs ${rankClass(s.preferenceRank)}`}>
+                    {rankLabel(s.preferenceRank)}
+                    {s.xpPerHour != null && (
+                      <>
+                        {" "}
+                        · {formatXp(s.trialXpContribution)} trial XP (
+                        <span className={soloClass(s.soloCompletes)}>
+                          {soloLabel(s.soloCompletes)}
+                        </span>
+                        )
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Member</th>
@@ -305,7 +365,8 @@ export function SuggestionsView({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
       </section>
     </div>

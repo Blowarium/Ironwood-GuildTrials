@@ -415,13 +415,15 @@ export function GuildTrialsApp() {
     await load();
   }
 
-  const tabItems: [ViewTab, string][] = [
-    ["planner", "Weekly planner"],
-    ["members", "Members"],
-    ["suggestions", "Smart suggestions"],
-    ["buildings", "Guild buildings"],
+  const tabItems: { id: ViewTab; label: string; shortLabel: string }[] = [
+    { id: "planner", label: "Weekly planner", shortLabel: "Planner" },
+    { id: "members", label: "Members", shortLabel: "Members" },
+    { id: "suggestions", label: "Smart suggestions", shortLabel: "Suggest" },
+    { id: "buildings", label: "Guild buildings", shortLabel: "Buildings" },
   ];
-  if (isStaff) tabItems.push(["roster", "Guild roster"]);
+  if (isStaff) {
+    tabItems.push({ id: "roster", label: "Guild roster", shortLabel: "Roster" });
+  }
 
   if (!currentUser) {
     return (
@@ -436,26 +438,29 @@ export function GuildTrialsApp() {
       <MemberSelectModal open={memberSelectOpen} onSelect={handleMemberSelect} />
 
       <header className="border-b border-slate-700/60 bg-[#111d33]/90 backdrop-blur">
-        <div className="mx-auto max-w-[1600px] px-4 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <GameIcon size={40} className="shrink-0" />
-            <div className="shrink-0">
-              <p className="text-[10px] font-medium uppercase tracking-widest text-sky-400/90">
-                Ironwood RPG
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-bold leading-tight text-white">
-                  Guild Trials — Weekly Planner
-                </h1>
-                <button
-                  type="button"
-                  onClick={() => setGuideOpen(true)}
-                  className="rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 text-xs font-medium text-sky-300 hover:bg-slate-700"
-                >
-                  Guide
-                </button>
+        <div className="mx-auto max-w-[1600px] px-3 py-3 sm:px-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex min-w-0 items-start gap-3">
+              <GameIcon size={40} className="shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-widest text-sky-400/90">
+                  Ironwood RPG
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-base font-bold leading-tight text-white sm:text-lg">
+                    <span className="sm:hidden">Guild Trials</span>
+                    <span className="hidden sm:inline">Guild Trials — Weekly Planner</span>
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => setGuideOpen(true)}
+                    className="rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 text-xs font-medium text-sky-300 hover:bg-slate-700"
+                  >
+                    Guide
+                  </button>
+                </div>
+                <p className="hidden text-xs text-slate-500 sm:block">{TRIAL_WINDOW_NOTE}</p>
               </div>
-              <p className="text-xs text-slate-500">{TRIAL_WINDOW_NOTE}</p>
             </div>
             <ProfileHeaderBar
               currentUser={currentUser}
@@ -478,13 +483,13 @@ export function GuildTrialsApp() {
         </div>
       )}
 
-      <main className="mx-auto max-w-[1600px] space-y-4 px-4 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <main className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 sm:px-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <p className="text-sm text-slate-400">
             {formatWeekRange(weekStart)}
-            <span className="text-slate-500"> · All times UTC+2</span>
+            <span className="text-slate-500"> · UTC+2</span>
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto mobile-scroll-x pb-0.5">
             {[0, 1, 2].map((offset) => {
               const start = getWeekStart(new Date(), offset);
               return (
@@ -492,7 +497,7 @@ export function GuildTrialsApp() {
                   key={offset}
                   type="button"
                   onClick={() => setWeekOffset(offset)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                     weekOffset === offset
                       ? "bg-sky-600 text-white shadow-lg shadow-sky-900/40"
                       : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
@@ -511,20 +516,23 @@ export function GuildTrialsApp() {
           <p className="rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300">{error}</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-700/50 pb-2">
-          {tabItems.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setView(id)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                view === id ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          <div className="ml-auto flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2 border-b border-slate-700/50 pb-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex gap-1.5 overflow-x-auto mobile-scroll-x pb-0.5 sm:flex-wrap sm:overflow-visible">
+            {tabItems.map(({ id, label, shortLabel }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setView(id)}
+                className={`shrink-0 rounded-md px-3 py-2 text-sm font-medium sm:py-1.5 ${
+                  view === id ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <span className="sm:hidden">{shortLabel}</span>
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-3 sm:ml-auto">
             <button
               type="button"
               onClick={() => setGuideOpen(true)}
@@ -581,7 +589,7 @@ export function GuildTrialsApp() {
             onOpenProfile={openProfile}
           />
         ) : (
-          <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_300px]">
             <div>
               {view === "planner" && (
                 <>

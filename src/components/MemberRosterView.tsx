@@ -72,8 +72,81 @@ export function MemberRosterView({
         {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-700/50">
-        <table className="w-full text-sm">
+      <div className="space-y-2 md:hidden">
+        {roster.map((row) => (
+          <div
+            key={row.member_name}
+            className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-medium text-slate-200">{row.member_name}</p>
+              <button
+                type="button"
+                onClick={() => onOpenProfile(row.member_name)}
+                className="shrink-0 text-xs text-sky-400 hover:underline"
+              >
+                View profile
+              </button>
+            </div>
+            <div className="mt-2">
+              {isLeader && row.member_name !== currentUser ? (
+                <select
+                  value={row.role}
+                  disabled={savingRole === row.member_name}
+                  onChange={(e) =>
+                    handleRoleChange(row.member_name, e.target.value as GuildRole)
+                  }
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white"
+                >
+                  {GUILD_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <RoleBadge role={row.role} />
+              )}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-slate-500">Ranks</p>
+                <p className="text-slate-200">
+                  {row.ranked_skill_count}/{row.total_skills}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">XP/h</p>
+                <p className="text-slate-200">
+                  {row.xp_filled_count}/{row.total_skills}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Prefs</p>
+                <p className={row.preferences_customized ? "text-emerald-400" : "text-slate-500"}>
+                  {row.preferences_customized ? "Customized" : "Default"}
+                </p>
+              </div>
+              <div>
+                <p className="text-slate-500">Profile</p>
+                <p className={row.profile_complete ? "text-emerald-400" : "text-amber-300"}>
+                  {row.profile_complete ? "Ready" : "Incomplete"}
+                </p>
+              </div>
+            </div>
+            <div className="mt-2">
+              <LastEditedNote
+                by={row.profile_updated_by}
+                at={row.profile_updated_at}
+                compact
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
+        <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
               <th className="px-3 py-2">Member</th>

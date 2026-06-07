@@ -131,12 +131,12 @@ function CellAssignmentForm({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-2 sm:items-center sm:p-4"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-lg rounded-xl border border-slate-600 bg-[#131f36] p-5 shadow-2xl"
+        className="w-full max-w-lg rounded-xl border border-slate-600 bg-[#131f36] p-4 shadow-2xl sm:p-5"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

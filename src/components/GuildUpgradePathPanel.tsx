@@ -171,7 +171,7 @@ export function GuildUpgradePathPanel({
         </>
       )}
 
-      <div className="mt-3 overflow-x-auto">
+      <div className="mt-3 mobile-scroll-x overflow-x-auto">
         <table className="w-full min-w-[980px] text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
