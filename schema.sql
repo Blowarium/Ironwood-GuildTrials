@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS member_skill_profiles (
   xp_per_hour INTEGER,
   preference_rank INTEGER,
   ironwood_action_id INTEGER,
+  skill_locked BOOLEAN NOT NULL DEFAULT FALSE,
   PRIMARY KEY (member_name, skill)
 );
 

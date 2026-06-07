@@ -8,6 +8,8 @@ export interface MemberSkillProfileRow {
   xp_per_hour: number | null;
   preference_rank: number | null;
   ironwood_action_id: number | null;
+  /** When true, smart schedule never assigns this member to this skill. */
+  skill_locked: boolean;
 }
 
 export interface MemberProfile {
@@ -68,11 +70,14 @@ export function inferPreferencesCustomized(rows: MemberSkillProfileRow[]): boole
   return true;
 }
 
-/** Lower rank number = higher priority; ties keep SKILLS list order. */
+/** Lower rank number = higher priority; ties keep SKILLS list order. Locked skills sort last. */
 export function compareSkillsByPreferenceRank(
-  a: { skill: Skill; preference_rank: number | null },
-  b: { skill: Skill; preference_rank: number | null },
+  a: { skill: Skill; preference_rank: number | null; skill_locked?: boolean },
+  b: { skill: Skill; preference_rank: number | null; skill_locked?: boolean },
 ): number {
+  const aLocked = a.skill_locked === true;
+  const bLocked = b.skill_locked === true;
+  if (aLocked !== bLocked) return aLocked ? 1 : -1;
   const ar = a.preference_rank ?? 999;
   const br = b.preference_rank ?? 999;
   if (ar !== br) return ar - br;
@@ -85,6 +90,7 @@ export function emptySkillRows(): MemberSkillProfileRow[] {
     xp_per_hour: null,
     preference_rank: NEUTRAL_PREFERENCE_RANK,
     ironwood_action_id: null,
+    skill_locked: false,
   }));
 }
 
@@ -127,12 +133,13 @@ export function normalizeProfile(profile: MemberProfile): MemberProfile {
   const bySkill = new Map(profile.skills.map((s) => [s.skill, s]));
   const mergedRows = SKILLS.map((skill) => {
     const existing = bySkill.get(skill);
-    return {
-      skill,
-      xp_per_hour: existing?.xp_per_hour ?? null,
-      preference_rank: existing?.preference_rank ?? null,
-      ironwood_action_id: existing?.ironwood_action_id ?? null,
-    };
+        return {
+          skill,
+          xp_per_hour: existing?.xp_per_hour ?? null,
+          preference_rank: existing?.preference_rank ?? null,
+          ironwood_action_id: existing?.ironwood_action_id ?? null,
+          skill_locked: existing?.skill_locked === true,
+        };
   });
 
   const preferencesCustomized =
@@ -181,8 +188,21 @@ export function getPreferenceRankFromProfile(
   profile: MemberProfile | undefined,
   skill: Skill,
 ): number | null {
+  if (isSkillLockedForMember(profile, skill)) return null;
   const rank = profile?.skills.find((s) => s.skill === skill)?.preference_rank;
   return rank != null && rank > 0 ? rank : null;
+}
+
+export function isSkillLockedForMember(
+  profile: MemberProfile | undefined,
+  skill: Skill,
+): boolean {
+  return profile?.skills.find((s) => s.skill === skill)?.skill_locked === true;
+}
+
+export function lockedSkillCount(profile: MemberProfile | undefined): number {
+  if (!profile) return 0;
+  return profile.skills.filter((s) => s.skill_locked).length;
 }
 
 export function getPreferenceScoreFromProfile(
@@ -222,6 +242,7 @@ export interface ProfileSkillInput {
   xpPerHour?: unknown;
   preferenceRank?: unknown;
   ironwoodActionId?: unknown;
+  skillLocked?: unknown;
 }
 
 export function validateAndParseProfileSkills(
@@ -265,6 +286,7 @@ export function validateAndParseProfileSkills(
       xp_per_hour: xp,
       preference_rank,
       ironwood_action_id,
+      skill_locked: input.skillLocked === true || input.skillLocked === "true",
     });
   }
 

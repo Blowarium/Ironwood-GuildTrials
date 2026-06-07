@@ -83,3 +83,6 @@ CREATE TABLE IF NOT EXISTS skill_week_completions (
 );
 
 ALTER TABLE member_skill_profiles ADD COLUMN IF NOT EXISTS ironwood_action_id INTEGER;
+
+ALTER TABLE member_skill_profiles
+ADD COLUMN IF NOT EXISTS skill_locked BOOLEAN NOT NULL DEFAULT FALSE;

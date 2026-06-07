@@ -122,6 +122,11 @@ export async function ensureSchema(): Promise<void> {
   `;
 
   await db`
+    ALTER TABLE member_skill_profiles
+    ADD COLUMN IF NOT EXISTS skill_locked BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+
+  await db`
     CREATE TABLE IF NOT EXISTS member_profile_meta (
       member_name TEXT PRIMARY KEY,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -164,6 +169,7 @@ async function migrateNeutralPreferenceDefaults(db: NeonQueryFunction<false, fal
       xp_per_hour: null,
       preference_rank: r.preference_rank,
       ironwood_action_id: null,
+      skill_locked: false,
     }));
 
     const customized = inferPreferencesCustomized(rows);

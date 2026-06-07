@@ -3,6 +3,7 @@ import {
   compareSkillsByPreferenceRank,
   getPreferenceRankFromProfile,
   getXpPerHourForSkill,
+  isSkillLockedForMember,
   membersWithRankedProfiles,
   type MemberProfile,
   type ProfilesMap,
@@ -117,7 +118,7 @@ function buildSkillProgress(
 function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
   if (!profile) return [];
   return [...profile.skills]
-    .filter((s) => s.preference_rank != null && s.preference_rank > 0)
+    .filter((s) => !s.skill_locked && s.preference_rank != null && s.preference_rank > 0)
     .sort(compareSkillsByPreferenceRank)
     .map((s) => s.skill);
 }
@@ -140,6 +141,8 @@ function canAssignMemberToSkill(
   skillState: Map<Skill, SkillState>,
   required: number,
 ): boolean {
+  if (isSkillLockedForMember(profiles.get(member), skill)) return false;
+
   const preferred = memberPreferredSkills(profiles.get(member));
   if (preferred.length === 0) return true;
   if (preferred.includes(skill)) return true;

@@ -41,7 +41,7 @@ async function fetchProfileFromDb(
   `) as { updated_at: string; updated_by: Member | null; preferences_customized: boolean }[];
 
   const skillRows = (await db`
-    SELECT skill, xp_per_hour, preference_rank, ironwood_action_id
+    SELECT skill, xp_per_hour, preference_rank, ironwood_action_id, skill_locked
     FROM member_skill_profiles
     WHERE member_name = ${memberName}
   `) as {
@@ -49,6 +49,7 @@ async function fetchProfileFromDb(
     xp_per_hour: number | null;
     preference_rank: number | null;
     ironwood_action_id: number | null;
+    skill_locked: boolean;
   }[];
 
   return normalizeProfile({
@@ -59,6 +60,7 @@ async function fetchProfileFromDb(
           xp_per_hour: r.xp_per_hour,
           preference_rank: r.preference_rank,
           ironwood_action_id: r.ironwood_action_id,
+          skill_locked: r.skill_locked === true,
         }))
       : emptySkillRows(),
     updated_at: metaRows[0]?.updated_at ?? new Date(0).toISOString(),
@@ -188,8 +190,8 @@ export async function PUT(request: NextRequest) {
   await db`DELETE FROM member_skill_profiles WHERE member_name = ${body.memberName}`;
   for (const row of parsed.rows) {
     await db`
-      INSERT INTO member_skill_profiles (member_name, skill, xp_per_hour, preference_rank, ironwood_action_id)
-      VALUES (${body.memberName}, ${row.skill}, ${row.xp_per_hour}, ${row.preference_rank}, ${row.ironwood_action_id})
+      INSERT INTO member_skill_profiles (member_name, skill, xp_per_hour, preference_rank, ironwood_action_id, skill_locked)
+      VALUES (${body.memberName}, ${row.skill}, ${row.xp_per_hour}, ${row.preference_rank}, ${row.ironwood_action_id}, ${row.skill_locked})
     `;
   }
   await db`

@@ -92,8 +92,9 @@ export function SuggestionsView({
         <p className="mt-1 text-sm text-slate-400">
           Suggests assignments for members not yet signed up this week. Each member is seated on
           their highest-ranked preferred skill that still helps complete the week — profile
-          preferences come first, XP/h only breaks ties. All 16 trials get coverage, then trial XP
-          at hall level {plan.hallLevel} is filled before anyone is placed on a lower-ranked skill.
+          preferences come first, XP/h only breaks ties. Locked-out skills are never suggested.
+          All 16 trials get coverage, then trial XP at hall level {plan.hallLevel} is filled before
+          anyone is placed on a lower-ranked skill.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <Stat label="Suggested" value={String(plan.stats.totalSuggestions)} />

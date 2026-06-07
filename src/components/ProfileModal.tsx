@@ -94,6 +94,7 @@ export function ProfileModal({
         xpPerHour: s.xp_per_hour,
         preferenceRank: s.preference_rank,
         ironwoodActionId: resolveProfileActionId(s.skill, s.ironwood_action_id),
+        skillLocked: s.skill_locked,
       })),
     });
     setSaving(false);
@@ -216,8 +217,8 @@ export function ProfileModal({
             {isSelf ? "Your profile" : `${targetMember}'s profile`}
           </h2>
           <p className="mt-0.5 text-sm text-slate-400">
-            Set XP/h for each skill, pick the Ironwood action used for XP estimates, and rank your
-            preferences (1 = highest; ties allowed).
+            Set XP/h for each skill, pick the Ironwood action used for XP estimates, rank your
+            preferences (1 = highest; ties allowed), and lock out skills you never want assigned.
           </p>
           {initialProfile && (
             <LastEditedNote by={initialProfile.updated_by} at={initialProfile.updated_at} />
@@ -251,25 +252,28 @@ export function ProfileModal({
               <IronwoodXpImportReport payload={lastImportReport} />
             </div>
           )}
-          <div className="grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px] gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px]">
+          <div className="grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px_36px] gap-x-2 gap-y-1 text-[10px] font-medium uppercase tracking-wide text-slate-500 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px]">
             <span />
             <span>Skill</span>
             <span>Ironwood action</span>
             <span>XP / hour</span>
             <span>Rank</span>
+            <span title="Lock out of smart schedule">Lock</span>
           </div>
           <ul className="mt-1 space-y-1">
             {displayRows.map((row) => (
               <li
                 key={row.skill}
-                draggable={canEdit}
+                draggable={canEdit && !row.skill_locked}
                 onDragStart={() => setDragSkill(row.skill)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(row.skill)}
-                className={`grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px] items-center gap-x-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px] ${
-                  dragSkill === row.skill
-                    ? "border-sky-500/50 bg-sky-950/30"
-                    : "border-slate-700/50 bg-slate-900/40"
+                className={`grid grid-cols-[24px_minmax(0,1fr)_minmax(0,1.4fr)_88px_56px_36px] items-center gap-x-2 rounded-lg border px-2 py-1.5 sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px] ${
+                  row.skill_locked
+                    ? "border-red-500/30 bg-red-950/20 opacity-80"
+                    : dragSkill === row.skill
+                      ? "border-sky-500/50 bg-sky-950/30"
+                      : "border-slate-700/50 bg-slate-900/40"
                 }`}
               >
                 <span
@@ -321,12 +325,32 @@ export function ProfileModal({
                   type="number"
                   min={1}
                   max={SKILLS.length}
-                  disabled={!canEdit}
+                  disabled={!canEdit || row.skill_locked}
                   placeholder="—"
                   value={row.preference_rank ?? ""}
                   onChange={(e) => handleRankInput(row.skill, e.target.value)}
                   className="w-full rounded border border-slate-600 bg-slate-900 px-1 py-1 text-xs text-white disabled:opacity-50"
                 />
+                <button
+                  type="button"
+                  disabled={!canEdit}
+                  onClick={() =>
+                    updateSkill(row.skill, { skill_locked: !row.skill_locked })
+                  }
+                  title={
+                    row.skill_locked
+                      ? "Locked — excluded from smart schedule suggestions"
+                      : "Lock this skill out of smart schedule suggestions"
+                  }
+                  className={`rounded border px-1 py-1 text-xs disabled:opacity-50 ${
+                    row.skill_locked
+                      ? "border-red-500/50 bg-red-950/50 text-red-300"
+                      : "border-slate-600 bg-slate-900 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                  }`}
+                  aria-pressed={row.skill_locked}
+                >
+                  {row.skill_locked ? "🔒" : "○"}
+                </button>
               </li>
             ))}
           </ul>
