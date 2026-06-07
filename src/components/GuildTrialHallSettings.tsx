@@ -41,13 +41,18 @@ export function GuildTrialHallSettings({
   });
 
   return (
-    <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3">
-      <p className="text-sm font-medium text-white">Guild Trial Hall level</p>
-      <p className="mt-0.5 text-xs text-slate-500">
-        Trial XP needed per skill:{" "}
-        <span className="text-sky-300">8,000 × (level + 1)</span> ={" "}
-        <span className="font-medium text-white">{formatXp(xpPerTrial)} XP</span>
-        <span className="text-slate-500"> · members contribute 5% of skill XP earned in 24h</span>
+    <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-3">
+      <p className="text-xs font-medium text-white sm:text-sm">Guild Trial Hall level</p>
+      <p className="mt-0.5 text-[10px] text-slate-500 sm:text-xs">
+        <span className="sm:hidden">
+          Per skill: <span className="font-medium text-white">{formatXp(xpPerTrial)} XP</span>
+        </span>
+        <span className="hidden sm:inline">
+          Trial XP needed per skill:{" "}
+          <span className="text-sky-300">8,000 × (level + 1)</span> ={" "}
+          <span className="font-medium text-white">{formatXp(xpPerTrial)} XP</span>
+          <span className="text-slate-500"> · members contribute 5% of skill XP earned in 24h</span>
+        </span>
       </p>
       {config && <LastEditedNote by={config.updated_by} at={config.updated_at} compact />}
       {!canEdit ? (

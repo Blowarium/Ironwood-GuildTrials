@@ -46,14 +46,19 @@ export function MemberRosterView({
   const prefsCustomized = roster.filter((r) => r.preferences_customized).length;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
-        <h2 className="text-lg font-semibold text-white">Guild roster</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          Track who has filled in skill XP/h and preference ranks. {complete}/{roster.length}{" "}
-          profiles look ready (3+ ranks with XP/h).
+    <div className="space-y-2 sm:space-y-4">
+      <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-4">
+        <h2 className="text-sm font-semibold text-white sm:text-lg">Guild roster</h2>
+        <p className="mt-0.5 text-xs text-slate-400 sm:mt-1 sm:text-sm">
+          <span className="sm:hidden">
+            {complete}/{roster.length} ready · {prefsCustomized}/{roster.length} prefs set
+          </span>
+          <span className="hidden sm:inline">
+            Track who has filled in skill XP/h and preference ranks. {complete}/{roster.length}{" "}
+            profiles look ready (3+ ranks with XP/h).
+          </span>
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-2 hidden gap-3 sm:grid sm:grid-cols-2">
           <div className="rounded-lg bg-slate-900/50 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wide text-slate-500">Profiles ready</p>
             <p className="text-lg font-bold text-white">
@@ -72,23 +77,23 @@ export function MemberRosterView({
         {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
       </div>
 
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-1 md:hidden">
         {roster.map((row) => (
           <div
             key={row.member_name}
-            className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3"
+            className="mobile-card rounded-lg border border-slate-700/50 bg-[#131f36]"
           >
-            <div className="flex items-start justify-between gap-2">
-              <p className="font-medium text-slate-200">{row.member_name}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-xs font-medium text-slate-200">{row.member_name}</p>
               <button
                 type="button"
                 onClick={() => onOpenProfile(row.member_name)}
-                className="shrink-0 text-xs text-sky-400 hover:underline"
+                className="shrink-0 text-[10px] text-sky-400 hover:underline"
               >
-                View profile
+                Profile
               </button>
             </div>
-            <div className="mt-2">
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {isLeader && row.member_name !== currentUser ? (
                 <select
                   value={row.role}
@@ -96,7 +101,7 @@ export function MemberRosterView({
                   onChange={(e) =>
                     handleRoleChange(row.member_name, e.target.value as GuildRole)
                   }
-                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white"
+                  className="rounded border border-slate-600 bg-slate-900 px-1.5 py-1 text-[11px] text-white"
                 >
                   {GUILD_ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -107,39 +112,15 @@ export function MemberRosterView({
               ) : (
                 <RoleBadge role={row.role} />
               )}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-slate-500">Ranks</p>
-                <p className="text-slate-200">
-                  {row.ranked_skill_count}/{row.total_skills}
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-500">XP/h</p>
-                <p className="text-slate-200">
-                  {row.xp_filled_count}/{row.total_skills}
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-500">Prefs</p>
-                <p className={row.preferences_customized ? "text-emerald-400" : "text-slate-500"}>
-                  {row.preferences_customized ? "Customized" : "Default"}
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-500">Profile</p>
-                <p className={row.profile_complete ? "text-emerald-400" : "text-amber-300"}>
-                  {row.profile_complete ? "Ready" : "Incomplete"}
-                </p>
-              </div>
-            </div>
-            <div className="mt-2">
-              <LastEditedNote
-                by={row.profile_updated_by}
-                at={row.profile_updated_at}
-                compact
-              />
+              <span className="text-[10px] text-slate-500">
+                {row.ranked_skill_count}/{row.total_skills} ranks · {row.xp_filled_count}/
+                {row.total_skills} XP/h
+              </span>
+              <span
+                className={`text-[10px] ${row.profile_complete ? "text-emerald-400" : "text-amber-300"}`}
+              >
+                {row.profile_complete ? "Ready" : "Incomplete"}
+              </span>
             </div>
           </div>
         ))}

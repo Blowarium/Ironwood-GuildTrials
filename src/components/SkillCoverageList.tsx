@@ -73,11 +73,11 @@ export function SkillCoverageList({
   const inProgress = stats.skillCoverage.filter((s) => s.weekState === "in_progress");
 
   return (
-    <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-3">
-      <h3 className="text-sm font-semibold text-white">Skill status</h3>
-      <p className="text-[10px] text-slate-500">Mark done when the guild trial is finished</p>
+    <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-3">
+      <h3 className="text-xs font-semibold text-white sm:text-sm">Skill status</h3>
+      <p className="hidden text-[10px] text-slate-500 sm:block">Mark done when the guild trial is finished</p>
 
-      <div className="mt-2 space-y-2">
+      <div className="mt-1.5 space-y-1 sm:mt-2 sm:space-y-2">
         <RecapBox
           title={`Needs signup (${needsSignup.length})`}
           tone="amber"
@@ -98,16 +98,16 @@ export function SkillCoverageList({
         />
       </div>
 
-      <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+      <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:mt-3">
         All skills
       </p>
-      <ul className="mt-1.5 grid gap-1.5 sm:grid-cols-2 xl:grid-cols-1">
+      <ul className="mt-1 grid gap-1 sm:mt-1.5 sm:grid-cols-2 sm:gap-1.5 xl:grid-cols-1">
         {stats.skillCoverage.map((row) => {
           const xp = xpBySkill.get(row.skill);
           return (
           <li
             key={row.skill}
-            className={`rounded-md border px-2 py-1.5 ${
+            className={`rounded-md border px-1.5 py-1 sm:px-2 sm:py-1.5 ${
               row.weekState === "complete"
                 ? "border-emerald-500/25 bg-emerald-950/10"
                 : row.weekState === "in_progress"

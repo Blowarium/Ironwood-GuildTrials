@@ -26,6 +26,17 @@ body {
   overscroll-behavior-x: contain;
 }
 
+/* Shared mobile density — panels, cards, section spacing */
+@media (max-width: 639px) {
+  .mobile-panel {
+    padding: 0.5rem 0.625rem;
+  }
+
+  .mobile-card {
+    padding: 0.5rem 0.625rem;
+  }
+}
+
 /* Crisp pixel-art skill icons from Ironwood RPG */
 .pixel-icon {
   image-rendering: pixelated;

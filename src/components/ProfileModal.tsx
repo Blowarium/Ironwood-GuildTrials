@@ -204,11 +204,11 @@ export function ProfileModal({
         aria-modal="true"
         aria-labelledby="profile-modal-title"
       >
-        <div className="shrink-0 border-b border-slate-700/60 px-4 py-3 sm:px-5">
-          <h2 id="profile-modal-title" className="text-lg font-bold text-white">
+        <div className="shrink-0 border-b border-slate-700/60 px-3 py-2 sm:px-5 sm:py-3">
+          <h2 id="profile-modal-title" className="text-base font-bold text-white sm:text-lg">
             {isSelf ? "Your profile" : `${targetMember}'s profile`}
           </h2>
-          <p className="mt-0.5 text-sm text-slate-400">
+          <p className="mt-0.5 hidden text-sm text-slate-400 sm:block">
             Set XP/h for each skill, pick the Ironwood action used for XP estimates, rank your
             preferences (1 = highest; ties allowed), and lock out skills you never want assigned.
           </p>
@@ -226,7 +226,7 @@ export function ProfileModal({
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2 sm:px-5 sm:py-3">
           {canEdit && showImportGuide && (
             <div className="mb-3">
               <IronwoodXpImportGuide
@@ -252,7 +252,7 @@ export function ProfileModal({
             <span>Rank</span>
             <span title="Lock out of smart schedule">Lock</span>
           </div>
-          <ul className="mt-1 space-y-2 sm:space-y-1">
+          <ul className="mt-1 space-y-1.5 sm:space-y-1">
             {displayRows.map((row) => (
               <li
                 key={row.skill}
@@ -260,7 +260,7 @@ export function ProfileModal({
                 onDragStart={() => setDragSkill(row.skill)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => handleDrop(row.skill)}
-                className={`rounded-lg border px-3 py-3 sm:grid sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px] sm:items-center sm:gap-x-2 sm:px-2 sm:py-1.5 ${
+                className={`rounded-lg border px-2 py-2 sm:grid sm:grid-cols-[28px_minmax(0,1fr)_minmax(0,1.6fr)_100px_64px_40px] sm:items-center sm:gap-x-2 sm:px-2 sm:py-1.5 ${
                   row.skill_locked
                     ? "border-red-500/30 bg-red-950/20 opacity-80"
                     : dragSkill === row.skill
@@ -300,8 +300,8 @@ export function ProfileModal({
                     {row.skill_locked ? "🔒 Locked" : "○ Lock"}
                   </button>
                 </div>
-                <label className="mt-3 block sm:mt-0 sm:contents">
-                  <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
+                <label className="mt-2 block sm:mt-0 sm:contents">
+                  <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
                     Ironwood action
                   </span>
                   <select
@@ -316,7 +316,7 @@ export function ProfileModal({
                           : null,
                       })
                     }
-                    className="min-w-0 w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-[11px]"
+                    className="min-w-0 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-[11px]"
                   >
                     {getCatalogActions(row.skill).map((action) => (
                       <option key={action.actionId} value={action.actionId}>
@@ -325,9 +325,9 @@ export function ProfileModal({
                     ))}
                   </select>
                 </label>
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:mt-0 sm:contents">
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-0 sm:contents">
                   <label className="block sm:contents">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
+                    <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
                       XP / hour
                     </span>
                     <input
@@ -343,11 +343,11 @@ export function ProfileModal({
                             : null,
                         })
                       }
-                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white disabled:opacity-50 sm:py-1 sm:text-xs"
+                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:py-1 sm:text-xs"
                     />
                   </label>
                   <label className="block sm:contents">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
+                    <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-slate-500 sm:hidden">
                       Rank
                     </span>
                     <input
@@ -358,7 +358,7 @@ export function ProfileModal({
                       placeholder="—"
                       value={row.preference_rank ?? ""}
                       onChange={(e) => handleRankInput(row.skill, e.target.value)}
-                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-2 text-sm text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-xs"
+                      className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-xs text-white disabled:opacity-50 sm:px-1 sm:py-1 sm:text-xs"
                     />
                   </label>
                 </div>

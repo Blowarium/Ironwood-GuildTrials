@@ -438,23 +438,23 @@ export function GuildTrialsApp() {
       <MemberSelectModal open={memberSelectOpen} onSelect={handleMemberSelect} />
 
       <header className="border-b border-slate-700/60 bg-[#111d33]/90 backdrop-blur">
-        <div className="mx-auto max-w-[1600px] px-3 py-3 sm:px-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="flex min-w-0 items-start gap-3">
-              <GameIcon size={40} className="shrink-0" />
+        <div className="mx-auto max-w-[1600px] px-2 py-2 sm:px-4 sm:py-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:items-start sm:gap-3">
+              <GameIcon size={40} className="h-8 w-8 shrink-0 sm:h-10 sm:w-10" />
               <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-sky-400/90">
+                <p className="hidden text-[10px] font-medium uppercase tracking-widest text-sky-400/90 sm:block">
                   Ironwood RPG
                 </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-base font-bold leading-tight text-white sm:text-lg">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <h1 className="text-sm font-bold leading-tight text-white sm:text-lg">
                     <span className="sm:hidden">Guild Trials</span>
                     <span className="hidden sm:inline">Guild Trials — Weekly Planner</span>
                   </h1>
                   <button
                     type="button"
                     onClick={() => setGuideOpen(true)}
-                    className="rounded-md border border-slate-600 bg-slate-800/80 px-2 py-0.5 text-xs font-medium text-sky-300 hover:bg-slate-700"
+                    className="rounded border border-slate-600 bg-slate-800/80 px-1.5 py-0.5 text-[10px] font-medium text-sky-300 hover:bg-slate-700 sm:rounded-md sm:px-2 sm:text-xs"
                   >
                     Guide
                   </button>
@@ -483,13 +483,13 @@ export function GuildTrialsApp() {
         </div>
       )}
 
-      <main className="mx-auto max-w-[1600px] space-y-4 px-3 py-4 sm:px-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-400">
+      <main className="mx-auto max-w-[1600px] space-y-2 px-2 py-2 sm:space-y-4 sm:px-4 sm:py-4">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+          <p className="text-xs text-slate-400 sm:text-sm">
             {formatWeekRange(weekStart)}
             <span className="text-slate-500"> · UTC+2</span>
           </p>
-          <div className="flex gap-2 overflow-x-auto mobile-scroll-x pb-0.5">
+          <div className="mobile-scroll-x flex gap-1 overflow-x-auto pb-0.5 sm:gap-2">
             {[0, 1, 2].map((offset) => {
               const start = getWeekStart(new Date(), offset);
               return (
@@ -497,7 +497,7 @@ export function GuildTrialsApp() {
                   key={offset}
                   type="button"
                   onClick={() => setWeekOffset(offset)}
-                  className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium transition sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-sm ${
                     weekOffset === offset
                       ? "bg-sky-600 text-white shadow-lg shadow-sky-900/40"
                       : "bg-slate-800/80 text-slate-300 hover:bg-slate-700"
@@ -516,14 +516,14 @@ export function GuildTrialsApp() {
           <p className="rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300">{error}</p>
         )}
 
-        <div className="flex flex-col gap-2 border-b border-slate-700/50 pb-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="flex gap-1.5 overflow-x-auto mobile-scroll-x pb-0.5 sm:flex-wrap sm:overflow-visible">
+        <div className="flex flex-col gap-1 border-b border-slate-700/50 pb-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-2">
+          <div className="mobile-scroll-x flex gap-1 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible">
             {tabItems.map(({ id, label, shortLabel }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setView(id)}
-                className={`shrink-0 rounded-md px-3 py-2 text-sm font-medium sm:py-1.5 ${
+                className={`shrink-0 rounded-md px-2 py-1 text-xs font-medium sm:px-3 sm:py-1.5 sm:text-sm ${
                   view === id ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -532,11 +532,11 @@ export function GuildTrialsApp() {
               </button>
             ))}
           </div>
-          <div className="flex shrink-0 items-center gap-3 sm:ml-auto">
+          <div className="flex shrink-0 items-center gap-2 sm:ml-auto sm:gap-3">
             <button
               type="button"
               onClick={() => setGuideOpen(true)}
-              className="text-sm text-slate-400 hover:text-sky-300"
+              className="hidden text-sm text-slate-400 hover:text-sky-300 sm:inline"
             >
               How to use
             </button>
@@ -548,7 +548,7 @@ export function GuildTrialsApp() {
                 loadGuildConfig();
                 loadRoster();
               }}
-              className="text-sm text-sky-400 hover:text-sky-300"
+              className="text-xs text-sky-400 hover:text-sky-300 sm:text-sm"
             >
               Refresh
             </button>
@@ -589,11 +589,11 @@ export function GuildTrialsApp() {
             onOpenProfile={openProfile}
           />
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1fr_280px] xl:grid-cols-[1fr_300px]">
+          <div className="grid gap-3 lg:grid-cols-[1fr_280px] lg:gap-6 xl:grid-cols-[1fr_300px]">
             <div>
               {view === "planner" && (
                 <>
-                  <p className="mb-2 text-xs text-slate-500">
+                  <p className="mb-1 hidden text-xs text-slate-500 sm:mb-2 sm:block">
                     Click the timeline to schedule · drag trials to another skill or time · status
                     updates automatically
                   </p>

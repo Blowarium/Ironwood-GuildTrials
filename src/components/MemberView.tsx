@@ -60,48 +60,45 @@ export function MemberView({
 }) {
   return (
     <>
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-1 md:hidden">
         {MEMBERS.map((m) => {
           const s = signups.find((x) => x.member_name === m);
           return (
             <div
               key={m}
-              className={`rounded-xl border border-slate-700/50 bg-[#131f36] p-3 ${
+              className={`mobile-card rounded-lg border border-slate-700/50 bg-[#131f36] ${
                 m === currentUser ? "ring-1 ring-sky-500/40" : ""
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-medium text-slate-200">{m}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-xs font-medium text-slate-200">{m}</p>
                 {s ? <StatusBadge status={getEffectiveStatus(s)} /> : null}
               </div>
               {s ? (
                 <button
                   type="button"
                   onClick={() => onSelectSignup(s)}
-                  className="mt-2 flex w-full items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-2 text-left text-sm text-sky-300"
+                  className="mt-1 flex w-full items-center gap-1.5 text-left text-[11px] text-sky-300"
                 >
-                  <SkillIcon skill={s.skill as Skill} size="sm" />
-                  <span className="min-w-0">
+                  <SkillIcon skill={s.skill as Skill} size="xs" />
+                  <span className="min-w-0 truncate">
                     {s.skill}
-                    <span className="mt-0.5 block text-xs text-slate-400">
-                      {formatDayLabel(s.planned_date)} · {formatTimeLabel(s.planned_start_at)}
+                    <span className="text-slate-500">
+                      {" "}
+                      · {formatDayLabel(s.planned_date, true)}{" "}
+                      {formatTimeLabel(s.planned_start_at, true)}
                     </span>
                   </span>
                 </button>
               ) : (
-                <p className="mt-2 text-sm text-amber-400/90">Unassigned</p>
-              )}
-              {s && (
-                <div className="mt-2">
-                  <LastEditedNote by={s.last_edited_by} at={s.updated_at} compact />
-                </div>
+                <p className="mt-0.5 text-[11px] text-amber-400/90">Unassigned</p>
               )}
             </div>
           );
         })}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-700/50 bg-[#131f36] md:block mobile-scroll-x">
+      <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 bg-[#131f36] md:block">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-slate-700/60 text-left text-xs text-slate-400">

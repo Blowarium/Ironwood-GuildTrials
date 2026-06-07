@@ -126,7 +126,7 @@ function BuildingIncomeStats({
 }) {
   const cards = (
     <>
-      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
+      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] mobile-panel sm:p-4">
         <p className="text-sm font-medium text-white">Weekly income (now)</p>
         <div className="mt-2 space-y-1">
           <IncomeRow label="Daily quests" value={incomeNow.dailyQuests} />
@@ -141,7 +141,7 @@ function BuildingIncomeStats({
         </div>
       </div>
 
-      <div className="rounded-xl border border-yellow-900/30 bg-yellow-950/15 p-4">
+      <div className="rounded-xl border border-yellow-900/30 bg-yellow-950/15 mobile-panel sm:p-4">
         <p className="text-sm font-medium text-yellow-100">Guild Bank coins (now)</p>
         <p className="mt-0.5 text-[11px] text-slate-500">
           {DEFAULT_GUILD_MEMBER_COUNT} members × level × 1,000 × 13 / day
@@ -155,7 +155,7 @@ function BuildingIncomeStats({
   );
 
   if (layout === "grid") {
-    return <div className="grid gap-4 sm:grid-cols-2">{cards}</div>;
+    return <div className="grid gap-2 sm:grid-cols-2 sm:gap-4">{cards}</div>;
   }
 
   return <div className="space-y-3">{cards}</div>;
@@ -468,7 +468,7 @@ export function GuildBuildingsView({
   if (!canEditHalls) {
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
+        <div className="rounded-xl border border-slate-700/50 bg-[#131f36] mobile-panel sm:p-4">
           <h2 className="text-base font-semibold text-white">Guild Buildings — Upgrade Plan</h2>
           <p className="mt-1 text-sm text-slate-400">
             Official upgrade path set by guild officers, based on current building levels and guild
@@ -497,7 +497,7 @@ export function GuildBuildingsView({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
+      <div className="rounded-xl border border-slate-700/50 bg-[#131f36] mobile-panel sm:p-4">
         <h2 className="text-base font-semibold text-white">Guild Buildings — Credit Planner</h2>
         <p className="mt-1 text-sm text-slate-400">
           Optimal upgrade path to max all buildings, assuming full daily quests, events, and
@@ -512,8 +512,8 @@ export function GuildBuildingsView({
         onSaved={onGuildConfigSaved}
       />
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-        <div className="rounded-xl border border-slate-700/50 bg-[#131f36] p-4">
+      <div className="grid gap-2 lg:grid-cols-[1fr_280px] lg:gap-4">
+        <div className="rounded-xl border border-slate-700/50 bg-[#131f36] mobile-panel sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium text-white">Current buildings</p>
             <div className="flex flex-wrap items-center gap-2">
