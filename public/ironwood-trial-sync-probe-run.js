@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.9.3";
+  var SCRIPT_VERSION = "1.9.4";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -196,6 +196,15 @@
     return new Date(end - TRIAL_MS).toISOString();
   }
 
+  function resolveMemberSchedule(parsed) {
+    var endDate = parsed.endDate || null;
+    if (!endDate) return { endDate: null, inferredStartAt: null };
+    return {
+      endDate: endDate,
+      inferredStartAt: parsed.inferredStartAt || inferStart(endDate),
+    };
+  }
+
   function guildUiVisible() {
     var text = document.body ? document.body.innerText || "" : "";
     return /Members/i.test(text) && (/Trials/i.test(text) || /Quests/i.test(text));
@@ -363,12 +372,13 @@
       var memberKey = normalizeMemberKey(parsed.displayName);
       if (seenMemberKeys[memberKey]) continue;
       seenMemberKeys[memberKey] = true;
+      var schedule = resolveMemberSchedule(parsed);
       out.push({
         displayName: parsed.displayName,
         skillId: skillName,
         exp: parsed.exp,
-        endDate: parsed.endDate,
-        inferredStartAt: parsed.inferredStartAt,
+        endDate: schedule.endDate,
+        inferredStartAt: schedule.inferredStartAt,
         source: "dom.rows",
       });
     }
@@ -774,12 +784,13 @@
       for (var bi = 0; bi < clickables.length; bi++) {
         var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
+        var schedule = resolveMemberSchedule(parsed);
         out.push({
           displayName: parsed.displayName,
           skillId: block.skillName,
           exp: parsed.exp,
-          endDate: parsed.endDate,
-          inferredStartAt: parsed.inferredStartAt,
+          endDate: schedule.endDate,
+          inferredStartAt: schedule.inferredStartAt,
           source: "dom.scoped",
         });
       }
@@ -811,12 +822,13 @@
       for (var li = 0; li < lines.length; li++) {
         var parsed = parseMemberContextFromLines(lines, li);
         if (!parsed) continue;
+        var schedule = resolveMemberSchedule(parsed);
         out.push({
           displayName: parsed.displayName,
           skillId: skill,
           exp: parsed.exp,
-          endDate: parsed.endDate,
-          inferredStartAt: parsed.inferredStartAt,
+          endDate: schedule.endDate,
+          inferredStartAt: schedule.inferredStartAt,
           source: "dom.text",
         });
       }
@@ -841,12 +853,13 @@
       var memberKey = normalizeMemberKey(parsed.displayName);
       if (seenMemberKeys[memberKey]) continue;
       seenMemberKeys[memberKey] = true;
+      var schedule = resolveMemberSchedule(parsed);
       out.push({
         displayName: parsed.displayName,
         skillId: skillName,
         exp: parsed.exp,
-        endDate: parsed.endDate,
-        inferredStartAt: parsed.inferredStartAt,
+        endDate: schedule.endDate,
+        inferredStartAt: schedule.inferredStartAt,
         source: "dom.columns",
       });
     }

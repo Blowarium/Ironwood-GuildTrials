@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.3";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.4";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -540,7 +540,7 @@ export function collectActiveTrialAssignments(
       const endMs = new Date(member.endDate).getTime();
       if (!Number.isNaN(endMs) && endMs <= nowMs) continue;
 
-      const plannedStartAt = member.inferredStartAt;
+      const plannedStartAt = inferTrialStartAtFromEndDate(member.endDate);
       byMember.set(memberName, {
         memberName,
         skill,

@@ -75,6 +75,7 @@ export function TrialProbeResultBanner({
                 {report.assignments.map((a, i) => (
                   <li key={`${a.displayName}-${a.source}-${i}`}>
                     {a.displayName} · skillId {String(a.skillId)} · {a.source}
+                    {a.inferredStartAt ? ` · starts ${a.inferredStartAt}` : ""}
                     {a.endDate ? ` · ends ${a.endDate}` : " · no endDate"}
                   </li>
                 ))}

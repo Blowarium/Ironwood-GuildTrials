@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.3";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.4";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -607,6 +607,12 @@
     return new Date(end - TRIAL_MS).toISOString();
   }
 
+  function resolveMemberSchedule(parsed) {
+    var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
+    var inferredStartAt = parsed.inferredStartAt || inferStart(endDate);
+    return { endDate: endDate, inferredStartAt: inferredStartAt };
+  }
+
   function guildWeekStartFromInstant(iso) {
     var GUILD_OFFSET_MS = 2 * 60 * 60 * 1000;
     var t = new Date(iso).getTime() + GUILD_OFFSET_MS;
@@ -747,7 +753,9 @@
       var inferredStartAt = parsed.inferredStartAt;
       if (!endDate) {
         endDate = new Date(Date.now() + TRIAL_MS).toISOString();
-        inferredStartAt = new Date().toISOString();
+        inferredStartAt = inferStart(endDate);
+      } else if (!inferredStartAt) {
+        inferredStartAt = inferStart(endDate);
       }
 
       membersBySkill[skillName].push({
@@ -951,16 +959,15 @@
       if (seenMemberKeys[memberKey]) continue;
       seenMemberKeys[memberKey] = true;
 
-      var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
-      var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
+      var schedule = resolveMemberSchedule(parsed);
 
       membersBySkill[skillName].push({
         displayName: parsed.displayName,
         skillName: skillName,
         skillId: skillName,
         exp: parsed.exp,
-        endDate: endDate,
-        inferredStartAt: inferredStartAt,
+        endDate: schedule.endDate,
+        inferredStartAt: schedule.inferredStartAt,
         method: "dom-rows",
       });
     }
@@ -1178,15 +1185,14 @@
       for (var bi = 0; bi < clickables.length; bi++) {
         var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
-        var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
-        var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
+        var schedule = resolveMemberSchedule(parsed);
         members.push({
           displayName: parsed.displayName,
           skillName: block.skillName,
           skillId: block.skillName,
           exp: parsed.exp,
-          endDate: endDate,
-          inferredStartAt: inferredStartAt,
+          endDate: schedule.endDate,
+          inferredStartAt: schedule.inferredStartAt,
           method: "dom",
         });
       }
@@ -1243,15 +1249,14 @@
       for (var li = 0; li < lines.length; li++) {
         var parsed = parseMemberContextFromLines(lines, li);
         if (!parsed) continue;
-        var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
-        var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
+        var schedule = resolveMemberSchedule(parsed);
         members.push({
           displayName: parsed.displayName,
           skillName: skill,
           skillId: skill,
           exp: parsed.exp,
-          endDate: endDate,
-          inferredStartAt: inferredStartAt,
+          endDate: schedule.endDate,
+          inferredStartAt: schedule.inferredStartAt,
           method: "dom-text",
         });
       }
