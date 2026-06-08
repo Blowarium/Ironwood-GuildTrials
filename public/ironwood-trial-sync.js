@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.5.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.6.0";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -322,11 +322,70 @@
     return false;
   }
 
+  var FALLBACK_SKILL_ID_MAP = {};
+  for (var fi = 0; fi < SKILL_ORDER.length; fi++) {
+    FALLBACK_SKILL_ID_MAP[fi + 1] = SKILL_ORDER[fi];
+    FALLBACK_SKILL_ID_MAP[String(fi + 1)] = SKILL_ORDER[fi];
+  }
+
   function skillNameFromId(skillData, skillId) {
-    if (!skillData) return null;
-    var data =
-      skillData[skillId] || skillData[String(skillId)] || skillData[Number(skillId)];
-    return data && data.name ? data.name : null;
+    if (!skillId && skillId !== 0) return null;
+    if (skillData) {
+      var data =
+        skillData[skillId] || skillData[String(skillId)] || skillData[Number(skillId)];
+      if (data && data.name) return data.name;
+    }
+    return FALLBACK_SKILL_ID_MAP[skillId] || FALLBACK_SKILL_ID_MAP[String(skillId)] || null;
+  }
+
+  function skillNameForRow(skillData, row) {
+    var fromRow = row && (row.name || row.skillName);
+    if (fromRow && SKILL_ORDER.indexOf(fromRow) >= 0) return fromRow;
+    return skillNameFromId(skillData, row && row.id);
+  }
+
+  function membersForSkillRow(trial, row) {
+    var skillId = row.id;
+    var fromTrial = trialMembersForSkill(trial, skillId);
+    if (fromTrial.length) return fromTrial;
+
+    var rowMembers = row.members;
+    if (Array.isArray(rowMembers) && rowMembers.length) return rowMembers;
+    if (rowMembers && typeof rowMembers === "object") {
+      var vals = Object.values(rowMembers);
+      if (vals.length) return vals;
+    }
+    return [];
+  }
+
+  function mapMemberRecord(m, skillName, method) {
+    return {
+      displayName: m.displayName,
+      skillId: m.skillId,
+      skillName: skillName,
+      exp: m.exp,
+      endDate: m.endDate,
+      inferredStartAt: inferStart(m.endDate),
+      actionId: m.actionId != null ? m.actionId : null,
+      method: method,
+    };
+  }
+
+  function countMembersInPayload(payload) {
+    if (!payload || !payload.skills) return 0;
+    var n = 0;
+    for (var i = 0; i < payload.skills.length; i++) {
+      n += (payload.skills[i].members || []).length;
+    }
+    return n;
+  }
+
+  function payloadScore(payload) {
+    if (!payload || !payload.skills) return -1;
+    var members = countMembersInPayload(payload);
+    if (!members) return -1;
+    var sourceBonus = payload.source === "component" ? 3 : payload.source === "api" ? 2 : 0;
+    return members * 10 + sourceBonus;
   }
 
   function trialMembersForSkill(trial, skillId) {
@@ -348,22 +407,95 @@
     return false;
   }
 
-  function payloadIsTrustworthy(payload) {
-    if (!payload || !payload.skills || !payload.skills.length) return false;
-    if (payload.source === "dom") return false;
-    if (payload.errors && payload.errors.join(" ").indexOf("DOM fallback") >= 0) return false;
-    if (payloadHasDuplicateMembers(payload)) return false;
-    var hasActive = false;
-    var nowMs = Date.now();
-    for (var i = 0; i < payload.skills.length; i++) {
-      var row = payload.skills[i];
-      if (!row.skill || SKILL_ORDER.indexOf(row.skill) < 0) continue;
-      for (var j = 0; j < (row.members || []).length; j++) {
-        var endMs = new Date(row.members[j].endDate).getTime();
-        if (Number.isNaN(endMs) || endMs > nowMs) hasActive = true;
+  function finalizePayload(payload, guild, trial, skillValues, credit) {
+    payload.v = 1;
+    payload.importedAt = new Date().toISOString();
+    payload.guildName = guild.name;
+    payload.guildId = guild.id;
+    payload.trialWeekStart = guildWeekStartFromInstant(trial.startDate);
+    payload.trialStartDate = trial.startDate;
+    payload.trialEndDate = trial.endDate;
+    payload.requiredExp = trial.requiredExp;
+    payload.trialsCompleted = countCompleted(skillValues, trial.requiredExp);
+    payload.trialsTotal = 16;
+    payload.guildCreditsEarned = credit.earned;
+    payload.guildCreditsMax = credit.max;
+    return payload;
+  }
+
+  function buildSkillsPayload(guild, skillData, cmp, source) {
+    if (!guild || !guild.trial) return null;
+    var trial = guild.trial;
+    var trialSkills = cmp ? readObservableValue(cmp.trialSkills$) : null;
+    var skillRows = trialSkills || Object.values(trial.skills || {});
+    var skills = [];
+    var errors = [];
+
+    for (var si = 0; si < skillRows.length; si++) {
+      var row = skillRows[si];
+      var skillId = row.id;
+      var skillName = skillNameForRow(skillData, row);
+      if (!skillName || SKILL_ORDER.indexOf(skillName) < 0) {
+        errors.push("Unmapped skill id " + String(skillId));
+        continue;
       }
+
+      var members = membersForSkillRow(trial, row).map(function (m) {
+        return mapMemberRecord(m, skillName, source);
+      });
+
+      skills.push({
+        skill: skillName,
+        skillId: skillId,
+        currentExp: row.currentExp,
+        requiredExp: trial.requiredExp,
+        complete: row.currentExp >= trial.requiredExp,
+        members: members,
+      });
     }
-    return hasActive;
+
+    if (!skills.length && Object.keys(trial.members || {}).length) {
+      var grouped = {};
+      Object.values(trial.members || {}).forEach(function (m) {
+        var sid = String(m.skillId);
+        if (!grouped[sid]) grouped[sid] = [];
+        grouped[sid].push(m);
+      });
+      var skillMeta = {};
+      Object.values(trial.skills || {}).forEach(function (s) {
+        skillMeta[String(s.id)] = s;
+      });
+      Object.keys(grouped).forEach(function (sid) {
+        var skillName = skillNameFromId(skillData, sid);
+        if (!skillName) return;
+        var meta = skillMeta[sid] || {};
+        skills.push({
+          skill: skillName,
+          skillId: sid,
+          currentExp: meta.currentExp || 0,
+          requiredExp: trial.requiredExp,
+          complete: (meta.currentExp || 0) >= trial.requiredExp,
+          members: grouped[sid].map(function (m) {
+            return mapMemberRecord(m, skillName, source);
+          }),
+        });
+      });
+    }
+
+    skills.sort(function (a, b) {
+      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
+    });
+
+    var skillValues = Object.values(trial.skills || {});
+    var credit = calcCreditProgress(skillValues, trial.requiredExp, trial.creditReward);
+    var payload = finalizePayload(
+      { source: source, skills: skills, errors: errors.length ? errors : undefined },
+      guild,
+      trial,
+      skillValues,
+      credit,
+    );
+    return payload;
   }
 
   function inferStart(endDate) {
@@ -414,121 +546,85 @@
     if (!guild || !guild.trial) {
       return { error: "No active guild trial on guild$.trial", guild: guild || null };
     }
+    return buildSkillsPayload(guild, cmp.SKILL_DATA || findSkillDataMap(), cmp, "component");
+  }
 
-    var trial = guild.trial;
-    var trialSkills = readObservableValue(cmp.trialSkills$);
-    var skillRows = trialSkills || Object.values(trial.skills || {});
-    var skillData = cmp.SKILL_DATA || findSkillDataMap();
-    var skills = [];
+  function isNodeAfter(startEl, node) {
+    if (!startEl || !node || !startEl.compareDocumentPosition) return false;
+    return Boolean(startEl.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
 
-    for (var si = 0; si < skillRows.length; si++) {
-      var row = skillRows[si];
-      var skillId = row.id;
-      var skillName = skillNameFromId(skillData, skillId);
-      if (!skillName || SKILL_ORDER.indexOf(skillName) < 0) continue;
+  function isNodeBefore(endEl, node) {
+    if (!endEl || !node || !endEl.compareDocumentPosition) return true;
+    return Boolean(endEl.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
 
-      var members = trialMembersForSkill(trial, skillId).map(function (m) {
-        return {
-          displayName: m.displayName,
-          skillId: m.skillId,
-          skillName: skillName,
-          exp: m.exp,
-          endDate: m.endDate,
-          inferredStartAt: inferStart(m.endDate),
-          actionId: m.actionId != null ? m.actionId : null,
-          method: "component",
-        };
-      });
-
-      skills.push({
-        skill: skillName,
-        skillId: skillId,
-        currentExp: row.currentExp,
-        requiredExp: trial.requiredExp,
-        complete: row.currentExp >= trial.requiredExp,
-        members: members,
-      });
-    }
-
-    skills.sort(function (a, b) {
-      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
-    });
-
-    var skillValues = Object.values(trial.skills || {});
-    var credit = calcCreditProgress(skillValues, trial.requiredExp, trial.creditReward);
-
+  function parseMemberButton(btnText) {
+    var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
+    if (!xpMatch) return null;
+    var withoutXp = btnText.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+    if (withoutXp.length < 2) return null;
     return {
-      v: 1,
-      importedAt: new Date().toISOString(),
-      source: "component",
-      guildName: guild.name,
-      guildId: guild.id,
-      trialWeekStart: guildWeekStartFromInstant(trial.startDate),
-      trialStartDate: trial.startDate,
-      trialEndDate: trial.endDate,
-      requiredExp: trial.requiredExp,
-      trialsCompleted: countCompleted(skillValues, trial.requiredExp),
-      trialsTotal: 16,
-      guildCreditsEarned: credit.earned,
-      guildCreditsMax: credit.max,
-      skills: skills,
+      displayName: withoutXp,
+      exp: Number(xpMatch[1].replace(/,/g, "")),
     };
   }
 
-  function normalizeFromDom() {
-    var skills = [];
-    var headers = document.querySelectorAll("div, span, button");
+  function normalizeFromDomScoped() {
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4");
     var skillBlocks = [];
+    var seenSkills = {};
 
     for (var i = 0; i < headers.length; i++) {
       var text = (headers[i].textContent || "").trim();
       var trialMatch = text.match(/^(.+) Trial$/);
-      if (trialMatch && SKILL_ORDER.indexOf(trialMatch[1]) >= 0) {
-        skillBlocks.push({ el: headers[i], skillName: trialMatch[1] });
-      }
+      if (!trialMatch) continue;
+      var skillName = trialMatch[1];
+      if (SKILL_ORDER.indexOf(skillName) < 0 || seenSkills[skillName]) continue;
+      seenSkills[skillName] = true;
+      skillBlocks.push({ el: headers[i], skillName: skillName });
     }
 
     if (!skillBlocks.length) return null;
 
+    var skills = [];
+    var allButtons = document.querySelectorAll("button");
+
     for (var b = 0; b < skillBlocks.length; b++) {
       var block = skillBlocks[b];
-      var container = block.el.closest("div");
-      for (var up = 0; up < 5 && container; up++) {
-        if (container.textContent && container.textContent.indexOf("XP") >= 0) break;
-        container = container.parentElement;
-      }
+      var nextEl = skillBlocks[b + 1] ? skillBlocks[b + 1].el : null;
       var members = [];
-      if (container) {
-        var buttons = container.querySelectorAll("button");
-        for (var bi = 0; bi < buttons.length; bi++) {
-          var btnText = buttons[bi].textContent || "";
-          var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
-          if (!xpMatch) continue;
-          var namePart = btnText.replace(/[\d,\sXPxp]+/g, " ").trim();
-          if (namePart.length > 1) {
-            members.push({
-              displayName: namePart.split(/\s+/)[0],
-              skillName: block.skillName,
-              exp: Number(xpMatch[1].replace(/,/g, "")),
-              endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
-              inferredStartAt: new Date().toISOString(),
-              method: "dom",
-            });
-          }
-        }
+
+      for (var bi = 0; bi < allButtons.length; bi++) {
+        var btn = allButtons[bi];
+        if (!isNodeAfter(block.el, btn)) continue;
+        if (nextEl && !isNodeBefore(nextEl, btn)) continue;
+        var parsed = parseMemberButton(btn.textContent || "");
+        if (!parsed) continue;
+        members.push({
+          displayName: parsed.displayName,
+          skillName: block.skillName,
+          exp: parsed.exp,
+          endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
+          inferredStartAt: new Date().toISOString(),
+          method: "dom",
+        });
       }
-      skills.push({ skill: block.skillName, members: members });
+
+      if (members.length) {
+        skills.push({ skill: block.skillName, members: members });
+      }
     }
 
     if (!skills.length) return null;
 
-    var weekStart = guildWeekStartFromInstant(new Date().toISOString());
     return {
       v: 1,
       importedAt: new Date().toISOString(),
+      source: "dom",
       guildName: null,
       guildId: null,
-      trialWeekStart: weekStart,
+      trialWeekStart: guildWeekStartFromInstant(new Date().toISOString()),
       trialStartDate: null,
       trialEndDate: null,
       requiredExp: null,
@@ -542,97 +638,38 @@
   }
 
   function readTrialPayloadFromPage() {
+    var candidates = [];
     var cmp = findGuildTrialsComponent();
+    var guild = readGuildFromAnySource();
+    var skillData = findSkillDataMap();
+
     if (cmp) {
       var fromComponent = normalizeFromComponent(cmp);
-      if (fromComponent && !fromComponent.error && payloadIsTrustworthy(fromComponent)) {
-        return fromComponent;
+      if (fromComponent && !fromComponent.error) candidates.push(fromComponent);
+    }
+
+    if (guild && guild.trial) {
+      candidates.push(buildSkillsPayload(guild, skillData, cmp, "api"));
+    }
+
+    var fromDom = normalizeFromDomScoped();
+    if (fromDom && !payloadHasDuplicateMembers(fromDom)) candidates.push(fromDom);
+
+    var best = null;
+    var bestScore = -1;
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var score = payloadScore(candidates[ci]);
+      if (score > bestScore) {
+        bestScore = score;
+        best = candidates[ci];
       }
     }
 
-    var guild = readGuildFromAnySource();
-    if (guild && guild.trial) {
-      var fromApi = buildPayload(guild, findSkillDataMap());
-      fromApi.source = "api";
-      if (payloadIsTrustworthy(fromApi)) return fromApi;
-    }
-
-    return null;
+    return best;
   }
 
   function buildPayload(guild, skillData) {
-    if (!guild || !guild.trial) {
-      throw new Error("No active guild trial on this guild.");
-    }
-
-    var trial = guild.trial;
-    var trialSkills = Object.values(trial.skills || {}).map(function (skill) {
-      return Object.assign({}, skill, {
-        members: Object.values(trial.members || {}).filter(function (m) {
-          return String(m.skillId) === String(skill.id);
-        }),
-      });
-    });
-
-    var skills = [];
-    var errors = [];
-
-    for (var si = 0; si < trialSkills.length; si++) {
-      var row = trialSkills[si];
-      var skillId = row.id;
-      var skillName = skillNameFromId(skillData, skillId);
-      if (!skillName) {
-        errors.push("Unmapped skill id " + String(skillId));
-        continue;
-      }
-
-      var members = (row.members || []).map(function (m) {
-        return {
-          displayName: m.displayName,
-          skillId: m.skillId,
-          skillName: skillName,
-          exp: m.exp,
-          endDate: m.endDate,
-          inferredStartAt: inferStart(m.endDate),
-          actionId: m.actionId != null ? m.actionId : null,
-          method: "api",
-        };
-      });
-
-      skills.push({
-        skill: skillName,
-        skillId: skillId,
-        currentExp: row.currentExp,
-        requiredExp: trial.requiredExp,
-        complete: row.currentExp >= trial.requiredExp,
-        members: members,
-      });
-    }
-
-    skills.sort(function (a, b) {
-      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
-    });
-
-    var skillValues = Object.values(trial.skills || {});
-    var credit = calcCreditProgress(skillValues, trial.requiredExp, trial.creditReward);
-
-    return {
-      v: 1,
-      importedAt: new Date().toISOString(),
-      source: "api",
-      guildName: guild.name,
-      guildId: guild.id,
-      trialWeekStart: guildWeekStartFromInstant(trial.startDate),
-      trialStartDate: trial.startDate,
-      trialEndDate: trial.endDate,
-      requiredExp: trial.requiredExp,
-      trialsCompleted: countCompleted(skillValues, trial.requiredExp),
-      trialsTotal: 16,
-      guildCreditsEarned: credit.earned,
-      guildCreditsMax: credit.max,
-      skills: skills,
-      errors: errors.length ? errors : undefined,
-    };
+    return buildSkillsPayload(guild, skillData, findGuildTrialsComponent(), "api");
   }
 
   var overlay = document.createElement("div");
@@ -697,15 +734,32 @@
       }
 
       var payload = readTrialPayloadFromPage();
-      if (payload && payload.skills && payload.skills.length) {
+      if (payload && countMembersInPayload(payload) > 0) {
+        setStatus(
+          "Trial data ready",
+          countMembersInPayload(payload) +
+            " assignment(s) via " +
+            (payload.source || "unknown") +
+            ".",
+        );
         return payload;
       }
 
+      var cmp = findGuildTrialsComponent();
+      var guild = readGuildFromAnySource();
+      var detail =
+        "component=" +
+        (cmp ? "yes" : "no") +
+        ", guild.trial=" +
+        (guild && guild.trial ? "yes" : "no") +
+        ", trial.members=" +
+        (guild && guild.trial && guild.trial.members
+          ? Object.keys(guild.trial.members).length
+          : 0);
+
       setStatus(
         "Loading trial data…",
-        trialAttempt === 0
-          ? "Reading Trials tab."
-          : "Still loading (" + (trialAttempt + 1) + "/60)…",
+        trialAttempt === 0 ? detail : detail + " (" + (trialAttempt + 1) + "/60)",
       );
       await sleep(600);
     }

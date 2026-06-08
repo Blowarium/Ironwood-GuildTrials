@@ -14,7 +14,7 @@
 
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.5.0";
+  var SCRIPT_VERSION = "1.6.0";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
 
   function appOriginFromSession() {

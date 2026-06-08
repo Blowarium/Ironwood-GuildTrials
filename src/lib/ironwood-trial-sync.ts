@@ -17,7 +17,7 @@ export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
 export const TRIAL_SYNC_HELPER_STORAGE_KEY = "igt-trial-sync-helper-installed";
 export const TRIAL_SYNC_HELPER_PROBE_PARAM = "igtHelperProbe";
 export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.5.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.6.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
