@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.6";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -521,7 +521,20 @@ export function collectActiveTrialAssignments(
         skillRow.skillId != null &&
         String(member.skillId) !== String(skillRow.skillId)
       ) {
-        continue;
+        const memberMethod = (member as { method?: string }).method;
+        const skillIdIsName =
+          typeof member.skillId === "string" &&
+          !/^\d+$/.test(String(member.skillId).trim());
+        if (
+          memberMethod === "dom-columns" ||
+          memberMethod === "dom" ||
+          memberMethod === "dom-text" ||
+          skillIdIsName
+        ) {
+          /* DOM payloads carry skill on the row; ignore string/numeric id mismatch */
+        } else {
+          continue;
+        }
       }
 
       const endMs = new Date(member.endDate).getTime();

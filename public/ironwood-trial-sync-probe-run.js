@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.8.6";
+  var SCRIPT_VERSION = "1.9.0";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -282,6 +282,7 @@
       "trialSkills$": 5,
       "guild.trial.members": 5,
       "capture.guild.trial.members": 4,
+      "dom.columns": 4,
       "dom.scoped": 3,
       "dom.text": 2,
     };
@@ -299,40 +300,74 @@
     });
   }
 
-  function probeDomVisible() {
-    var bodyText = document.body ? document.body.innerText || "" : "";
-    var skillHeaders = 0;
-    var memberNames = {};
+  function findSkillBlocksSorted() {
     var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    var skillBlocks = [];
     var seenSkills = {};
 
     for (var i = 0; i < headers.length; i++) {
       var skillName = headerSkillName(headers[i]);
       if (!skillName || seenSkills[skillName]) continue;
       seenSkills[skillName] = true;
-      skillHeaders++;
+      skillBlocks.push({ el: headers[i], skillName: skillName });
     }
 
-    for (var s = 0; s < SKILL_ORDER.length; s++) {
-      var skill = SKILL_ORDER[s];
-      var escaped = skill.replace(/-/g, "\\-");
-      var nextPattern = SKILL_ORDER.map(function (sk) {
-        return sk.replace(/-/g, "\\-");
-      }).join("|");
-      var re = new RegExp(
-        escaped + "\\s+Trial\\s*([\\s\\S]*?)(?=(?:" + nextPattern + ")\\s+Trial\\b|$)",
-        "i",
-      );
-      var match = bodyText.match(re);
-      if (!match) continue;
-      var section = match[1] || "";
-      var lines = section.split("\n");
-      for (var li = 0; li < lines.length; li++) {
-        var parsed = parseMemberLine(lines[li], li > 0 ? lines[li - 1] : "");
-        if (parsed) memberNames[normalizeMemberKey(parsed.displayName)] = true;
+    skillBlocks.sort(function (a, b) {
+      var ar = a.el.getBoundingClientRect();
+      var br = b.el.getBoundingClientRect();
+      if (Math.abs(ar.left - br.left) > 8) return ar.left - br.left;
+      return ar.top - br.top;
+    });
+
+    return skillBlocks;
+  }
+
+  function skillNameForDomNode(node, skillBlocks) {
+    if (!node || !skillBlocks.length) return null;
+    var rect = node.getBoundingClientRect();
+    if (!rect.width && !rect.height) return null;
+    var cx = rect.left + rect.width / 2;
+
+    for (var b = 0; b < skillBlocks.length; b++) {
+      var block = skillBlocks[b];
+      var hRect = block.el.getBoundingClientRect();
+      var left = hRect.left - 12;
+      var right =
+        b < skillBlocks.length - 1
+          ? skillBlocks[b + 1].el.getBoundingClientRect().left - 4
+          : hRect.right + Math.max(220, window.innerWidth - hRect.right);
+      if (cx >= left && cx < right) return block.skillName;
+    }
+
+    var best = null;
+    var bestDist = Infinity;
+    for (var j = 0; j < skillBlocks.length; j++) {
+      var candidate = skillBlocks[j].el.getBoundingClientRect();
+      var center = candidate.left + candidate.width / 2;
+      var dist = Math.abs(cx - center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = skillBlocks[j].skillName;
       }
     }
+    return best;
+  }
 
+  function probeDomVisible() {
+    var skillBlocks = findSkillBlocksSorted();
+    var skillHeaders = skillBlocks.length;
+    var memberNames = {};
+    var buttons = document.querySelectorAll("button, [role='button']");
+
+    for (var bi = 0; bi < buttons.length; bi++) {
+      var parsed = parseMemberButton(buttons[bi].textContent || "");
+      if (!parsed) continue;
+      var skillName = skillNameForDomNode(buttons[bi], skillBlocks);
+      if (!skillName) continue;
+      memberNames[normalizeMemberKey(parsed.displayName)] = true;
+    }
+
+    var bodyText = document.body ? document.body.innerText || "" : "";
     return {
       skillHeaders: skillHeaders,
       memberXpLines: Object.keys(memberNames).length,
@@ -562,10 +597,41 @@
     return out;
   }
 
+  function collectAssignmentsFromDomColumns() {
+    var skillBlocks = findSkillBlocksSorted();
+    if (!skillBlocks.length) return [];
+
+    var out = [];
+    var seenMemberKeys = {};
+    var buttons = document.querySelectorAll("button, [role='button']");
+    for (var bi = 0; bi < buttons.length; bi++) {
+      var btn = buttons[bi];
+      var parsed = parseMemberButton(btn.textContent || "");
+      if (!parsed) continue;
+      var skillName = skillNameForDomNode(btn, skillBlocks);
+      if (!skillName) continue;
+      var memberKey = normalizeMemberKey(parsed.displayName);
+      if (seenMemberKeys[memberKey]) continue;
+      seenMemberKeys[memberKey] = true;
+      out.push({
+        displayName: parsed.displayName,
+        skillId: skillName,
+        exp: parsed.exp,
+        endDate: null,
+        inferredStartAt: null,
+        source: "dom.columns",
+      });
+    }
+    return out;
+  }
+
   function collectAllAssignments(cmp, guild, capture) {
-    var scoped = collectAssignmentsFromDomScoped();
+    var columns = collectAssignmentsFromDomColumns();
     var text = collectAssignmentsFromVisibleText();
-    var dom = dedupeAssignmentsByMember(scoped.concat(text));
+    var scoped = collectAssignmentsFromDomScoped();
+    var dom = dedupeAssignmentsByMember(
+      columns.length ? columns : scoped.concat(text),
+    );
     return dedupeAssignmentsByMember(collectAssignments(cmp, guild, capture).concat(dom));
   }
 
@@ -721,7 +787,11 @@
 
       var assignments = collectAllAssignments(cmp, guild, capture);
       var domAssignments = assignments.filter(function (a) {
-        return a.source === "dom.scoped" || a.source === "dom.text";
+        return (
+          a.source === "dom.scoped" ||
+          a.source === "dom.text" ||
+          a.source === "dom.columns"
+        );
       });
       var withEndDate = assignments.filter(function (a) {
         return a.endDate;

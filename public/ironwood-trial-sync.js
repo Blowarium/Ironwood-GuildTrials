@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.8.6";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.0";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -415,7 +415,14 @@
     if (!payload || !payload.skills) return -1;
     var members = countMembersInPayload(payload);
     if (!members) return -1;
-    var sourceBonus = payload.source === "component" ? 3 : payload.source === "api" ? 2 : 0;
+    var sourceBonus =
+      payload.source === "component"
+        ? 3
+        : payload.source === "api"
+          ? 2
+          : payload.source === "dom-columns"
+            ? 2
+            : 0;
     return members * 10 + sourceBonus;
   }
 
@@ -649,6 +656,123 @@
     if (!endEl || !node) return true;
     if (!node.compareDocumentPosition) return true;
     return Boolean(node.compareDocumentPosition(endEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
+  function findSkillBlocksSorted() {
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    var skillBlocks = [];
+    var seenSkills = {};
+
+    for (var i = 0; i < headers.length; i++) {
+      var skillName = headerSkillName(headers[i]);
+      if (!skillName || seenSkills[skillName]) continue;
+      seenSkills[skillName] = true;
+      skillBlocks.push({ el: headers[i], skillName: skillName });
+    }
+
+    skillBlocks.sort(function (a, b) {
+      var ar = a.el.getBoundingClientRect();
+      var br = b.el.getBoundingClientRect();
+      if (Math.abs(ar.left - br.left) > 8) return ar.left - br.left;
+      return ar.top - br.top;
+    });
+
+    return skillBlocks;
+  }
+
+  function skillNameForDomNode(node, skillBlocks) {
+    if (!node || !skillBlocks.length) return null;
+    var rect = node.getBoundingClientRect();
+    if (!rect.width && !rect.height) return null;
+    var cx = rect.left + rect.width / 2;
+
+    for (var b = 0; b < skillBlocks.length; b++) {
+      var block = skillBlocks[b];
+      var hRect = block.el.getBoundingClientRect();
+      var left = hRect.left - 12;
+      var right =
+        b < skillBlocks.length - 1
+          ? skillBlocks[b + 1].el.getBoundingClientRect().left - 4
+          : hRect.right + Math.max(220, window.innerWidth - hRect.right);
+      if (cx >= left && cx < right) return block.skillName;
+    }
+
+    var best = null;
+    var bestDist = Infinity;
+    for (var j = 0; j < skillBlocks.length; j++) {
+      var candidate = skillBlocks[j].el.getBoundingClientRect();
+      var center = candidate.left + candidate.width / 2;
+      var dist = Math.abs(cx - center);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = skillBlocks[j].skillName;
+      }
+    }
+    return best;
+  }
+
+  function normalizeFromDomColumns() {
+    var skillBlocks = findSkillBlocksSorted();
+    if (!skillBlocks.length) return null;
+
+    var membersBySkill = {};
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      membersBySkill[SKILL_ORDER[si]] = [];
+    }
+
+    var seenMemberKeys = {};
+    var buttons = document.querySelectorAll("button, [role='button']");
+    for (var bi = 0; bi < buttons.length; bi++) {
+      var btn = buttons[bi];
+      var parsed = parseMemberButton(btn.textContent || "");
+      if (!parsed) continue;
+
+      var skillName = skillNameForDomNode(btn, skillBlocks);
+      if (!skillName) continue;
+
+      var memberKey = normalizeMemberKey(parsed.displayName);
+      if (seenMemberKeys[memberKey]) continue;
+      seenMemberKeys[memberKey] = skillName;
+
+      membersBySkill[skillName].push({
+        displayName: parsed.displayName,
+        skillName: skillName,
+        skillId: skillName,
+        exp: parsed.exp,
+        endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
+        inferredStartAt: new Date().toISOString(),
+        method: "dom-columns",
+      });
+    }
+
+    var skills = [];
+    for (var sk = 0; sk < SKILL_ORDER.length; sk++) {
+      var skill = SKILL_ORDER[sk];
+      var members = membersBySkill[skill];
+      if (members.length) {
+        skills.push({ skill: skill, skillId: skill, members: members });
+      }
+    }
+
+    if (!skills.length) return null;
+
+    return {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      source: "dom-columns",
+      guildName: null,
+      guildId: null,
+      trialWeekStart: guildWeekStartFromInstant(new Date().toISOString()),
+      trialStartDate: null,
+      trialEndDate: null,
+      requiredExp: null,
+      trialsCompleted: 0,
+      trialsTotal: 16,
+      guildCreditsEarned: 0,
+      guildCreditsMax: 0,
+      skills: skills,
+      errors: ["Column DOM sync — verify skills and times in planner"],
+    };
   }
 
   function headerSkillName(el) {
@@ -916,6 +1040,9 @@
       candidates.push(buildSkillsPayload(guild, skillData, cmp, "api"));
     }
 
+    var fromDomColumns = normalizeFromDomColumns();
+    if (fromDomColumns) candidates.push(fromDomColumns);
+
     var fromDom = normalizeFromDomScoped();
     if (fromDom) candidates.push(fromDom);
 
@@ -926,7 +1053,9 @@
     var bestScore = -1;
     for (var ci = 0; ci < candidates.length; ci++) {
       var score = payloadScore(candidates[ci]);
-      if (payloadHasDuplicateMembers(candidates[ci])) score -= 50;
+      if (payloadHasDuplicateMembers(candidates[ci]) && candidates[ci].source !== "dom-columns") {
+        score -= 50;
+      }
       if (score > bestScore) {
         bestScore = score;
         best = candidates[ci];
@@ -1003,9 +1132,14 @@
 
       var payload = readTrialPayloadFromPage();
       if (!payload || countMembersInPayload(payload) === 0) {
-        var domTextPayload = normalizeFromVisibleText();
-        if (domTextPayload && countMembersInPayload(domTextPayload) > 0) {
-          payload = domTextPayload;
+        var domColumnsPayload = normalizeFromDomColumns();
+        if (domColumnsPayload && countMembersInPayload(domColumnsPayload) > 0) {
+          payload = domColumnsPayload;
+        } else {
+          var domTextPayload = normalizeFromVisibleText();
+          if (domTextPayload && countMembersInPayload(domTextPayload) > 0) {
+            payload = domTextPayload;
+          }
         }
       }
       if (payload && countMembersInPayload(payload) > 0) {
