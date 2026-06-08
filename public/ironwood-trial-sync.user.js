@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — Trial Sync
 // @namespace    ironwood-guild-trials
-// @version      1.8.0
+// @version      1.8.1
 // @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
@@ -14,13 +14,38 @@
 
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.8.0";
+  var SCRIPT_VERSION = "1.8.1";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
+
+  function resolveReturnUrl(raw) {
+    if (!raw) return null;
+    try {
+      return new URL(raw).href;
+    } catch (e) {
+      try {
+        return new URL(raw, DEFAULT_APP_ORIGIN).href;
+      } catch (e2) {
+        return null;
+      }
+    }
+  }
+
+  function returnOrigin(raw) {
+    var resolved = resolveReturnUrl(raw);
+    if (!resolved) return null;
+    try {
+      return new URL(resolved).origin;
+    } catch (e) {
+      return null;
+    }
+  }
 
   function appOriginFromSession() {
     try {
       var params = new URLSearchParams(location.search);
-      var returnUrl = params.get("igtReturn") || sessionStorage.getItem(SYNC_RETURN_KEY);
+      var returnUrl =
+        resolveReturnUrl(params.get("igtReturn")) ||
+        resolveReturnUrl(sessionStorage.getItem(SYNC_RETURN_KEY));
       if (returnUrl) return new URL(returnUrl).origin;
     } catch (e) {
       /* ignore */
@@ -81,15 +106,11 @@
 
   var probeRun = params.get("igtTrialProbe") === "1";
   if (probeRun) {
-    var probeReturnUrl = params.get("igtReturn");
+    var probeReturnUrl = resolveReturnUrl(params.get("igtReturn"));
     if (!probeReturnUrl) return;
 
-    var probeOrigin;
-    try {
-      probeOrigin = new URL(probeReturnUrl).origin;
-    } catch (e) {
-      return;
-    }
+    var probeOrigin = returnOrigin(probeReturnUrl);
+    if (!probeOrigin) return;
 
     function startProbe() {
       if (document.getElementById("igt-trial-probe-overlay")) return;
@@ -119,18 +140,13 @@
   var resuming = sessionStorage.getItem(SYNC_RUN_KEY) === "1";
   if (params.get("igtTrialSync") !== "1" && !resuming) return;
 
-  var returnUrl = params.get("igtReturn");
-  if (!returnUrl && resuming) {
-    returnUrl = sessionStorage.getItem(SYNC_RETURN_KEY);
-  }
+  var returnUrl = resolveReturnUrl(
+    params.get("igtReturn") || (resuming ? sessionStorage.getItem(SYNC_RETURN_KEY) : null),
+  );
   if (!returnUrl) return;
 
-  var appOrigin;
-  try {
-    appOrigin = new URL(returnUrl).origin;
-  } catch (e) {
-    return;
-  }
+  var appOrigin = returnOrigin(returnUrl);
+  if (!appOrigin) return;
 
   function startSync() {
     if (document.getElementById("igt-trial-sync-overlay")) return;

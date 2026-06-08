@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.1";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -392,7 +392,8 @@ export function buildPlannerTrialSyncReturnUrl(href: string): string {
   const url = new URL(href);
   url.searchParams.delete("trialSync");
   url.searchParams.delete("trialProbe");
-  return url.pathname + url.search;
+  url.hash = "";
+  return url.toString();
 }
 
 export function buildIronwoodTrialProbeLaunchUrl(returnUrl: string): string {
