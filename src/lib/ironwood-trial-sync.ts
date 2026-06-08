@@ -17,7 +17,7 @@ export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
 export const TRIAL_SYNC_HELPER_STORAGE_KEY = "igt-trial-sync-helper-installed";
 export const TRIAL_SYNC_HELPER_PROBE_PARAM = "igtHelperProbe";
 export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.4.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.5.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -146,7 +146,22 @@ export function mapIronwoodSkillName(name: string): Skill | null {
 
 export function mapGameDisplayNameToMember(displayName: string): Member | null {
   const trimmed = displayName.trim();
+  if (!trimmed) return null;
   if ((MEMBERS as readonly string[]).includes(trimmed)) return trimmed as Member;
+
+  const lower = trimmed.toLowerCase();
+  const caseInsensitive = (MEMBERS as readonly Member[]).find((m) => m.toLowerCase() === lower);
+  if (caseInsensitive) return caseInsensitive;
+
+  // Ironwood UI sometimes truncates names in buttons (e.g. "Geo" → GeoPapPiano).
+  const prefixHits = (MEMBERS as readonly Member[]).filter((m) => m.toLowerCase().startsWith(lower));
+  if (prefixHits.length === 1) return prefixHits[0];
+
+  const containsHits = (MEMBERS as readonly Member[]).filter(
+    (m) => m.toLowerCase().includes(lower) || lower.includes(m.toLowerCase()),
+  );
+  if (containsHits.length === 1) return containsHits[0];
+
   return null;
 }
 
@@ -384,26 +399,37 @@ function startTimesMatch(a: string, b: string): boolean {
   return Math.abs(ta - tb) <= START_AT_TOLERANCE_MS;
 }
 
-/** Active in-game trial slots (endDate still in the future). */
+/** Active in-game trial slots (endDate still in the future). One row per member. */
 export function collectActiveTrialAssignments(
   payload: IronwoodTrialSyncPayload,
   now = new Date(),
 ): IronwoodTrialSyncAssignment[] {
   const nowMs = now.getTime();
-  const out: IronwoodTrialSyncAssignment[] = [];
+  const byMember = new Map<Member, IronwoodTrialSyncAssignment>();
 
   for (const skillRow of payload.skills) {
+    const skill = mapIronwoodSkillName(skillRow.skill);
+    if (!skill) continue;
+
     for (const member of skillRow.members) {
       const memberName = mapGameDisplayNameToMember(member.displayName);
       if (!memberName) continue;
+
+      if (
+        member.skillId != null &&
+        skillRow.skillId != null &&
+        String(member.skillId) !== String(skillRow.skillId)
+      ) {
+        continue;
+      }
 
       const endMs = new Date(member.endDate).getTime();
       if (!Number.isNaN(endMs) && endMs <= nowMs) continue;
 
       const plannedStartAt = member.inferredStartAt;
-      out.push({
+      byMember.set(memberName, {
         memberName,
-        skill: skillRow.skill,
+        skill,
         plannedDate: guildDateFromInstant(plannedStartAt),
         plannedStartAt,
         gameExp: member.exp,
@@ -412,7 +438,7 @@ export function collectActiveTrialAssignments(
     }
   }
 
-  return out;
+  return [...byMember.values()];
 }
 
 export function buildTrialSyncDiffs(

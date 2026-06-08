@@ -242,23 +242,32 @@ export async function syncTrialSignupsFromGame(
     errors: [],
   };
 
+  const skippedNames = new Set<string>();
+  function skip(displayName: string, reason: string) {
+    if (skippedNames.has(displayName)) return;
+    skippedNames.add(displayName);
+    result.skipped.push({ displayName, reason });
+  }
+
   if (payload.unmatchedNames?.length) {
     for (const name of payload.unmatchedNames) {
-      result.skipped.push({ displayName: name, reason: "Not in guild roster" });
+      skip(name, "Not in guild roster");
     }
   }
 
-  const skippedNames = new Set(result.skipped.map((s) => s.displayName));
   for (const skillRow of payload.skills) {
     for (const member of skillRow.members) {
-      if (!mapGameDisplayNameToMember(member.displayName) && !skippedNames.has(member.displayName)) {
-        skippedNames.add(member.displayName);
-        result.skipped.push({ displayName: member.displayName, reason: "Not in guild roster" });
+      if (!mapGameDisplayNameToMember(member.displayName)) {
+        skip(member.displayName, "Not in guild roster");
       }
     }
   }
 
+  const touched = new Set<Member>();
   for (const assignment of assignments) {
+    if (touched.has(assignment.memberName)) continue;
+    touched.add(assignment.memberName);
+
     const existing = byMember.get(assignment.memberName);
     const sameSkill = existing?.skill === assignment.skill;
     const sameTime =

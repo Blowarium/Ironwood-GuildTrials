@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.4.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.5.0";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -324,8 +324,46 @@
 
   function skillNameFromId(skillData, skillId) {
     if (!skillData) return null;
-    var data = skillData[skillId];
+    var data =
+      skillData[skillId] || skillData[String(skillId)] || skillData[Number(skillId)];
     return data && data.name ? data.name : null;
+  }
+
+  function trialMembersForSkill(trial, skillId) {
+    return Object.values(trial.members || {}).filter(function (m) {
+      return String(m.skillId) === String(skillId);
+    });
+  }
+
+  function payloadHasDuplicateMembers(payload) {
+    var seen = {};
+    for (var i = 0; i < payload.skills.length; i++) {
+      var row = payload.skills[i];
+      for (var j = 0; j < (row.members || []).length; j++) {
+        var name = row.members[j].displayName;
+        if (seen[name]) return true;
+        seen[name] = row.skill;
+      }
+    }
+    return false;
+  }
+
+  function payloadIsTrustworthy(payload) {
+    if (!payload || !payload.skills || !payload.skills.length) return false;
+    if (payload.source === "dom") return false;
+    if (payload.errors && payload.errors.join(" ").indexOf("DOM fallback") >= 0) return false;
+    if (payloadHasDuplicateMembers(payload)) return false;
+    var hasActive = false;
+    var nowMs = Date.now();
+    for (var i = 0; i < payload.skills.length; i++) {
+      var row = payload.skills[i];
+      if (!row.skill || SKILL_ORDER.indexOf(row.skill) < 0) continue;
+      for (var j = 0; j < (row.members || []).length; j++) {
+        var endMs = new Date(row.members[j].endDate).getTime();
+        if (Number.isNaN(endMs) || endMs > nowMs) hasActive = true;
+      }
+    }
+    return hasActive;
   }
 
   function inferStart(endDate) {
@@ -380,13 +418,16 @@
     var trial = guild.trial;
     var trialSkills = readObservableValue(cmp.trialSkills$);
     var skillRows = trialSkills || Object.values(trial.skills || {});
+    var skillData = cmp.SKILL_DATA || findSkillDataMap();
     var skills = [];
 
     for (var si = 0; si < skillRows.length; si++) {
       var row = skillRows[si];
       var skillId = row.id;
-      var skillName = skillNameFromId(cmp.SKILL_DATA || findSkillDataMap(), skillId);
-      var members = (row.members || []).map(function (m) {
+      var skillName = skillNameFromId(skillData, skillId);
+      if (!skillName || SKILL_ORDER.indexOf(skillName) < 0) continue;
+
+      var members = trialMembersForSkill(trial, skillId).map(function (m) {
         return {
           displayName: m.displayName,
           skillId: m.skillId,
@@ -419,6 +460,7 @@
     return {
       v: 1,
       importedAt: new Date().toISOString(),
+      source: "component",
       guildName: guild.name,
       guildId: guild.id,
       trialWeekStart: guildWeekStartFromInstant(trial.startDate),
@@ -503,15 +545,19 @@
     var cmp = findGuildTrialsComponent();
     if (cmp) {
       var fromComponent = normalizeFromComponent(cmp);
-      if (fromComponent && !fromComponent.error) return fromComponent;
+      if (fromComponent && !fromComponent.error && payloadIsTrustworthy(fromComponent)) {
+        return fromComponent;
+      }
     }
 
     var guild = readGuildFromAnySource();
     if (guild && guild.trial) {
-      return buildPayload(guild, findSkillDataMap());
+      var fromApi = buildPayload(guild, findSkillDataMap());
+      fromApi.source = "api";
+      if (payloadIsTrustworthy(fromApi)) return fromApi;
     }
 
-    return normalizeFromDom();
+    return null;
   }
 
   function buildPayload(guild, skillData) {
@@ -573,6 +619,7 @@
     return {
       v: 1,
       importedAt: new Date().toISOString(),
+      source: "api",
       guildName: guild.name,
       guildId: guild.id,
       trialWeekStart: guildWeekStartFromInstant(trial.startDate),
@@ -664,7 +711,7 @@
     }
 
     throw new Error(
-      "No active guild trial found. Open the Trials tab in-game, then sync again.",
+      "Could not read trial assignments from Ironwood. Open Guild → Trials, wait for assignments to load, then sync again.",
     );
   }
 
