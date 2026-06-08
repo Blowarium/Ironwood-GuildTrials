@@ -1,4 +1,5 @@
 import { MEMBERS, SKILLS, type Skill } from "./constants";
+import { getEffectiveStatus } from "./trial-schedule";
 import type { SkillWeekCompletion, TrialSignup } from "./types";
 
 export type SkillWeekState = "needs_signup" | "in_progress" | "complete";
@@ -18,6 +19,10 @@ export interface GuildStats {
   totalSkills: number;
   /** Has signups but not marked complete — may need more members */
   skillsInProgress: Skill[];
+  /** Not marked complete — at least one trial is running now */
+  skillsActiveNow: Skill[];
+  /** Not marked complete — has future planned signups, none active yet */
+  skillsScheduledOnly: Skill[];
   /** No signups yet */
   skillsNeedingSignup: Skill[];
   skillCoverage: SkillCoverageRow[];
@@ -78,11 +83,26 @@ export function computeGuildStats(
     .filter((s) => s.weekState === "needs_signup")
     .map((s) => s.skill);
 
+  const inProgressSet = new Set(skillsInProgress);
+  const skillsActiveNow: Skill[] = [];
+  const skillsScheduledOnly: Skill[] = [];
+
+  for (const skill of SKILLS) {
+    if (!inProgressSet.has(skill)) continue;
+    const skillSignups = signups.filter((s) => s.skill === skill);
+    const hasActive = skillSignups.some((s) => getEffectiveStatus(s) === "active");
+    const hasPlanned = skillSignups.some((s) => getEffectiveStatus(s) === "planned");
+    if (hasActive) skillsActiveNow.push(skill);
+    else if (hasPlanned) skillsScheduledOnly.push(skill);
+  }
+
   return {
     skillsCompleted,
     skillsCompletedPercent,
     totalSkills,
     skillsInProgress,
+    skillsActiveNow,
+    skillsScheduledOnly,
     skillsNeedingSignup,
     skillCoverage,
     assignedCount: signups.length,

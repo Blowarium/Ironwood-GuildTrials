@@ -38,6 +38,8 @@ export interface SchedulePlan {
   trialXpRequired: number;
   hallLevel: number;
   skillProgress: SkillXpProgress[];
+  /** XP progress from planner signups only (no suggestions). */
+  scheduledSkillProgress: SkillXpProgress[];
   stats: {
     totalSuggestions: number;
     gotFirstChoice: number;
@@ -310,6 +312,7 @@ export function buildOptimalSchedule(
     trialXpRequired: required,
     hallLevel,
     skillProgress,
+    scheduledSkillProgress: buildSkillProgress(initSkillState(existingSignups, profiles), required),
     stats: {
       totalSuggestions: suggestions.length,
       gotFirstChoice: suggestions.filter((s) => s.preferenceRank === 1).length,
