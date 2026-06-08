@@ -1,6 +1,6 @@
 /**
- * Runs on https://ironwoodrpg.com (Guild → Trials) via userscript or bookmarklet.
- * Reads active guild trial assignments and returns to the planner with a sync payload.
+ * Runs on https://ironwoodrpg.com/guild via userscript or bookmarklet.
+ * Navigates to /guild, opens the Trials tab, reads assignments, returns to planner.
  */
 (function ironwoodGuildTrialsSync() {
   if (!/ironwoodrpg\.com$/i.test(location.hostname)) {
@@ -9,6 +9,11 @@
   }
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
+  var GUILD_PATH = "/guild";
+  var SYNC_RUN_KEY = "igt-trial-sync-run";
+  var SYNC_RETURN_KEY = "igt-trial-sync-return";
+  var SCRIPT_VERSION = "1.1.0";
+
   var SKILL_ORDER = [
     "Woodcutting",
     "Mining",
@@ -30,9 +35,11 @@
 
   var scriptEl = document.currentScript;
   var scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
+  var params = new URLSearchParams(location.search);
   var returnUrl =
     (scriptUrl && scriptUrl.searchParams.get("return")) ||
-    new URLSearchParams(location.search).get("igtReturn") ||
+    params.get("igtReturn") ||
+    sessionStorage.getItem(SYNC_RETURN_KEY) ||
     "";
 
   if (!returnUrl) {
@@ -42,10 +49,29 @@
     return;
   }
 
+  sessionStorage.setItem(SYNC_RETURN_KEY, returnUrl);
+  sessionStorage.setItem(SYNC_RUN_KEY, "1");
+
   function sleep(ms) {
     return new Promise(function (resolve) {
       setTimeout(resolve, ms);
     });
+  }
+
+  function normalizedPath() {
+    var path = location.pathname.replace(/\/$/, "");
+    return path || "/";
+  }
+
+  function onGuildPage() {
+    return normalizedPath() === GUILD_PATH;
+  }
+
+  function guildUrlWithParams() {
+    var next = new URL(location.origin + GUILD_PATH);
+    next.searchParams.set("igtTrialSync", "1");
+    next.searchParams.set("igtReturn", returnUrl);
+    return next.toString();
   }
 
   function toBase64Url(obj) {
@@ -65,15 +91,15 @@
     return null;
   }
 
-  function findInNgContext(obj, seen, depth) {
-    if (!obj || depth > 12) return null;
+  function findInNgContext(obj, seen, depth, matcher) {
+    if (!obj || depth > 14) return null;
     if (typeof obj !== "object") return null;
     if (seen.has(obj)) return null;
     seen.add(obj);
-    if (obj.trialSkills$ && obj.guild$ && obj.SKILL_DATA) return obj;
+    if (matcher(obj)) return obj;
     if (Array.isArray(obj)) {
       for (var i = 0; i < obj.length; i++) {
-        var fromArray = findInNgContext(obj[i], seen, depth + 1);
+        var fromArray = findInNgContext(obj[i], seen, depth + 1, matcher);
         if (fromArray) return fromArray;
       }
       return null;
@@ -81,7 +107,7 @@
     var keys = Object.keys(obj);
     for (var k = 0; k < keys.length; k++) {
       try {
-        var fromKey = findInNgContext(obj[keys[k]], seen, depth + 1);
+        var fromKey = findInNgContext(obj[keys[k]], seen, depth + 1, matcher);
         if (fromKey) return fromKey;
       } catch (e) {
         /* skip */
@@ -90,28 +116,93 @@
     return null;
   }
 
-  function findGuildTrialsComponent() {
-    if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
-      var all = document.querySelectorAll("*");
-      for (var i = 0; i < all.length; i++) {
-        try {
-          var cmp = window.ng.getComponent(all[i]);
-          if (cmp && cmp.trialSkills$ && cmp.guild$) return cmp;
-        } catch (e2) {
-          /* continue */
+  function getNgComponent(el) {
+    if (typeof window.ng === "undefined" || typeof window.ng.getComponent !== "function") {
+      return null;
+    }
+    try {
+      return window.ng.getComponent(el);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isGuildComponent(cmp) {
+    return Boolean(cmp && cmp.guild$ && cmp.changeTab && cmp.GuildTabEnum);
+  }
+
+  function isGuildTrialsComponent(cmp) {
+    return Boolean(cmp && cmp.guild$ && (cmp.trialSkills$ || cmp.SKILL_DATA));
+  }
+
+  function findGuildComponent() {
+    var selectors = ["guild-page", "app-guild", "app-root", "[class*='guild']"];
+    for (var s = 0; s < selectors.length; s++) {
+      var nodes = document.querySelectorAll(selectors[s]);
+      for (var n = 0; n < nodes.length; n++) {
+        var cmp = getNgComponent(nodes[n]);
+        if (isGuildComponent(cmp) || isGuildTrialsComponent(cmp)) return cmp;
+        if (nodes[n].__ngContext__) {
+          var fromCtx = findInNgContext(
+            nodes[n].__ngContext__,
+            new WeakSet(),
+            0,
+            function (obj) {
+              return isGuildComponent(obj) || isGuildTrialsComponent(obj);
+            },
+          );
+          if (fromCtx) return fromCtx;
         }
       }
     }
 
-    var roots = document.querySelectorAll("guild-page, app-guild, app-root");
-    for (var r = 0; r < roots.length; r++) {
-      var el = roots[r];
-      if (el.__ngContext__) {
-        var fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0);
-        if (fromCtx) return fromCtx;
-      }
+    var all = document.querySelectorAll("*");
+    var limit = Math.min(all.length, 800);
+    for (var i = 0; i < limit; i++) {
+      var cmp2 = getNgComponent(all[i]);
+      if (isGuildComponent(cmp2) || isGuildTrialsComponent(cmp2)) return cmp2;
     }
     return null;
+  }
+
+  function clickTrialsTabDom() {
+    var candidates = document.querySelectorAll("button, a, [role='button']");
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (text === "Trials") {
+        el.click();
+        return true;
+      }
+    }
+    for (var j = 0; j < candidates.length; j++) {
+      var el2 = candidates[j];
+      var text2 = (el2.textContent || "").replace(/\s+/g, " ").trim();
+      if (/^Trials\b/.test(text2) && text2.length < 40) {
+        el2.click();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function navigateToTrialsTab(cmp) {
+    if (cmp && cmp.changeTab && cmp.GuildTabEnum && cmp.GuildTabEnum.Trials != null) {
+      try {
+        cmp.changeTab(cmp.GuildTabEnum.Trials);
+        return true;
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    return clickTrialsTabDom();
+  }
+
+  function isTrialsTabActive(cmp) {
+    if (!cmp || !cmp.GuildTabEnum) return false;
+    var tab = readObservableValue(cmp.guildTab$);
+    if (tab == null && typeof cmp.guildTab !== "undefined") tab = cmp.guildTab;
+    return tab === cmp.GuildTabEnum.Trials;
   }
 
   function skillNameFromId(cmp, skillId) {
@@ -136,8 +227,7 @@
     var dow = d.getUTCDay();
     var mondayDelta = dow === 0 ? -6 : 1 - dow;
     var mondayUtc = Date.UTC(y, m, day + mondayDelta, 0, 0, 0);
-    var gt = mondayUtc;
-    var gd = new Date(gt);
+    var gd = new Date(mondayUtc);
     var yy = gd.getUTCFullYear();
     var mm = String(gd.getUTCMonth() + 1).padStart(2, "0");
     var dd = String(gd.getUTCDate()).padStart(2, "0");
@@ -166,7 +256,7 @@
   function buildPayload(cmp) {
     var guild = readObservableValue(cmp.guild$);
     if (!guild || !guild.trial) {
-      throw new Error("No active guild trial. Open Guild → Trials in Ironwood first.");
+      throw new Error("No active guild trial on this guild.");
     }
 
     var trial = guild.trial;
@@ -181,7 +271,6 @@
       });
     }
 
-    var unmatchedNames = [];
     var skills = [];
     var errors = [];
 
@@ -221,13 +310,6 @@
       return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
     });
 
-    for (var mi = 0; mi < Object.values(trial.members || {}).length; mi++) {
-      var mem = Object.values(trial.members)[mi];
-      if (mem && mem.displayName && SKILL_ORDER.indexOf(mem.displayName) < 0) {
-        /* roster check happens server-side */
-      }
-    }
-
     var skillValues = Object.values(trial.skills || {});
     var credit = calcCreditProgress(skillValues, trial.requiredExp, trial.creditReward);
 
@@ -245,7 +327,6 @@
       guildCreditsEarned: credit.earned,
       guildCreditsMax: credit.max,
       skills: skills,
-      unmatchedNames: unmatchedNames.length ? unmatchedNames : undefined,
       errors: errors.length ? errors : undefined,
     };
   }
@@ -257,7 +338,7 @@
   overlay.innerHTML =
     '<div style="max-width:420px;text-align:center">' +
     '<p style="font-size:18px;font-weight:600;margin:0 0 8px">Syncing guild trials</p>' +
-    '<p id="igt-trial-sync-status" style="margin:0;color:#94a3b8">Open Guild → Trials if you are not there yet…</p>' +
+    '<p id="igt-trial-sync-status" style="margin:0;color:#94a3b8">Opening guild page…</p>' +
     '<p id="igt-trial-sync-detail" style="margin:12px 0 0;font-size:12px;color:#64748b"></p>' +
     "</div>";
   document.body.appendChild(overlay);
@@ -269,58 +350,104 @@
     if (d) d.textContent = detail || "";
   }
 
-  async function runSync() {
+  async function ensureGuildTrialsReady() {
+    if (!onGuildPage()) {
+      setStatus("Opening guild page…", GUILD_PATH);
+      location.assign(guildUrlWithParams());
+      await sleep(120000);
+      return null;
+    }
+
     var cmp = null;
-    for (var attempt = 0; attempt < 40; attempt++) {
-      cmp = findGuildTrialsComponent();
+    for (var loadAttempt = 0; loadAttempt < 60; loadAttempt++) {
+      cmp = findGuildComponent();
       var guild = cmp ? readObservableValue(cmp.guild$) : null;
-      if (cmp && guild && guild.trial) break;
+      if (cmp && guild) break;
       setStatus(
-        "Waiting for Guild → Trials…",
-        attempt === 0
-          ? "Navigate to your guild and open the Trials tab."
-          : "Still waiting (" + (attempt + 1) + "/40)…",
+        "Loading guild page…",
+        loadAttempt === 0
+          ? "Make sure you are logged in and in a guild."
+          : "Still loading (" + (loadAttempt + 1) + "/60)…",
       );
-      await sleep(750);
+      await sleep(500);
     }
 
     if (!cmp) {
-      setStatus("Could not read trial data.", "Stay on Guild → Trials and try again.");
-      return;
+      throw new Error("Could not load guild page. Log in and open your guild first.");
     }
 
-    var payload;
-    try {
-      payload = buildPayload(cmp);
-    } catch (err) {
-      setStatus("Sync failed", err && err.message ? err.message : String(err));
-      return;
+    var guildData = readObservableValue(cmp.guild$);
+    if (!guildData) {
+      throw new Error("Guild data not available. Are you in a guild?");
     }
 
-    var activeCount = 0;
-    for (var i = 0; i < payload.skills.length; i++) {
-      activeCount += payload.skills[i].members.length;
+    if (!isTrialsTabActive(cmp)) {
+      setStatus("Opening Trials tab…", "");
+      navigateToTrialsTab(cmp);
+      await sleep(600);
     }
 
-    if (activeCount === 0) {
-      setStatus("No active trial assignments found.", "Join or wait for members on trial slots first.");
-      await sleep(4000);
-      overlay.remove();
-      return;
+    for (var trialAttempt = 0; trialAttempt < 40; trialAttempt++) {
+      cmp = findGuildComponent() || cmp;
+      guildData = readObservableValue(cmp.guild$);
+      if (guildData && guildData.trial) {
+        if (!isTrialsTabActive(cmp)) navigateToTrialsTab(cmp);
+        return cmp;
+      }
+      if (trialAttempt === 5 || trialAttempt === 15) {
+        navigateToTrialsTab(cmp);
+      }
+      setStatus(
+        "Waiting for trial data…",
+        trialAttempt === 0
+          ? "Selecting the Trials tab."
+          : "Still waiting (" + (trialAttempt + 1) + "/40)…",
+      );
+      await sleep(600);
     }
 
-    var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
-    var destination = returnUrl + sep + "trialSync=" + encodeURIComponent(toBase64Url(payload));
-
-    setStatus(
-      "Done! Returning to Guild Trials…",
-      activeCount + " active assignment(s) for week " + payload.trialWeekStart,
+    throw new Error(
+      "No active guild trial found. Start trials in-game or open the Trials tab on /guild.",
     );
-    await sleep(600);
-    location.href = destination;
   }
 
-  runSync().catch(function (err) {
-    setStatus("Sync failed", err && err.message ? err.message : String(err));
-  });
+  async function runSync() {
+    try {
+      var cmp = await ensureGuildTrialsReady();
+      if (!cmp) return;
+
+      var payload = buildPayload(cmp);
+
+      var activeCount = 0;
+      for (var i = 0; i < payload.skills.length; i++) {
+        activeCount += payload.skills[i].members.length;
+      }
+
+      if (activeCount === 0) {
+        setStatus(
+          "No active trial assignments found.",
+          "Members must be on a trial slot (timer running) to sync.",
+        );
+        await sleep(4000);
+        overlay.remove();
+        sessionStorage.removeItem(SYNC_RUN_KEY);
+        return;
+      }
+
+      var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
+      var destination = returnUrl + sep + "trialSync=" + encodeURIComponent(toBase64Url(payload));
+
+      setStatus(
+        "Done! Returning to Guild Trials…",
+        activeCount + " active assignment(s) for week " + payload.trialWeekStart,
+      );
+      sessionStorage.removeItem(SYNC_RUN_KEY);
+      await sleep(600);
+      location.href = destination;
+    } catch (err) {
+      setStatus("Sync failed", err && err.message ? err.message : String(err));
+    }
+  }
+
+  runSync();
 })();

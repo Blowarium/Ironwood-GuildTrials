@@ -70,8 +70,8 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
     <div className="rounded-lg border border-violet-500/25 bg-violet-950/20 p-3 text-sm text-slate-300">
       <p className="font-medium text-violet-100">Sync from Ironwood</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-        Reads active trial assignments from the in-game Guild → Trials page and adds or updates
-        planner signups for this week. Officers only.
+        Opens ironwoodrpg.com/guild, selects the Trials tab, and adds or updates planner signups for
+        active in-game assignments. Officers only.
       </p>
 
       {!helperReady ? (

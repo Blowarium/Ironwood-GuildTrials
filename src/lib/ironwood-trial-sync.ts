@@ -314,19 +314,19 @@ export function buildIronwoodTrialSyncProbeUrl(appOrigin?: string): string {
 }
 
 export function buildIronwoodTrialSyncLaunchUrl(returnUrl: string): string {
-  const url = new URL(IRONWOOD_ORIGIN);
+  const url = new URL(`${IRONWOOD_ORIGIN.replace(/\/$/, "")}/guild`);
   url.searchParams.set("igtTrialSync", "1");
   url.searchParams.set("igtReturn", returnUrl);
   return url.toString();
 }
 
 export function buildIronwoodTrialSyncConsoleSnippet(appOrigin: string, returnUrl: string): string {
-  const src = `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_SCRIPT_PATH}?return=${encodeURIComponent(returnUrl)}`;
+  const src = `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_SCRIPT_PATH}?v=1.1.0&return=${encodeURIComponent(returnUrl)}`;
   return `(function(){var s=document.createElement('script');s.src='${src}';document.body.appendChild(s);})();`;
 }
 
 export function buildStaticIronwoodTrialSyncBookmarklet(): string {
-  const code = `(function(){var p=new URLSearchParams(location.search);var r=p.get('igtReturn');if(!r){alert('Tap Sync from Ironwood in Guild Trials first, then run this bookmark on the Ironwood tab.');return;}if(location.hostname.indexOf('ironwoodrpg')<0){alert('Open ironwoodrpg.com first.');return;}var o=new URL(r).origin;var s=o+'/ironwood-trial-sync.js?return='+encodeURIComponent(r);var e=document.createElement('script');e.src=s;(document.body||document.documentElement).appendChild(e);})();`;
+  const code = `(function(){var p=new URLSearchParams(location.search);var r=p.get('igtReturn');if(!r){r=sessionStorage.getItem('igt-trial-sync-return');}if(!r){alert('Tap Sync from Ironwood in Guild Trials first, then run this bookmark on the Ironwood tab.');return;}if(location.hostname.indexOf('ironwoodrpg')<0){alert('Open ironwoodrpg.com first.');return;}var o=new URL(r).origin;var path=location.pathname.replace(/\\/$/,'')||'/';if(path!=='/guild'){sessionStorage.setItem('igt-trial-sync-return',r);sessionStorage.setItem('igt-trial-sync-run','1');location.assign(o+'/guild?igtTrialSync=1&igtReturn='+encodeURIComponent(r));return;}var s=o+'/ironwood-trial-sync.js?v=1.1.0&return='+encodeURIComponent(r);var e=document.createElement('script');e.src=s;(document.body||document.documentElement).appendChild(e);})();`;
   return `javascript:${encodeURIComponent(code)}`;
 }
 
