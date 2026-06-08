@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.1";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.2";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -375,6 +375,9 @@ export type IronwoodTrialProbeReport = {
     assignmentRowsCollected: number;
     assignmentsWithEndDate: number;
     guildUiVisible: boolean;
+    trialsTabActive?: boolean;
+    trialsTabClickAttempted?: boolean;
+    navigationMethod?: string;
   };
   trialMeta?: {
     startDate: string | null;

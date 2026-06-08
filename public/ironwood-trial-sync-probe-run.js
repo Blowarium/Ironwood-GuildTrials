@@ -1,12 +1,13 @@
 /**
  * Automated trial data probe — runs on ironwoodrpg.com/guild via Tampermonkey helper.
- * Opens Trials, collects diagnostics, returns report to Guild Trials planner.
+ * Uses the same Trials-tab navigation as ironwood-trial-sync.js.
  */
 (function ironwoodTrialProbeRun() {
   if (!/ironwoodrpg\.com$/i.test(location.hostname)) return;
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
+  var SCRIPT_VERSION = "1.8.2";
 
   var scriptEl = document.currentScript;
   var scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
@@ -37,9 +38,24 @@
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
+  function installCaptureHook() {
+    if (window.__IGT_GUILD_CAPTURE_INSTALLED__) return;
+    var origin;
+    try {
+      origin = new URL(returnUrl).origin;
+    } catch (e) {
+      origin = "https://ironwood-guild-trials.vercel.app";
+    }
+    var script = document.createElement("script");
+    script.src = origin + "/ironwood-guild-capture.js?v=" + SCRIPT_VERSION;
+    (document.head || document.documentElement).appendChild(script);
+  }
+
+  installCaptureHook();
+
   function readObservableValue(subject) {
     if (!subject) return null;
-    if (Array.isArray(subject)) return subject;
+    if (typeof subject === "object" && !subject.getValue && Array.isArray(subject)) return subject;
     if (typeof subject.getValue === "function") return subject.getValue();
     if (typeof subject.value !== "undefined") return subject.value;
     if (typeof subject._value !== "undefined") return subject._value;
@@ -71,7 +87,7 @@
     return null;
   }
 
-  function scanNgContexts(matcher, limit) {
+  function scanAllNgContexts(matcher, limit) {
     var all = document.querySelectorAll("*");
     var max = Math.min(all.length, limit || 8000);
     var ngContextCount = 0;
@@ -85,20 +101,74 @@
     return { hit: null, ngContextCount: ngContextCount };
   }
 
-  function findComponent() {
-    var full = scanNgContexts(function (obj) {
-      return obj && obj.guild$ && (obj.trialSkills$ || obj.getTrial);
-    });
-    if (full.hit) return full;
+  function findGuildTrialsComponent() {
+    function isHost(obj) {
+      return Boolean(
+        obj && obj.guild$ && (obj.trialSkills$ || obj.getTrial || obj.changeTab),
+      );
+    }
+    function isTrialSkillsHost(obj) {
+      return Boolean(obj && obj.trialSkills$);
+    }
 
-    var trialSkillsOnly = scanNgContexts(function (obj) {
-      return obj && obj.trialSkills$;
-    });
-    return { hit: trialSkillsOnly.hit, ngContextCount: trialSkillsOnly.ngContextCount };
+    var selectors = ["guild-component", "guild-page", "app-guild", "app-root"];
+    for (var s = 0; s < selectors.length; s++) {
+      var nodes = document.querySelectorAll(selectors[s]);
+      for (var n = 0; n < nodes.length; n++) {
+        var el = nodes[n];
+        if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
+          try {
+            var cmp = window.ng.getComponent(el);
+            if (cmp && (isHost(cmp) || isTrialSkillsHost(cmp))) return cmp;
+          } catch (e) {
+            /* continue */
+          }
+        }
+        if (el.__ngContext__) {
+          var lView = el.__ngContext__;
+          if (Array.isArray(lView)) {
+            for (var li = 0; li < lView.length; li++) {
+              var item = lView[li];
+              if (item && (isHost(item) || isTrialSkillsHost(item))) return item;
+            }
+          }
+          var fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0, isHost);
+          if (fromCtx) return fromCtx;
+          fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0, isTrialSkillsHost);
+          if (fromCtx) return fromCtx;
+        }
+      }
+    }
+
+    var full = scanAllNgContexts(isHost, 8000);
+    if (full.hit) return full.hit;
+    return scanAllNgContexts(isTrialSkillsHost, 8000).hit;
+  }
+
+  function countNgContextNodes(limit) {
+    var all = document.querySelectorAll("*");
+    var max = Math.min(all.length, limit || 8000);
+    var count = 0;
+    for (var i = 0; i < max; i++) {
+      if (all[i].__ngContext__) count++;
+    }
+    return count;
   }
 
   function captureState() {
     return window.__IGT_GUILD_CAPTURE__ || { guild: null, raw: [] };
+  }
+
+  function guildFromCaptureRaw() {
+    var raw = captureState().raw || [];
+    for (var i = raw.length - 1; i >= 0; i--) {
+      var d = raw[i].d;
+      if (!d) continue;
+      if (d.value && d.value.guild && d.value.guild.trial) return d.value.guild;
+      if (d.guild && d.guild.trial) return d.guild;
+      if (d.trial && d.trial.members) return { trial: d.trial };
+    }
+    return null;
   }
 
   function inferStart(endDate) {
@@ -112,16 +182,74 @@
     return /Members/i.test(text) && (/Trials/i.test(text) || /Quests/i.test(text));
   }
 
-  function clickTrialsTab() {
-    var buttons = document.querySelectorAll("button");
-    for (var i = 0; i < buttons.length; i++) {
-      var text = (buttons[i].textContent || "").replace(/\s+/g, " ").trim();
-      if (text === "Trials" || /^Trials(\s|\(|$)/i.test(text)) {
-        buttons[i].click();
-        return true;
+  function trialsTabActive() {
+    var text = document.body ? document.body.innerText || "" : "";
+    if (/Required\s+(Exp|XP)/i.test(text)) return true;
+    if (/Trial\s+Hall/i.test(text)) return true;
+    if (/Guild\s+Credits/i.test(text) && /Woodcutting|Mining|Exploring/i.test(text)) return true;
+    var activeBtn = document.querySelector("button.active, button[aria-selected='true']");
+    if (activeBtn && /Trials/i.test(activeBtn.textContent || "")) return true;
+    return false;
+  }
+
+  function clickTrialsTabDom() {
+    var scopes = [
+      document.querySelector("guild-component"),
+      document.querySelector("guild-page"),
+      document.body,
+    ];
+    for (var s = 0; s < scopes.length; s++) {
+      var scope = scopes[s];
+      if (!scope) continue;
+      var buttons = scope.querySelectorAll("button");
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+        if (text === "Trials" || /^Trials(\s|\(|$)/i.test(text)) {
+          btn.click();
+          return true;
+        }
+      }
+      var labels = scope.querySelectorAll("div, span");
+      for (var j = 0; j < labels.length; j++) {
+        var node = labels[j];
+        if ((node.textContent || "").trim() !== "Trials") continue;
+        if (node.children && node.children.length > 0) continue;
+        var parentBtn = node.closest("button");
+        if (parentBtn) {
+          parentBtn.click();
+          return true;
+        }
       }
     }
     return false;
+  }
+
+  function navigateToTrialsTab(host) {
+    if (host && host.changeTab && host.GuildTabEnum && host.GuildTabEnum.Trials != null) {
+      try {
+        host.changeTab(host.GuildTabEnum.Trials);
+        return "changeTab";
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    return clickTrialsTabDom() ? "domClick" : "none";
+  }
+
+  async function triggerTrialLoad(host) {
+    if (host && typeof host.getTrial === "function") {
+      try {
+        var result = host.getTrial();
+        if (result && typeof result.then === "function") {
+          await result;
+          return "getTrial";
+        }
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    return navigateToTrialsTab(host);
   }
 
   function collectAssignments(cmp, guild, capture) {
@@ -195,20 +323,84 @@
   var overlay = document.createElement("div");
   overlay.id = "igt-trial-probe-overlay";
   overlay.style.cssText =
-    "position:fixed;inset:0;z-index:999999;background:rgba(8,12,22,0.92);color:#e2e8f0;font:14px/1.5 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;";
+    "position:fixed;inset:0;z-index:999999;background:rgba(8,12,22,0.92);color:#e2e8f0;font:14px/1.5 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none;";
   overlay.innerHTML =
-    '<div style="max-width:440px;text-align:center">' +
+    '<div style="max-width:440px;text-align:center;pointer-events:auto;background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">' +
     '<p style="font-size:18px;font-weight:600;margin:0 0 8px">Probing trial data</p>' +
     '<p id="igt-trial-probe-status" style="margin:0;color:#94a3b8">Starting…</p>' +
     '<p id="igt-trial-probe-detail" style="margin:12px 0 0;font-size:12px;color:#64748b"></p>' +
     "</div>";
   document.body.appendChild(overlay);
 
+  function setOverlayWatchMode(watch) {
+    overlay.style.background = watch ? "rgba(8,12,22,0.15)" : "rgba(8,12,22,0.92)";
+    overlay.style.pointerEvents = "none";
+  }
+
   function setStatus(main, detail) {
     var s = document.getElementById("igt-trial-probe-status");
     var d = document.getElementById("igt-trial-probe-detail");
     if (s) s.textContent = main;
     if (d) d.textContent = detail || "";
+  }
+
+  async function ensureTrialsOpen() {
+    var host = findGuildTrialsComponent();
+    var navigationMethod = "none";
+    var trialsTabClickAttempted = false;
+
+    setOverlayWatchMode(true);
+    setStatus("Opening Trials tab…", "You should see the guild page switch tabs.");
+
+    navigationMethod = await triggerTrialLoad(host);
+    trialsTabClickAttempted = navigationMethod !== "none";
+    await sleep(1200);
+
+    for (var attempt = 0; attempt < 45; attempt++) {
+      host = findGuildTrialsComponent() || host;
+
+      if (trialsTabActive()) {
+        setStatus("Trials tab open", "Reading trial data…");
+        break;
+      }
+
+      if (attempt === 3 || attempt === 8 || attempt === 15 || attempt === 25) {
+        navigationMethod = await triggerTrialLoad(host);
+        if (navigationMethod !== "none") trialsTabClickAttempted = true;
+        await sleep(900);
+      }
+
+      var capture = captureState();
+      var guild =
+        (host && host.guild$ ? readObservableValue(host.guild$) : null) ||
+        capture.guild ||
+        guildFromCaptureRaw();
+      var cmp = host || findGuildTrialsComponent();
+      var assignments = dedupeAssignments(collectAssignments(cmp, guild, capture));
+
+      if (assignments.length > 0) {
+        setStatus("Trial data detected", assignments.length + " assignment row(s) found.");
+        break;
+      }
+
+      setStatus(
+        "Opening Trials tab…",
+        "attempt " +
+          (attempt + 1) +
+          "/45 · tabActive=" +
+          (trialsTabActive() ? "yes" : "no") +
+          " · capture=" +
+          (capture.raw || []).length,
+      );
+      await sleep(600);
+    }
+
+    setOverlayWatchMode(false);
+    return {
+      navigationMethod: navigationMethod,
+      trialsTabClickAttempted: trialsTabClickAttempted,
+      trialsTabActive: trialsTabActive(),
+    };
   }
 
   async function run() {
@@ -222,21 +414,25 @@
         return;
       }
 
-      for (var wait = 0; wait < 40; wait++) {
+      for (var wait = 0; wait < 60; wait++) {
         if (guildUiVisible()) break;
-        setStatus("Waiting for guild UI…", String(wait + 1) + "/40");
+        setStatus("Waiting for guild UI…", String(wait + 1) + "/60");
         await sleep(500);
       }
 
-      setStatus("Opening Trials tab…", "");
-      clickTrialsTab();
-      await sleep(2500);
+      if (!guildUiVisible()) {
+        setStatus("Guild UI not visible", "Log in and open your guild, then try again.");
+        await sleep(5000);
+        return;
+      }
 
-      var cmpScan = findComponent();
-      var cmp = cmpScan.hit;
-      var guildFromCmp = cmp && cmp.guild$ ? readObservableValue(cmp.guild$) : null;
+      var nav = await ensureTrialsOpen();
+      await sleep(1500);
+
+      var cmp = findGuildTrialsComponent();
       var capture = captureState();
-      var guild = guildFromCmp || capture.guild || null;
+      var guildFromCmp = cmp && cmp.guild$ ? readObservableValue(cmp.guild$) : null;
+      var guild = guildFromCmp || capture.guild || guildFromCaptureRaw() || null;
       var trial = guild && guild.trial ? guild.trial : null;
       var trialSkills = cmp && cmp.trialSkills$ ? readObservableValue(cmp.trialSkills$) : null;
       var trialSkillsRows = Array.isArray(trialSkills) ? trialSkills.length : 0;
@@ -270,7 +466,7 @@
           ngGetComponentAvailable: Boolean(
             typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function",
           ),
-          ngContextNodesWithContext: cmpScan.ngContextCount,
+          ngContextNodesWithContext: countNgContextNodes(8000),
           guildTrialOnGuildObject: Boolean(trial),
           trialMembersOnGuildTrial: trial && trial.members ? Object.keys(trial.members).length : 0,
           trialSkillsRowCount: trialSkillsRows,
@@ -281,6 +477,9 @@
           assignmentRowsCollected: assignments.length,
           assignmentsWithEndDate: withEndDate.length,
           guildUiVisible: guildUiVisible(),
+          trialsTabActive: nav.trialsTabActive,
+          trialsTabClickAttempted: nav.trialsTabClickAttempted,
+          navigationMethod: nav.navigationMethod,
         },
         trialMeta: trial
           ? {

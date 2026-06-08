@@ -32,6 +32,12 @@ export function TrialProbeResultBanner({
           </p>
 
           <ul className="mt-2 space-y-0.5 text-xs">
+            {diagLine("Trials tab active (UI)", d.trialsTabActive ?? false)}
+            {d.navigationMethod != null && (
+              <li className="text-slate-300">
+                Navigation method: <span className="font-mono">{d.navigationMethod}</span>
+              </li>
+            )}
             {diagLine("Angular component found", d.componentFound)}
             {diagLine("guild$ observable", d.hasGuildObservable)}
             {diagLine("trialSkills$ observable", d.hasTrialSkillsObservable)}
