@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.8.5";
+  var SCRIPT_VERSION = "1.8.6";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -224,10 +224,85 @@
     return null;
   }
 
+  function normalizeMemberKey(name) {
+    return (name || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function isLikelyMemberName(name) {
+    if (!name || name.length < 2 || name.length > 40) return false;
+    var lower = name.toLowerCase().trim();
+    if (
+      /^(required|complete|join|choose|start|cancel|remove|add|trial|guild|credit|credits|exp|xp|none|empty|members|quests|trials|overview|settings|\d)/i.test(
+        lower,
+      )
+    ) {
+      return false;
+    }
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      if (lower === SKILL_ORDER[si].toLowerCase()) return false;
+      if (
+        new RegExp("^" + SKILL_ORDER[si].replace(/-/g, "\\-") + "\\s+trial", "i").test(name)
+      ) {
+        return false;
+      }
+    }
+    if (/\d\s*\/\s*\d/.test(name)) return false;
+    return true;
+  }
+
+  function isTrialMemberXpLine(line) {
+    if (!line || !/[\d,]+\s*XP/i.test(line)) return false;
+    if (/\d[\d,]*\s*\/\s*\d[\d,]*\s*XP/i.test(line)) return false;
+    if (/required\s*exp/i.test(line)) return false;
+    if (/^\s*complete\s*$/i.test(line)) return false;
+    return true;
+  }
+
+  function parseMemberLine(line, prevLine) {
+    if (!isTrialMemberXpLine(line)) return null;
+    var xpM = line.match(/([\d,]+)\s*XP/i);
+    if (!xpM) return null;
+    var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+    if (!isLikelyMemberName(name)) {
+      if (prevLine && isLikelyMemberName(prevLine.trim()) && !/XP/i.test(prevLine)) {
+        name = prevLine.trim();
+      } else {
+        return null;
+      }
+    }
+    return {
+      displayName: name,
+      exp: Number(xpM[1].replace(/,/g, "")),
+    };
+  }
+
+  function dedupeAssignmentsByMember(list) {
+    var byName = {};
+    var sourceRank = {
+      "trialSkills$": 5,
+      "guild.trial.members": 5,
+      "capture.guild.trial.members": 4,
+      "dom.scoped": 3,
+      "dom.text": 2,
+    };
+    for (var i = 0; i < list.length; i++) {
+      var a = list[i];
+      if (!isLikelyMemberName(a.displayName)) continue;
+      var key = normalizeMemberKey(a.displayName);
+      var existing = byName[key];
+      if (!existing || (sourceRank[a.source] || 0) >= (sourceRank[existing.source] || 0)) {
+        byName[key] = a;
+      }
+    }
+    return Object.keys(byName).map(function (k) {
+      return byName[k];
+    });
+  }
+
   function probeDomVisible() {
     var bodyText = document.body ? document.body.innerText || "" : "";
     var skillHeaders = 0;
-    var memberXpLines = 0;
+    var memberNames = {};
     var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
     var seenSkills = {};
 
@@ -253,13 +328,14 @@
       var section = match[1] || "";
       var lines = section.split("\n");
       for (var li = 0; li < lines.length; li++) {
-        if (/([\d,]+)\s*XP/i.test(lines[li])) memberXpLines++;
+        var parsed = parseMemberLine(lines[li], li > 0 ? lines[li - 1] : "");
+        if (parsed) memberNames[normalizeMemberKey(parsed.displayName)] = true;
       }
     }
 
     return {
       skillHeaders: skillHeaders,
-      memberXpLines: memberXpLines,
+      memberXpLines: Object.keys(memberNames).length,
       hasRequiredExp: /Required\s+(Exp|XP)/i.test(bodyText),
     };
   }
@@ -403,10 +479,12 @@
   }
 
   function parseMemberButton(btnText) {
+    var parsed = parseMemberLine(btnText, "");
+    if (parsed) return parsed;
     var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
     if (!xpMatch) return null;
     var withoutXp = btnText.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-    if (withoutXp.length < 2) return null;
+    if (!isLikelyMemberName(withoutXp)) return null;
     return {
       displayName: withoutXp,
       exp: Number(xpMatch[1].replace(/,/g, "")),
@@ -468,21 +546,12 @@
       var section = match[1] || "";
       var lines = section.split("\n");
       for (var li = 0; li < lines.length; li++) {
-        var line = lines[li].trim();
-        var xpM = line.match(/([\d,]+)\s*XP/i);
-        if (!xpM) continue;
-        var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-        if (name.length < 2) {
-          if (li > 0 && lines[li - 1].trim().length >= 2 && !/XP/i.test(lines[li - 1])) {
-            name = lines[li - 1].trim();
-          } else {
-            continue;
-          }
-        }
+        var parsed = parseMemberLine(lines[li], li > 0 ? lines[li - 1] : "");
+        if (!parsed) continue;
         out.push({
-          displayName: name,
+          displayName: parsed.displayName,
           skillId: skill,
-          exp: Number(xpM[1].replace(/,/g, "")),
+          exp: parsed.exp,
           endDate: null,
           inferredStartAt: null,
           source: "dom.text",
@@ -496,9 +565,8 @@
   function collectAllAssignments(cmp, guild, capture) {
     var scoped = collectAssignmentsFromDomScoped();
     var text = collectAssignmentsFromVisibleText();
-    return dedupeAssignments(
-      collectAssignments(cmp, guild, capture).concat(scoped).concat(text),
-    );
+    var dom = dedupeAssignmentsByMember(scoped.concat(text));
+    return dedupeAssignmentsByMember(collectAssignments(cmp, guild, capture).concat(dom));
   }
 
   function dedupeAssignments(list) {

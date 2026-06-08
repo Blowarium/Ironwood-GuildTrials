@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.8.5";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.8.6";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -676,11 +676,90 @@
     return out;
   }
 
+  function normalizeMemberKey(name) {
+    return (name || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function isLikelyMemberName(name) {
+    if (!name || name.length < 2 || name.length > 40) return false;
+    var lower = name.toLowerCase().trim();
+    if (
+      /^(required|complete|join|choose|start|cancel|remove|add|trial|guild|credit|credits|exp|xp|none|empty|members|quests|trials|overview|settings|\d)/i.test(
+        lower,
+      )
+    ) {
+      return false;
+    }
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      if (lower === SKILL_ORDER[si].toLowerCase()) return false;
+      if (
+        new RegExp("^" + SKILL_ORDER[si].replace(/-/g, "\\-") + "\\s+trial", "i").test(name)
+      ) {
+        return false;
+      }
+    }
+    if (/\d\s*\/\s*\d/.test(name)) return false;
+    return true;
+  }
+
+  function isTrialMemberXpLine(line) {
+    if (!line || !/[\d,]+\s*XP/i.test(line)) return false;
+    if (/\d[\d,]*\s*\/\s*\d[\d,]*\s*XP/i.test(line)) return false;
+    if (/required\s*exp/i.test(line)) return false;
+    if (/^\s*complete\s*$/i.test(line)) return false;
+    return true;
+  }
+
+  function parseMemberLine(line, prevLine) {
+    if (!isTrialMemberXpLine(line)) return null;
+    var xpM = line.match(/([\d,]+)\s*XP/i);
+    if (!xpM) return null;
+    var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+    if (!isLikelyMemberName(name)) {
+      if (prevLine && isLikelyMemberName(String(prevLine).trim()) && !/XP/i.test(String(prevLine))) {
+        name = String(prevLine).trim();
+      } else {
+        return null;
+      }
+    }
+    return {
+      displayName: name,
+      exp: Number(xpM[1].replace(/,/g, "")),
+    };
+  }
+
+  function dedupeSkillsByMemberName(skills) {
+    var seenMembers = {};
+    var out = [];
+    for (var i = 0; i < skills.length; i++) {
+      var skill = skills[i];
+      var members = [];
+      for (var j = 0; j < (skill.members || []).length; j++) {
+        var m = skill.members[j];
+        if (!isLikelyMemberName(m.displayName)) continue;
+        var key = normalizeMemberKey(m.displayName);
+        if (seenMembers[key]) continue;
+        seenMembers[key] = true;
+        members.push(m);
+      }
+      if (members.length) {
+        out.push({
+          skill: skill.skill,
+          skillId: skill.skillId,
+          members: members,
+        });
+      }
+    }
+    return out;
+  }
+
   function parseMemberButton(btnText) {
+    var parsed = parseMemberLine(btnText, "");
+    if (parsed) return parsed;
     var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
     if (!xpMatch) return null;
     var withoutXp = btnText.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-    if (withoutXp.length < 2) return null;
+    if (!isLikelyMemberName(withoutXp)) return null;
     return {
       displayName: withoutXp,
       exp: Number(xpMatch[1].replace(/,/g, "")),
@@ -730,6 +809,8 @@
 
     if (!skills.length) return normalizeFromVisibleText();
 
+    skills = dedupeSkillsByMemberName(skills);
+
     return {
       v: 1,
       importedAt: new Date().toISOString(),
@@ -771,22 +852,13 @@
       var members = [];
       var lines = section.split("\n");
       for (var li = 0; li < lines.length; li++) {
-        var line = lines[li].trim();
-        var xpM = line.match(/([\d,]+)\s*XP/i);
-        if (!xpM) continue;
-        var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-        if (name.length < 2) {
-          if (li > 0 && lines[li - 1].trim().length >= 2 && !/XP/i.test(lines[li - 1])) {
-            name = lines[li - 1].trim();
-          } else {
-            continue;
-          }
-        }
+        var parsed = parseMemberLine(lines[li], li > 0 ? lines[li - 1] : "");
+        if (!parsed) continue;
         members.push({
-          displayName: name,
+          displayName: parsed.displayName,
           skillName: skill,
           skillId: skill,
-          exp: Number(xpM[1].replace(/,/g, "")),
+          exp: parsed.exp,
           endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
           inferredStartAt: new Date().toISOString(),
           method: "dom-text",
@@ -798,6 +870,9 @@
       }
     }
 
+    if (!skills.length) return null;
+
+    skills = dedupeSkillsByMemberName(skills);
     if (!skills.length) return null;
 
     return {

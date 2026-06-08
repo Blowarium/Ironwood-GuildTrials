@@ -40,7 +40,7 @@ export function TrialProbeResultBanner({
               </li>
             )}
             {diagLine("DOM skill headers visible", d.domSkillHeadersFound ?? 0)}
-            {diagLine("DOM member XP lines", d.domMemberXpLinesFound ?? 0)}
+            {diagLine("DOM unique members visible", d.domMemberXpLinesFound ?? 0)}
             {diagLine("DOM assignments parsed", d.domAssignmentsCollected ?? 0)}
             {diagLine("Network URLs seen", d.captureNetworkUrlsSeen ?? 0)}
             {diagLine("Angular component found", d.componentFound)}
