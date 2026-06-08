@@ -14,11 +14,14 @@ import {
   buildPlannerTrialSyncReturnUrl,
   buildStaticIronwoodTrialSyncBookmarklet,
   buildUserscriptTrialSyncInstallUrl,
+  TRIAL_SYNC_AUTO_INTERVAL_MS,
+  TRIAL_SYNC_HELPER_WINDOW_NAME,
   isIronwoodOrigin,
   isIronwoodTrialSyncHelperMessage,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
 } from "@/lib/ironwood-trial-sync";
+import { formatDateTimeLabel } from "@/lib/trial-schedule";
 
 function markHelperReady(
   setLocal: (ready: boolean) => void,
@@ -33,10 +36,14 @@ export function IronwoodTrialSyncPanel({
   returnUrl,
   helperReady: helperReadyProp,
   onHelperReadyChange,
+  autoSyncActive,
+  lastAutoSyncAt,
 }: {
   returnUrl: string;
   helperReady?: boolean;
   onHelperReadyChange?: (ready: boolean) => void;
+  autoSyncActive?: boolean;
+  lastAutoSyncAt?: Date | null;
 }) {
   const [helperReadyLocal, setHelperReadyLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -92,7 +99,7 @@ export function IronwoodTrialSyncPanel({
   const launchSync = useCallback(() => {
     if (!probeReturnUrl) return;
     setSyncing(true);
-    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), "igt-ironwood-trial-sync");
+    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);
     window.setTimeout(() => setSyncing(false), 3000);
   }, [probeReturnUrl]);
 
@@ -177,6 +184,17 @@ export function IronwoodTrialSyncPanel({
         <p className="mt-2 text-xs text-emerald-400/90">
           Trial sync helper installed — use the button below whenever you want to sync from
           Ironwood.
+          {autoSyncActive ? (
+            <>
+              {" "}
+              Auto-sync runs every {TRIAL_SYNC_AUTO_INTERVAL_MS / 60_000} minutes while this tab
+              stays open
+              {lastAutoSyncAt
+                ? ` (last ${formatDateTimeLabel(lastAutoSyncAt.toISOString())})`
+                : ""}
+              .
+            </>
+          ) : null}
         </p>
       )}
 

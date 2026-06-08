@@ -50,6 +50,7 @@ import {
   type IronwoodTrialSyncPayload,
   type TrialSyncApplyResult,
 } from "@/lib/ironwood-trial-sync";
+import { useTrialSyncAutoRefresh } from "@/lib/use-trial-sync-auto-refresh";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
   formatWeekRange,
@@ -303,6 +304,24 @@ export function GuildTrialsApp() {
     if (typeof window === "undefined") return "";
     return buildPlannerTrialSyncReturnUrl(window.location.href.split("#")[0]);
   }, []);
+
+  const plannerPageHref = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.location.href.split("#")[0];
+  }, []);
+
+  const trialSyncAutoEnabled =
+    isStaff &&
+    staffUnlocked &&
+    trialSyncHelperReady &&
+    Boolean(currentUser) &&
+    Boolean(plannerPageHref);
+
+  const { lastAutoSyncAt: lastTrialAutoSyncAt } = useTrialSyncAutoRefresh({
+    enabled: trialSyncAutoEnabled,
+    plannerHref: plannerPageHref,
+    syncBusy: saving || pendingTrialSync !== null,
+  });
 
   const canEditSignup = useCallback(
     (target: Member) => {
@@ -767,6 +786,8 @@ export function GuildTrialsApp() {
                     returnUrl={trialSyncReturnUrl}
                     helperReady={trialSyncHelperReady}
                     onHelperReadyChange={setTrialSyncHelperReady}
+                    autoSyncActive={trialSyncAutoEnabled}
+                    lastAutoSyncAt={lastTrialAutoSyncAt}
                   />
                 )}
               </div>
