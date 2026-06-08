@@ -41,6 +41,8 @@ export function TrialProbeResultBanner({
             )}
             {diagLine("DOM skill headers visible", d.domSkillHeadersFound ?? 0)}
             {diagLine("DOM member XP lines", d.domMemberXpLinesFound ?? 0)}
+            {diagLine("DOM assignments parsed", d.domAssignmentsCollected ?? 0)}
+            {diagLine("Network URLs seen", d.captureNetworkUrlsSeen ?? 0)}
             {diagLine("Angular component found", d.componentFound)}
             {diagLine("guild$ observable", d.hasGuildObservable)}
             {diagLine("trialSkills$ observable", d.hasTrialSkillsObservable)}

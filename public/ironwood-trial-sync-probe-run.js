@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.8.4";
+  var SCRIPT_VERSION = "1.8.5";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -379,6 +379,128 @@
     return out;
   }
 
+  function isNodeAfter(startEl, node) {
+    if (!startEl || !node || !startEl.compareDocumentPosition) return false;
+    return Boolean(startEl.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
+  function isNodeBefore(endEl, node) {
+    if (!endEl || !node) return true;
+    if (!node.compareDocumentPosition) return true;
+    return Boolean(node.compareDocumentPosition(endEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
+  function collectClickablesBetween(startEl, endEl) {
+    var nodes = document.querySelectorAll("button, [role='button'], a, div, span");
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (!isNodeAfter(startEl, node)) continue;
+      if (endEl && !isNodeBefore(endEl, node)) continue;
+      out.push(node);
+    }
+    return out;
+  }
+
+  function parseMemberButton(btnText) {
+    var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
+    if (!xpMatch) return null;
+    var withoutXp = btnText.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+    if (withoutXp.length < 2) return null;
+    return {
+      displayName: withoutXp,
+      exp: Number(xpMatch[1].replace(/,/g, "")),
+    };
+  }
+
+  function collectAssignmentsFromDomScoped() {
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    var skillBlocks = [];
+    var seenSkills = {};
+    var out = [];
+
+    for (var i = 0; i < headers.length; i++) {
+      var skillName = headerSkillName(headers[i]);
+      if (!skillName || seenSkills[skillName]) continue;
+      seenSkills[skillName] = true;
+      skillBlocks.push({ el: headers[i], skillName: skillName });
+    }
+
+    for (var b = 0; b < skillBlocks.length; b++) {
+      var block = skillBlocks[b];
+      var nextEl = skillBlocks[b + 1] ? skillBlocks[b + 1].el : null;
+      var clickables = collectClickablesBetween(block.el, nextEl);
+      for (var bi = 0; bi < clickables.length; bi++) {
+        var parsed = parseMemberButton(clickables[bi].textContent || "");
+        if (!parsed) continue;
+        out.push({
+          displayName: parsed.displayName,
+          skillId: block.skillName,
+          exp: parsed.exp,
+          endDate: null,
+          inferredStartAt: null,
+          source: "dom.scoped",
+        });
+      }
+    }
+
+    return out;
+  }
+
+  function collectAssignmentsFromVisibleText() {
+    var bodyText = document.body ? document.body.innerText || "" : "";
+    if (!/\bTrial\b/i.test(bodyText)) return [];
+
+    var out = [];
+    for (var s = 0; s < SKILL_ORDER.length; s++) {
+      var skill = SKILL_ORDER[s];
+      var escaped = skill.replace(/-/g, "\\-");
+      var nextPattern = SKILL_ORDER.map(function (sk) {
+        return sk.replace(/-/g, "\\-");
+      }).join("|");
+      var re = new RegExp(
+        escaped + "\\s+Trial\\s*([\\s\\S]*?)(?=(?:" + nextPattern + ")\\s+Trial\\b|$)",
+        "i",
+      );
+      var match = bodyText.match(re);
+      if (!match) continue;
+
+      var section = match[1] || "";
+      var lines = section.split("\n");
+      for (var li = 0; li < lines.length; li++) {
+        var line = lines[li].trim();
+        var xpM = line.match(/([\d,]+)\s*XP/i);
+        if (!xpM) continue;
+        var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+        if (name.length < 2) {
+          if (li > 0 && lines[li - 1].trim().length >= 2 && !/XP/i.test(lines[li - 1])) {
+            name = lines[li - 1].trim();
+          } else {
+            continue;
+          }
+        }
+        out.push({
+          displayName: name,
+          skillId: skill,
+          exp: Number(xpM[1].replace(/,/g, "")),
+          endDate: null,
+          inferredStartAt: null,
+          source: "dom.text",
+        });
+      }
+    }
+
+    return out;
+  }
+
+  function collectAllAssignments(cmp, guild, capture) {
+    var scoped = collectAssignmentsFromDomScoped();
+    var text = collectAssignmentsFromVisibleText();
+    return dedupeAssignments(
+      collectAssignments(cmp, guild, capture).concat(scoped).concat(text),
+    );
+  }
+
   function dedupeAssignments(list) {
     var seen = {};
     var out = [];
@@ -460,7 +582,7 @@
         capture.guild ||
         guildFromCaptureRaw();
       var cmp = host || findGuildTrialsComponent();
-      var assignments = dedupeAssignments(collectAssignments(cmp, guild, capture));
+      var assignments = collectAllAssignments(cmp, guild, capture);
 
       if (assignments.length > 0) {
         setStatus("Trial data detected", assignments.length + " assignment row(s) found.");
@@ -529,7 +651,10 @@
         }
       }
 
-      var assignments = dedupeAssignments(collectAssignments(cmp, guild, capture));
+      var assignments = collectAllAssignments(cmp, guild, capture);
+      var domAssignments = assignments.filter(function (a) {
+        return a.source === "dom.scoped" || a.source === "dom.text";
+      });
       var withEndDate = assignments.filter(function (a) {
         return a.endDate;
       });
@@ -569,6 +694,8 @@
           domSkillHeadersFound: domProbe.skillHeaders,
           domMemberXpLinesFound: domProbe.memberXpLines,
           domHasRequiredExp: domProbe.hasRequiredExp,
+          domAssignmentsCollected: domAssignments.length,
+          captureNetworkUrlsSeen: (capture.urls || []).length,
         },
         trialMeta: trial
           ? {

@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.8.4";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.8.5";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -844,6 +844,9 @@
     var fromDom = normalizeFromDomScoped();
     if (fromDom) candidates.push(fromDom);
 
+    var fromDomText = normalizeFromVisibleText();
+    if (fromDomText) candidates.push(fromDomText);
+
     var best = null;
     var bestScore = -1;
     for (var ci = 0; ci < candidates.length; ci++) {
@@ -924,6 +927,12 @@
       }
 
       var payload = readTrialPayloadFromPage();
+      if (!payload || countMembersInPayload(payload) === 0) {
+        var domTextPayload = normalizeFromVisibleText();
+        if (domTextPayload && countMembersInPayload(domTextPayload) > 0) {
+          payload = domTextPayload;
+        }
+      }
       if (payload && countMembersInPayload(payload) > 0) {
         setStatus(
           "Trial data ready",
