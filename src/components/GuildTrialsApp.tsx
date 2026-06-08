@@ -41,6 +41,7 @@ import {
 } from "@/lib/ironwood-xp-import";
 import {
   findWeekOffsetForStart,
+  isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
   readTrialSyncFromLocation,
   type IronwoodTrialSyncPayload,
@@ -68,7 +69,7 @@ import { SuggestionsView } from "./SuggestionsView";
 import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
-import { IronwoodTrialSyncPanel } from "./IronwoodTrialSyncPanel";
+import { IronwoodTrialSyncPanel, useTrialSyncHelperListener } from "./IronwoodTrialSyncPanel";
 import { TrialSyncResultBanner } from "./TrialSyncResultBanner";
 
 type ViewTab = "planner" | "members" | "suggestions" | "buildings" | "roster";
@@ -105,6 +106,7 @@ export function GuildTrialsApp() {
   const [pendingTrialSync, setPendingTrialSync] = useState<IronwoodTrialSyncPayload | null>(null);
   const [trialSyncResult, setTrialSyncResult] = useState<TrialSyncApplyResult | null>(null);
   const [trialSyncWeekStart, setTrialSyncWeekStart] = useState<string | null>(null);
+  const [trialSyncHelperReady, setTrialSyncHelperReady] = useState(false);
   const [membersLoaded, setMembersLoaded] = useState(false);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
@@ -153,10 +155,21 @@ export function GuildTrialsApp() {
   }, []);
 
   useEffect(() => {
+    setTrialSyncHelperReady(isTrialSyncHelperInstalled());
+  }, []);
+
+  useTrialSyncHelperListener(
+    useCallback(() => {
+      setTrialSyncHelperReady(true);
+    }, []),
+  );
+
+  useEffect(() => {
     const payload = readTrialSyncFromLocation(window.location.search);
     if (!payload) return;
     setPendingTrialSync(payload);
     markTrialSyncHelperInstalled();
+    setTrialSyncHelperReady(true);
     const url = new URL(window.location.href);
     url.searchParams.delete("trialSync");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
@@ -728,7 +741,10 @@ export function GuildTrialsApp() {
                   onToggleComplete={handleToggleSkillComplete}
                 />
                 {isStaff && staffUnlocked && (
-                  <IronwoodTrialSyncPanel returnUrl={trialSyncReturnUrl} />
+                  <IronwoodTrialSyncPanel
+                    returnUrl={trialSyncReturnUrl}
+                    helperReady={trialSyncHelperReady}
+                  />
                 )}
               </div>
             )}

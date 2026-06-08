@@ -1,6 +1,6 @@
 /**
  * Runs on https://ironwoodrpg.com/guild via userscript or bookmarklet.
- * Navigates to /guild, opens the Trials tab, reads assignments, returns to planner.
+ * Captures getGuild/getGuildTrial API data, opens Trials tab, syncs to planner.
  */
 (function ironwoodGuildTrialsSync() {
   if (!/ironwoodrpg\.com$/i.test(location.hostname)) {
@@ -12,7 +12,6 @@
   var GUILD_PATH = "/guild";
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.1.0";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -74,6 +73,93 @@
     return next.toString();
   }
 
+  function installCaptureHook() {
+    if (window.__IGT_GUILD_CAPTURE_INSTALLED__) return;
+    window.__IGT_GUILD_CAPTURE_INSTALLED__ = 1;
+    var capture = { guild: null, raw: [] };
+    window.__IGT_GUILD_CAPTURE__ = capture;
+
+    function absorb(data) {
+      if (!data) return;
+      var g = data;
+      var trial = null;
+      if (data.value && data.value.guild) {
+        g = data.value.guild;
+        trial = data.value.trial || null;
+      } else if (data.guild) {
+        g = data.guild;
+        trial = data.trial || null;
+      } else if (data.trial && !data.name && !data.id) {
+        trial = data.trial;
+        g = null;
+      }
+      if (!capture.guild) capture.guild = {};
+      if (g && (g.name || g.id || g.members || g.trial)) {
+        capture.guild = Object.assign({}, capture.guild, g);
+      }
+      if (trial) capture.guild.trial = trial;
+      else if (g && g.trial) capture.guild.trial = g.trial;
+    }
+
+    function inspect(text, url) {
+      try {
+        var d = JSON.parse(text);
+        capture.raw.push({ url: url || "", d: d });
+        absorb(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    var oOpen = XMLHttpRequest.prototype.open;
+    var oSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (m, u) {
+      this.__igtUrl = String(u || "");
+      return oOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+      var x = this;
+      x.addEventListener("load", function () {
+        var u = x.__igtUrl || "";
+        if (/getGuild/i.test(u)) inspect(x.responseText, u);
+      });
+      return oSend.apply(this, arguments);
+    };
+
+    if (window.fetch) {
+      var oFetch = window.fetch;
+      window.fetch = function (input, init) {
+        var u = typeof input === "string" ? input : (input && input.url) || "";
+        return oFetch.apply(this, arguments).then(function (res) {
+          if (/getGuild/i.test(u)) {
+            res
+              .clone()
+              .text()
+              .then(function (t) {
+                inspect(t, u);
+              })
+              .catch(function () {});
+          }
+          return res;
+        });
+      };
+    }
+  }
+
+  installCaptureHook();
+
+  function captureState() {
+    return window.__IGT_GUILD_CAPTURE__ || { guild: null };
+  }
+
+  function guildLooksLoaded(guild) {
+    if (!guild) return false;
+    if (guild.name || guild.id) return true;
+    if (guild.trial) return true;
+    if (guild.members) return true;
+    return false;
+  }
+
   function toBase64Url(obj) {
     var json = JSON.stringify(obj);
     var b64 = btoa(
@@ -92,7 +178,7 @@
   }
 
   function findInNgContext(obj, seen, depth, matcher) {
-    if (!obj || depth > 14) return null;
+    if (!obj || depth > 20) return null;
     if (typeof obj !== "object") return null;
     if (seen.has(obj)) return null;
     seen.add(obj);
@@ -116,80 +202,116 @@
     return null;
   }
 
-  function getNgComponent(el) {
-    if (typeof window.ng === "undefined" || typeof window.ng.getComponent !== "function") {
-      return null;
-    }
-    try {
-      return window.ng.getComponent(el);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function isGuildComponent(cmp) {
-    return Boolean(cmp && cmp.guild$ && cmp.changeTab && cmp.GuildTabEnum);
-  }
-
-  function isGuildTrialsComponent(cmp) {
-    return Boolean(cmp && cmp.guild$ && (cmp.trialSkills$ || cmp.SKILL_DATA));
-  }
-
-  function findGuildComponent() {
-    var selectors = ["guild-page", "app-guild", "app-root", "[class*='guild']"];
-    for (var s = 0; s < selectors.length; s++) {
-      var nodes = document.querySelectorAll(selectors[s]);
-      for (var n = 0; n < nodes.length; n++) {
-        var cmp = getNgComponent(nodes[n]);
-        if (isGuildComponent(cmp) || isGuildTrialsComponent(cmp)) return cmp;
-        if (nodes[n].__ngContext__) {
-          var fromCtx = findInNgContext(
-            nodes[n].__ngContext__,
-            new WeakSet(),
-            0,
-            function (obj) {
-              return isGuildComponent(obj) || isGuildTrialsComponent(obj);
-            },
-          );
-          if (fromCtx) return fromCtx;
+  function scanPageContext(matcher) {
+    var roots = [
+      document.querySelector("guild-component"),
+      document.querySelector("guild-page"),
+      document.querySelector("app-root"),
+    ];
+    for (var r = 0; r < roots.length; r++) {
+      var el = roots[r];
+      if (!el) continue;
+      if (el.__ngContext__) {
+        var fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0, matcher);
+        if (fromCtx) return fromCtx;
+      }
+      if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
+        try {
+          var fromNg = window.ng.getComponent(el);
+          if (matcher(fromNg)) return fromNg;
+        } catch (e2) {
+          /* continue */
         }
       }
     }
 
     var all = document.querySelectorAll("*");
-    var limit = Math.min(all.length, 800);
+    var limit = Math.min(all.length, 2500);
     for (var i = 0; i < limit; i++) {
-      var cmp2 = getNgComponent(all[i]);
-      if (isGuildComponent(cmp2) || isGuildTrialsComponent(cmp2)) return cmp2;
+      var node = all[i];
+      if (!node.__ngContext__) continue;
+      var hit = findInNgContext(node.__ngContext__, new WeakSet(), 0, matcher);
+      if (hit) return hit;
     }
     return null;
   }
 
+  function isGuildHost(obj) {
+    return Boolean(
+      obj &&
+        obj.guild$ &&
+        typeof obj.changeTab === "function" &&
+        typeof obj.getTrial === "function",
+    );
+  }
+
+  function findGuildHost() {
+    return scanPageContext(isGuildHost);
+  }
+
+  function findSkillDataMap() {
+    var host = findGuildHost();
+    if (host && host.SKILL_DATA) return host.SKILL_DATA;
+    var skillHost = scanPageContext(function (obj) {
+      return obj && obj.SKILL_DATA && typeof obj.SKILL_DATA === "object";
+    });
+    return skillHost && skillHost.SKILL_DATA ? skillHost.SKILL_DATA : null;
+  }
+
+  function readGuildFromHost(host) {
+    if (!host) return null;
+    if (host.guild) return host.guild;
+    return readObservableValue(host.guild$);
+  }
+
+  function readGuildFromAnySource() {
+    var capture = captureState().guild;
+    if (capture && capture.trial) return capture;
+    var host = findGuildHost();
+    var fromHost = readGuildFromHost(host);
+    if (fromHost && fromHost.trial) return fromHost;
+    if (capture && guildLooksLoaded(capture)) return capture;
+    if (fromHost && guildLooksLoaded(fromHost)) return fromHost;
+    return capture || fromHost;
+  }
+
   function clickTrialsTabDom() {
-    var candidates = document.querySelectorAll("button, a, [role='button']");
-    for (var i = 0; i < candidates.length; i++) {
-      var el = candidates[i];
-      var text = (el.textContent || "").replace(/\s+/g, " ").trim();
-      if (text === "Trials") {
-        el.click();
-        return true;
+    var scopes = [
+      document.querySelector("guild-component"),
+      document.querySelector("guild-page"),
+      document.body,
+    ];
+    for (var s = 0; s < scopes.length; s++) {
+      var scope = scopes[s];
+      if (!scope) continue;
+      var buttons = scope.querySelectorAll("button");
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+        if (text === "Trials" || /^Trials(\s|\(|$)/i.test(text)) {
+          btn.click();
+          return true;
+        }
       }
-    }
-    for (var j = 0; j < candidates.length; j++) {
-      var el2 = candidates[j];
-      var text2 = (el2.textContent || "").replace(/\s+/g, " ").trim();
-      if (/^Trials\b/.test(text2) && text2.length < 40) {
-        el2.click();
-        return true;
+      var labels = scope.querySelectorAll("div, span");
+      for (var j = 0; j < labels.length; j++) {
+        var node = labels[j];
+        if ((node.textContent || "").trim() !== "Trials") continue;
+        if (node.children && node.children.length > 0) continue;
+        var parentBtn = node.closest("button");
+        if (parentBtn) {
+          parentBtn.click();
+          return true;
+        }
       }
     }
     return false;
   }
 
-  function navigateToTrialsTab(cmp) {
-    if (cmp && cmp.changeTab && cmp.GuildTabEnum && cmp.GuildTabEnum.Trials != null) {
+  function navigateToTrialsTab(host) {
+    if (host && host.changeTab && host.GuildTabEnum && host.GuildTabEnum.Trials != null) {
       try {
-        cmp.changeTab(cmp.GuildTabEnum.Trials);
+        host.changeTab(host.GuildTabEnum.Trials);
         return true;
       } catch (e) {
         /* fall through */
@@ -198,16 +320,25 @@
     return clickTrialsTabDom();
   }
 
-  function isTrialsTabActive(cmp) {
-    if (!cmp || !cmp.GuildTabEnum) return false;
-    var tab = readObservableValue(cmp.guildTab$);
-    if (tab == null && typeof cmp.guildTab !== "undefined") tab = cmp.guildTab;
-    return tab === cmp.GuildTabEnum.Trials;
+  async function triggerTrialLoad(host) {
+    if (host && typeof host.getTrial === "function") {
+      try {
+        var result = host.getTrial();
+        if (result && typeof result.then === "function") {
+          await result;
+          return true;
+        }
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    navigateToTrialsTab(host);
+    return false;
   }
 
-  function skillNameFromId(cmp, skillId) {
-    if (!cmp || !cmp.SKILL_DATA) return null;
-    var data = cmp.SKILL_DATA[skillId];
+  function skillNameFromId(skillData, skillId) {
+    if (!skillData) return null;
+    var data = skillData[skillId];
     return data && data.name ? data.name : null;
   }
 
@@ -253,23 +384,19 @@
     return n;
   }
 
-  function buildPayload(cmp) {
-    var guild = readObservableValue(cmp.guild$);
+  function buildPayload(guild, skillData) {
     if (!guild || !guild.trial) {
       throw new Error("No active guild trial on this guild.");
     }
 
     var trial = guild.trial;
-    var trialSkills = readObservableValue(cmp.trialSkills$);
-    if (!trialSkills) {
-      trialSkills = Object.values(trial.skills || {}).map(function (skill) {
-        return Object.assign({}, skill, {
-          members: Object.values(trial.members || {}).filter(function (m) {
-            return m.skillId === skill.id;
-          }),
-        });
+    var trialSkills = Object.values(trial.skills || {}).map(function (skill) {
+      return Object.assign({}, skill, {
+        members: Object.values(trial.members || {}).filter(function (m) {
+          return String(m.skillId) === String(skill.id);
+        }),
       });
-    }
+    });
 
     var skills = [];
     var errors = [];
@@ -277,9 +404,9 @@
     for (var si = 0; si < trialSkills.length; si++) {
       var row = trialSkills[si];
       var skillId = row.id;
-      var skillName = skillNameFromId(cmp, skillId);
+      var skillName = skillNameFromId(skillData, skillId);
       if (!skillName) {
-        errors.push("Unmapped skill id " + skillId);
+        errors.push("Unmapped skill id " + String(skillId));
         continue;
       }
 
@@ -292,7 +419,7 @@
           endDate: m.endDate,
           inferredStartAt: inferStart(m.endDate),
           actionId: m.actionId != null ? m.actionId : null,
-          method: "component",
+          method: "api",
         };
       });
 
@@ -350,6 +477,11 @@
     if (d) d.textContent = detail || "";
   }
 
+  function guildUiVisible() {
+    var text = document.body ? document.body.innerText || "" : "";
+    return /Members/i.test(text) && (/Trials/i.test(text) || /Quests/i.test(text));
+  }
+
   async function ensureGuildTrialsReady() {
     if (!onGuildPage()) {
       setStatus("Opening guild page…", GUILD_PATH);
@@ -358,69 +490,69 @@
       return null;
     }
 
-    var cmp = null;
-    for (var loadAttempt = 0; loadAttempt < 60; loadAttempt++) {
-      cmp = findGuildComponent();
-      var guild = cmp ? readObservableValue(cmp.guild$) : null;
-      if (cmp && guild) break;
+    for (var loadAttempt = 0; loadAttempt < 80; loadAttempt++) {
+      var guild = readGuildFromAnySource();
+      if (guildLooksLoaded(guild) && guildUiVisible()) break;
       setStatus(
         "Loading guild page…",
         loadAttempt === 0
-          ? "Make sure you are logged in and in a guild."
-          : "Still loading (" + (loadAttempt + 1) + "/60)…",
+          ? "Reading guild data from the page."
+          : "Still loading (" + (loadAttempt + 1) + "/80)…",
       );
       await sleep(500);
     }
 
-    if (!cmp) {
-      throw new Error("Could not load guild page. Log in and open your guild first.");
+    var host = findGuildHost();
+    var guildData = readGuildFromAnySource();
+
+    if (!guildLooksLoaded(guildData)) {
+      throw new Error(
+        "Could not read guild data. Stay on /guild while logged into your guild, then try again.",
+      );
     }
 
-    var guildData = readObservableValue(cmp.guild$);
-    if (!guildData) {
-      throw new Error("Guild data not available. Are you in a guild?");
-    }
+    setStatus("Opening Trials tab…", "Loading trial assignments.");
+    await triggerTrialLoad(host);
+    await sleep(900);
 
-    if (!isTrialsTabActive(cmp)) {
-      setStatus("Opening Trials tab…", "");
-      navigateToTrialsTab(cmp);
-      await sleep(600);
-    }
-
-    for (var trialAttempt = 0; trialAttempt < 40; trialAttempt++) {
-      cmp = findGuildComponent() || cmp;
-      guildData = readObservableValue(cmp.guild$);
+    for (var trialAttempt = 0; trialAttempt < 50; trialAttempt++) {
+      host = findGuildHost() || host;
+      guildData = readGuildFromAnySource();
       if (guildData && guildData.trial) {
-        if (!isTrialsTabActive(cmp)) navigateToTrialsTab(cmp);
-        return cmp;
+        return { guild: guildData, skillData: findSkillDataMap() };
       }
-      if (trialAttempt === 5 || trialAttempt === 15) {
-        navigateToTrialsTab(cmp);
+      if (trialAttempt === 3 || trialAttempt === 8 || trialAttempt === 16) {
+        await triggerTrialLoad(host);
       }
       setStatus(
-        "Waiting for trial data…",
+        "Loading trial data…",
         trialAttempt === 0
-          ? "Selecting the Trials tab."
-          : "Still waiting (" + (trialAttempt + 1) + "/40)…",
+          ? "Waiting for getGuildTrial."
+          : "Still loading (" + (trialAttempt + 1) + "/50)…",
       );
       await sleep(600);
     }
 
     throw new Error(
-      "No active guild trial found. Start trials in-game or open the Trials tab on /guild.",
+      "No active guild trial found. Start trials in-game, open the Trials tab, then sync again.",
     );
   }
 
   async function runSync() {
     try {
-      var cmp = await ensureGuildTrialsReady();
-      if (!cmp) return;
+      var ready = await ensureGuildTrialsReady();
+      if (!ready) return;
 
-      var payload = buildPayload(cmp);
+      var payload = buildPayload(ready.guild, ready.skillData);
 
       var activeCount = 0;
+      var nowMs = Date.now();
       for (var i = 0; i < payload.skills.length; i++) {
-        activeCount += payload.skills[i].members.length;
+        var members = payload.skills[i].members || [];
+        for (var m = 0; m < members.length; m++) {
+          var endMs = new Date(members[m].endDate).getTime();
+          if (Number.isNaN(endMs) || endMs > nowMs) activeCount++;
+        }
       }
 
       if (activeCount === 0) {

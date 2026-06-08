@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FIREFOX_ANDROID_TAMPERMONKEY_URL,
   TAMPERMONKEY_HOME_URL,
+  USERSCRIPTS_IOS_APP_URL,
 } from "@/lib/ironwood-xp-import";
 import {
   buildIronwoodTrialSyncConsoleSnippet,
@@ -10,13 +12,22 @@ import {
   buildStaticIronwoodTrialSyncBookmarklet,
   buildUserscriptTrialSyncInstallUrl,
   isTrialSyncHelperInstalled,
+  markTrialSyncHelperInstalled,
 } from "@/lib/ironwood-trial-sync";
 
-export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
-  const [helperReady, setHelperReady] = useState(false);
+export function IronwoodTrialSyncPanel({
+  returnUrl,
+  helperReady: helperReadyProp,
+}: {
+  returnUrl: string;
+  helperReady?: boolean;
+}) {
+  const [helperReadyLocal, setHelperReadyLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bookmarkletCopied, setBookmarkletCopied] = useState(false);
+
+  const helperReady = helperReadyProp ?? helperReadyLocal;
 
   const appOrigin = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -24,7 +35,7 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
   }, []);
 
   useEffect(() => {
-    setHelperReady(isTrialSyncHelperInstalled());
+    setHelperReadyLocal(isTrialSyncHelperInstalled());
   }, []);
 
   const userscriptInstallUrl = useMemo(
@@ -71,13 +82,13 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
       <p className="font-medium text-violet-100">Sync from Ironwood</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Opens ironwoodrpg.com/guild, selects the Trials tab, and adds or updates planner signups for
-        active in-game assignments. Officers only.
+        active in-game assignments. Enable the sync helper below first (same idea as XP/h import).
       </p>
 
       {!helperReady ? (
         <div className="mt-3 space-y-2">
           <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
-            One-time setup
+            One-time setup (~30 seconds)
           </p>
           <ol className="list-decimal space-y-2 pl-4 text-xs text-slate-400">
             <li>
@@ -90,10 +101,11 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
               >
                 Tampermonkey
               </a>{" "}
-              (same as XP import).
+              for your browser (Chrome, Edge, or Firefox).
             </li>
             <li>
-              Install the trial sync helper — Tampermonkey should show its install dialog.
+              Click below — Tampermonkey should pop up its install dialog. Click{" "}
+              <strong className="text-slate-300">Install</strong> there.
             </li>
           </ol>
           <a
@@ -103,11 +115,18 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
             className="inline-block rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 aria-disabled:pointer-events-none aria-disabled:opacity-50"
             aria-disabled={!userscriptInstallUrl}
           >
-            Add trial sync helper
+            Add trial sync helper to Tampermonkey
           </a>
+          <p className="text-[11px] text-slate-500">
+            If you only see a page of code, Tampermonkey is not installed or not enabled on this
+            site.
+          </p>
         </div>
       ) : (
-        <p className="mt-2 text-xs text-emerald-400/90">Trial sync helper installed.</p>
+        <p className="mt-2 text-xs text-emerald-400/90">
+          Trial sync helper installed — use the button below whenever you want to sync from
+          Ironwood.
+        </p>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -115,7 +134,7 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
           type="button"
           onClick={launchSync}
           disabled={!returnUrl || syncing}
-          className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
         >
           {syncing ? "Opening Ironwood…" : "Sync from Ironwood now"}
         </button>
@@ -133,10 +152,47 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
 
       <details className="mt-3 text-xs text-slate-500">
         <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
-          Manual fallback
+          Phone or tablet
+        </summary>
+        <div className="mt-3 max-w-full space-y-3 leading-relaxed text-slate-400">
+          <p>
+            Use the same <strong className="text-slate-300">Sync from Ironwood now</strong> button
+            after setup. Keep Guild Trials and Ironwood in the{" "}
+            <strong className="text-slate-300">same browser</strong>.
+          </p>
+          <p>
+            Android:{" "}
+            <a
+              href={FIREFOX_ANDROID_TAMPERMONKEY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-400 hover:underline"
+            >
+              Tampermonkey in Firefox for Android
+            </a>
+            , then install the helper above.
+          </p>
+          <p>
+            iPhone / iPad: free{" "}
+            <a
+              href={USERSCRIPTS_IOS_APP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-400 hover:underline"
+            >
+              Userscripts
+            </a>{" "}
+            app in Safari (same flow as XP/h import).
+          </p>
+        </div>
+      </details>
+
+      <details className="mt-3 text-xs text-slate-500">
+        <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
+          Manual fallback (no Tampermonkey)
         </summary>
         <p className="mt-2 leading-relaxed">
-          Open ironwoodrpg.com on Guild → Trials, press F12 → Console, paste the snippet.
+          Open ironwoodrpg.com/guild, press F12 → Console, paste the snippet.
         </p>
         <button
           type="button"
@@ -158,4 +214,16 @@ export function IronwoodTrialSyncPanel({ returnUrl }: { returnUrl: string }) {
       </details>
     </div>
   );
+}
+
+export function useTrialSyncHelperListener(onReady: () => void) {
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.data?.type !== "igt-trial-sync-helper-active" || event.data?.v !== 1) return;
+      markTrialSyncHelperInstalled();
+      onReady();
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [onReady]);
 }
