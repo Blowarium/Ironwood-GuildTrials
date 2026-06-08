@@ -17,7 +17,10 @@ export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
 export const TRIAL_SYNC_HELPER_STORAGE_KEY = "igt-trial-sync-helper-installed";
 export const TRIAL_SYNC_HELPER_PROBE_PARAM = "igtHelperProbe";
 export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.7.0";
+export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
+export const TRIAL_PROBE_URL_PARAM = "trialProbe";
+export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.8.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -340,6 +343,94 @@ export function isIronwoodTrialSyncHelperMessage(data: unknown): boolean {
 
 export function isIronwoodOrigin(origin: string): boolean {
   return /^https:\/\/(www\.)?ironwoodrpg\.com$/i.test(origin);
+}
+
+export type IronwoodTrialProbeAssignment = {
+  displayName: string;
+  skillId: string | number;
+  exp?: number;
+  endDate: string | null;
+  inferredStartAt: string | null;
+  source: string;
+};
+
+export type IronwoodTrialProbeReport = {
+  v: 1;
+  importedAt: string;
+  pageUrl?: string;
+  diagnostics: {
+    componentFound: boolean;
+    hasGuildObservable: boolean;
+    hasTrialSkillsObservable: boolean;
+    hasGetTrial: boolean;
+    ngGetComponentAvailable: boolean;
+    ngContextNodesWithContext: number;
+    guildTrialOnGuildObject: boolean;
+    trialMembersOnGuildTrial: number;
+    trialSkillsRowCount: number;
+    trialSkillsMemberCount: number;
+    captureHookInstalled: boolean;
+    captureRawResponses: number;
+    captureHasGuildTrial: boolean;
+    assignmentRowsCollected: number;
+    assignmentsWithEndDate: number;
+    guildUiVisible: boolean;
+  };
+  trialMeta?: {
+    startDate: string | null;
+    endDate: string | null;
+    requiredExp: number | null;
+  } | null;
+  assignments: IronwoodTrialProbeAssignment[];
+  samples?: {
+    captureUrls?: string[];
+    trialMemberKeys?: string[];
+  };
+};
+
+export function buildPlannerTrialSyncReturnUrl(href: string): string {
+  const url = new URL(href);
+  url.searchParams.delete("trialSync");
+  url.searchParams.delete("trialProbe");
+  return url.pathname + url.search;
+}
+
+export function buildIronwoodTrialProbeLaunchUrl(returnUrl: string): string {
+  const url = new URL(`${IRONWOOD_ORIGIN.replace(/\/$/, "")}/guild`);
+  url.searchParams.set(TRIAL_PROBE_LAUNCH_PARAM, "1");
+  url.searchParams.set("igtReturn", returnUrl);
+  return url.toString();
+}
+
+export function encodeTrialProbeReport(report: IronwoodTrialProbeReport): string {
+  const json = JSON.stringify(report);
+  if (typeof btoa === "function") {
+    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  return Buffer.from(json, "utf8").toString("base64url");
+}
+
+export function decodeTrialProbeReport(encoded: string): IronwoodTrialProbeReport | null {
+  try {
+    let b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const json =
+      typeof atob === "function"
+        ? atob(b64)
+        : Buffer.from(b64, "base64").toString("utf8");
+    const parsed = JSON.parse(json) as IronwoodTrialProbeReport;
+    if (parsed?.v !== 1 || !parsed.diagnostics) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function readTrialProbeFromLocation(search: string): IronwoodTrialProbeReport | null {
+  const params = new URLSearchParams(search);
+  const encoded = params.get(TRIAL_PROBE_URL_PARAM);
+  if (!encoded) return null;
+  return decodeTrialProbeReport(encoded);
 }
 
 export function buildIronwoodTrialSyncProbeUrl(appOrigin?: string): string {

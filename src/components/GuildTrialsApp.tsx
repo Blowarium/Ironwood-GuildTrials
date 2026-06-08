@@ -43,7 +43,10 @@ import {
   findWeekOffsetForStart,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
+  buildPlannerTrialSyncReturnUrl,
+  readTrialProbeFromLocation,
   readTrialSyncFromLocation,
+  type IronwoodTrialProbeReport,
   type IronwoodTrialSyncPayload,
   type TrialSyncApplyResult,
 } from "@/lib/ironwood-trial-sync";
@@ -70,6 +73,7 @@ import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
 import { IronwoodTrialSyncPanel, useTrialSyncHelperListener } from "./IronwoodTrialSyncPanel";
+import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
 import { TrialSyncResultBanner } from "./TrialSyncResultBanner";
 
 type ViewTab = "planner" | "members" | "suggestions" | "buildings" | "roster";
@@ -107,6 +111,7 @@ export function GuildTrialsApp() {
   const [trialSyncResult, setTrialSyncResult] = useState<TrialSyncApplyResult | null>(null);
   const [trialSyncWeekStart, setTrialSyncWeekStart] = useState<string | null>(null);
   const [trialSyncHelperReady, setTrialSyncHelperReady] = useState(false);
+  const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
   const [membersLoaded, setMembersLoaded] = useState(false);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
@@ -172,6 +177,17 @@ export function GuildTrialsApp() {
     setTrialSyncHelperReady(true);
     const url = new URL(window.location.href);
     url.searchParams.delete("trialSync");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, []);
+
+  useEffect(() => {
+    const report = readTrialProbeFromLocation(window.location.search);
+    if (!report) return;
+    setTrialProbeReport(report);
+    markTrialSyncHelperInstalled();
+    setTrialSyncHelperReady(true);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("trialProbe");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }, []);
 
@@ -285,7 +301,7 @@ export function GuildTrialsApp() {
 
   const trialSyncReturnUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return window.location.href.split("#")[0];
+    return buildPlannerTrialSyncReturnUrl(window.location.href.split("#")[0]);
   }, []);
 
   const canEditSignup = useCallback(
@@ -611,6 +627,12 @@ export function GuildTrialsApp() {
           <p className="rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300">{error}</p>
         )}
 
+        {trialProbeReport && (
+          <TrialProbeResultBanner
+            report={trialProbeReport}
+            onDismiss={() => setTrialProbeReport(null)}
+          />
+        )}
         {trialSyncResult && trialSyncWeekStart && (
           <TrialSyncResultBanner
             result={trialSyncResult}

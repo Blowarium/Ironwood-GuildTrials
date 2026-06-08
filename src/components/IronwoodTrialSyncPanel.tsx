@@ -7,9 +7,11 @@ import {
   USERSCRIPTS_IOS_APP_URL,
 } from "@/lib/ironwood-xp-import";
 import {
+  buildIronwoodTrialProbeLaunchUrl,
   buildIronwoodTrialSyncConsoleSnippet,
   buildIronwoodTrialSyncHelperProbeUrl,
   buildIronwoodTrialSyncLaunchUrl,
+  buildPlannerTrialSyncReturnUrl,
   buildStaticIronwoodTrialSyncBookmarklet,
   buildUserscriptTrialSyncInstallUrl,
   isIronwoodOrigin,
@@ -38,6 +40,7 @@ export function IronwoodTrialSyncPanel({
 }) {
   const [helperReadyLocal, setHelperReadyLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [probing, setProbing] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bookmarkletCopied, setBookmarkletCopied] = useState(false);
 
@@ -81,12 +84,24 @@ export function IronwoodTrialSyncPanel({
 
   const staticBookmarklet = useMemo(() => buildStaticIronwoodTrialSyncBookmarklet(), []);
 
-  const launchSync = useCallback(() => {
-    if (!returnUrl) return;
-    setSyncing(true);
-    window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), "_blank");
-    window.setTimeout(() => setSyncing(false), 3000);
+  const probeReturnUrl = useMemo(() => {
+    if (!returnUrl) return "";
+    return buildPlannerTrialSyncReturnUrl(returnUrl);
   }, [returnUrl]);
+
+  const launchSync = useCallback(() => {
+    if (!probeReturnUrl) return;
+    setSyncing(true);
+    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), "_blank");
+    window.setTimeout(() => setSyncing(false), 3000);
+  }, [probeReturnUrl]);
+
+  const launchProbe = useCallback(() => {
+    if (!probeReturnUrl) return;
+    setProbing(true);
+    window.open(buildIronwoodTrialProbeLaunchUrl(probeReturnUrl), "_blank");
+    window.setTimeout(() => setProbing(false), 3000);
+  }, [probeReturnUrl]);
 
   function handleInstallClick() {
     window.setTimeout(probeHelper, 2500);
@@ -169,10 +184,18 @@ export function IronwoodTrialSyncPanel({
         <button
           type="button"
           onClick={launchSync}
-          disabled={!returnUrl || syncing}
+          disabled={!probeReturnUrl || syncing}
           className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
         >
           {syncing ? "Opening Ironwood…" : "Sync from Ironwood now"}
+        </button>
+        <button
+          type="button"
+          onClick={launchProbe}
+          disabled={!probeReturnUrl || probing}
+          className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-400/60 disabled:opacity-50"
+        >
+          {probing ? "Probing…" : "Run data probe"}
         </button>
         {helperReady && (
           <a
@@ -186,6 +209,11 @@ export function IronwoodTrialSyncPanel({
           </a>
         )}
       </div>
+
+      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+        Use <strong className="text-slate-400">Run data probe</strong> to see what Ironwood
+        exposes (component, API, endDate) without changing planner signups.
+      </p>
 
       <details className="mt-3 text-xs text-slate-500">
         <summary className="cursor-pointer text-slate-400 hover:text-slate-300">

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — Trial Sync
 // @namespace    ironwood-guild-trials
-// @version      1.7.0
+// @version      1.8.0
 // @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
@@ -14,7 +14,7 @@
 
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.7.0";
+  var SCRIPT_VERSION = "1.8.0";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
 
   function appOriginFromSession() {
@@ -76,6 +76,43 @@
   var params = new URLSearchParams(location.search);
   if (params.get("igtHelperProbe") === "trialSync") {
     notifyPlannerHelperActive();
+    return;
+  }
+
+  var probeRun = params.get("igtTrialProbe") === "1";
+  if (probeRun) {
+    var probeReturnUrl = params.get("igtReturn");
+    if (!probeReturnUrl) return;
+
+    var probeOrigin;
+    try {
+      probeOrigin = new URL(probeReturnUrl).origin;
+    } catch (e) {
+      return;
+    }
+
+    function startProbe() {
+      if (document.getElementById("igt-trial-probe-overlay")) return;
+      notifyPlannerHelperActive();
+      if (!document.body) {
+        setTimeout(startProbe, 100);
+        return;
+      }
+      var script = document.createElement("script");
+      script.src =
+        probeOrigin +
+        "/ironwood-trial-sync-probe-run.js?v=" +
+        SCRIPT_VERSION +
+        "&return=" +
+        encodeURIComponent(probeReturnUrl);
+      document.body.appendChild(script);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", startProbe);
+    } else {
+      startProbe();
+    }
     return;
   }
 
