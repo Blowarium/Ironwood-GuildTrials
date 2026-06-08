@@ -1,5 +1,11 @@
 import type { Member, Skill, TrialStatus } from "./constants";
 import type { GuildConfig } from "./guild-config";
+import {
+  collectActiveTrialAssignments,
+  mapGameDisplayNameToMember,
+  type IronwoodTrialSyncPayload,
+  type TrialSyncApplyResult,
+} from "./ironwood-trial-sync";
 import type {
   MemberProfile,
   MemberRosterEntry,
@@ -207,4 +213,83 @@ export async function deleteSignup(payload: {
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not remove." };
   return {};
+}
+
+function startTimesClose(a: string, b: string): boolean {
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  return Math.abs(ta - tb) <= 60_000;
+}
+
+/** Upsert planner signups from an in-game Ironwood trial snapshot. */
+export async function syncTrialSignupsFromGame(
+  payload: IronwoodTrialSyncPayload,
+  actorMember: Member,
+  existingSignups: TrialSignup[] = [],
+): Promise<TrialSyncApplyResult> {
+  const weekStart = payload.trialWeekStart;
+  const assignments = collectActiveTrialAssignments(payload);
+  const byMember = new Map(
+    existingSignups.filter((s) => s.week_start === weekStart).map((s) => [s.member_name, s]),
+  );
+
+  const result: TrialSyncApplyResult = {
+    created: [],
+    updated: [],
+    unchanged: [],
+    skipped: [],
+    errors: [],
+  };
+
+  if (payload.unmatchedNames?.length) {
+    for (const name of payload.unmatchedNames) {
+      result.skipped.push({ displayName: name, reason: "Not in guild roster" });
+    }
+  }
+
+  const skippedNames = new Set(result.skipped.map((s) => s.displayName));
+  for (const skillRow of payload.skills) {
+    for (const member of skillRow.members) {
+      if (!mapGameDisplayNameToMember(member.displayName) && !skippedNames.has(member.displayName)) {
+        skippedNames.add(member.displayName);
+        result.skipped.push({ displayName: member.displayName, reason: "Not in guild roster" });
+      }
+    }
+  }
+
+  for (const assignment of assignments) {
+    const existing = byMember.get(assignment.memberName);
+    const sameSkill = existing?.skill === assignment.skill;
+    const sameTime =
+      existing != null && startTimesClose(existing.planned_start_at, assignment.plannedStartAt);
+
+    if (existing && sameSkill && sameTime) {
+      result.unchanged.push(assignment.memberName);
+      continue;
+    }
+
+    const { signup, error } = await saveSignup({
+      weekStart,
+      memberName: assignment.memberName,
+      skill: assignment.skill,
+      plannedDate: assignment.plannedDate,
+      plannedStartAt: assignment.plannedStartAt,
+      actorMember,
+    });
+
+    if (error || !signup) {
+      result.errors.push({ member: assignment.memberName, error: error ?? "Could not save." });
+      continue;
+    }
+
+    if (existing) {
+      result.updated.push(assignment.memberName);
+    } else {
+      result.created.push(assignment.memberName);
+    }
+    byMember.set(assignment.memberName, signup);
+  }
+
+  return result;
 }

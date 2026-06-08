@@ -12,6 +12,7 @@ import {
   logoutStaff,
   saveSignup,
   setSkillWeekComplete,
+  syncTrialSignupsFromGame,
 } from "@/lib/api-client";
 import type { GuildConfig } from "@/lib/guild-config";
 import { isGuideDismissed, setGuideDismissed } from "@/lib/guide-storage";
@@ -38,6 +39,13 @@ import {
   markXpImportHelperInstalled,
   type IronwoodXpImportPayload,
 } from "@/lib/ironwood-xp-import";
+import {
+  findWeekOffsetForStart,
+  markTrialSyncHelperInstalled,
+  readTrialSyncFromLocation,
+  type IronwoodTrialSyncPayload,
+  type TrialSyncApplyResult,
+} from "@/lib/ironwood-trial-sync";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
   formatWeekRange,
@@ -60,6 +68,8 @@ import { SuggestionsView } from "./SuggestionsView";
 import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
+import { IronwoodTrialSyncPanel } from "./IronwoodTrialSyncPanel";
+import { TrialSyncResultBanner } from "./TrialSyncResultBanner";
 
 type ViewTab = "planner" | "members" | "suggestions" | "buildings" | "roster";
 
@@ -92,6 +102,9 @@ export function GuildTrialsApp() {
   const [staffAuthTick, setStaffAuthTick] = useState(0);
   const [staffPasswordOpen, setStaffPasswordOpen] = useState(false);
   const [pendingXpImport, setPendingXpImport] = useState<IronwoodXpImportPayload | null>(null);
+  const [pendingTrialSync, setPendingTrialSync] = useState<IronwoodTrialSyncPayload | null>(null);
+  const [trialSyncResult, setTrialSyncResult] = useState<TrialSyncApplyResult | null>(null);
+  const [trialSyncWeekStart, setTrialSyncWeekStart] = useState<string | null>(null);
   const [membersLoaded, setMembersLoaded] = useState(false);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
@@ -136,6 +149,16 @@ export function GuildTrialsApp() {
     markXpImportHelperInstalled();
     const url = new URL(window.location.href);
     url.searchParams.delete("xpImport");
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }, []);
+
+  useEffect(() => {
+    const payload = readTrialSyncFromLocation(window.location.search);
+    if (!payload) return;
+    setPendingTrialSync(payload);
+    markTrialSyncHelperInstalled();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("trialSync");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }, []);
 
@@ -191,6 +214,65 @@ export function GuildTrialsApp() {
 
   const handleXpImportApplied = useCallback(() => {
     setPendingXpImport(null);
+  }, []);
+
+  const applyPendingTrialSync = useCallback(async () => {
+    if (!pendingTrialSync || !currentUser) return;
+    const payload = pendingTrialSync;
+    setPendingTrialSync(null);
+    setSaving(true);
+    setError(null);
+    try {
+      const targetWeek = payload.trialWeekStart;
+      const offset = findWeekOffsetForStart(targetWeek);
+      if (offset != null) setWeekOffset(offset);
+
+      const weekData = await fetchWeekData(targetWeek);
+      const result = await syncTrialSignupsFromGame(
+        payload,
+        currentUser,
+        weekData.signups,
+      );
+
+      setTrialSyncResult(result);
+      setTrialSyncWeekStart(targetWeek);
+      setView("planner");
+
+      const refreshed = await fetchWeekData(targetWeek);
+      setSignups(refreshed.signups);
+      setCompletions(refreshed.completions);
+      setMode(refreshed.mode);
+    } catch {
+      setError("Could not apply Ironwood trial sync.");
+    } finally {
+      setSaving(false);
+    }
+  }, [pendingTrialSync, currentUser]);
+
+  useEffect(() => {
+    if (!pendingTrialSync || !identityReady || !currentUser) return;
+    if (!isStaffRole(getMemberRole(rolesMap, currentUser))) {
+      setError("Ironwood trial sync requires Guild Leader or Officer access.");
+      setPendingTrialSync(null);
+      return;
+    }
+    if (!staffUnlocked) {
+      setStaffPasswordOpen(true);
+      return;
+    }
+    void applyPendingTrialSync();
+  }, [
+    pendingTrialSync,
+    identityReady,
+    currentUser,
+    staffUnlocked,
+    rolesMap,
+    applyPendingTrialSync,
+  ]);
+
+  const trialSyncReturnUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.location.href.split("#")[0];
   }, []);
 
   const canEditSignup = useCallback(
@@ -516,6 +598,17 @@ export function GuildTrialsApp() {
           <p className="rounded-lg bg-red-950/50 px-4 py-2 text-sm text-red-300">{error}</p>
         )}
 
+        {trialSyncResult && trialSyncWeekStart && (
+          <TrialSyncResultBanner
+            result={trialSyncResult}
+            weekStart={trialSyncWeekStart}
+            onDismiss={() => {
+              setTrialSyncResult(null);
+              setTrialSyncWeekStart(null);
+            }}
+          />
+        )}
+
         <div className="flex flex-col gap-1 border-b border-slate-700/50 pb-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-2">
           <div className="flex flex-wrap gap-1 pb-0.5">
             {tabItems.map(({ id, label, shortLabel }) => (
@@ -626,13 +719,18 @@ export function GuildTrialsApp() {
               )}
             </div>
             {view === "planner" && (
-              <SkillCoverageList
-                stats={stats}
-                xpCoverage={xpCoverage}
-                currentUser={currentUser}
-                togglingSkill={togglingSkill}
-                onToggleComplete={handleToggleSkillComplete}
-              />
+              <div className="space-y-3">
+                <SkillCoverageList
+                  stats={stats}
+                  xpCoverage={xpCoverage}
+                  currentUser={currentUser}
+                  togglingSkill={togglingSkill}
+                  onToggleComplete={handleToggleSkillComplete}
+                />
+                {isStaff && staffUnlocked && (
+                  <IronwoodTrialSyncPanel returnUrl={trialSyncReturnUrl} />
+                )}
+              </div>
             )}
           </div>
         )}
