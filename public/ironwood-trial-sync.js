@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.2";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.3";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -815,6 +815,51 @@
     return m ? Number(m[1]) : null;
   }
 
+  function scheduleFromHoursLeft(hoursLeft) {
+    if (hoursLeft == null || hoursLeft < 0 || hoursLeft > 24) {
+      return { endDate: null, inferredStartAt: null };
+    }
+    var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
+    return {
+      endDate: new Date(endMs).toISOString(),
+      inferredStartAt: new Date(endMs - TRIAL_MS).toISOString(),
+    };
+  }
+
+  function appendAdjacentHours(lines, li, chunk) {
+    if (li + 1 >= lines.length) return chunk;
+    var next = lines[li + 1].trim();
+    if (/^\d+\s*h(?:ours?)?$/i.test(next)) return chunk + " " + next;
+    return chunk;
+  }
+
+  function queryButtonsIncludingShadow(root, selector) {
+    var out = [];
+    var seen = {};
+    function walk(node) {
+      if (!node) return;
+      try {
+        if (node.querySelectorAll) {
+          var matches = node.querySelectorAll(selector);
+          for (var i = 0; i < matches.length; i++) {
+            if (!seen[matches[i]]) {
+              seen[matches[i]] = true;
+              out.push(matches[i]);
+            }
+          }
+        }
+      } catch (e) {
+        /* skip */
+      }
+      if (node.shadowRoot) walk(node.shadowRoot);
+      var children = node.children;
+      if (!children) return;
+      for (var c = 0; c < children.length; c++) walk(children[c]);
+    }
+    walk(root || document.body);
+    return out;
+  }
+
   function isTrialAssignmentButton(el) {
     if (!el || el.tagName !== "BUTTON") return false;
     if (!elementHasClass(el, "row-dark")) return false;
@@ -826,15 +871,19 @@
   }
 
   function skillForTrialAssignmentButton(btn) {
-    var node = btn.previousElementSibling;
-    while (node) {
-      if (node.tagName === "BUTTON") {
-        node = node.previousElementSibling;
-        continue;
+    var node = btn;
+    while (node && node !== document.body) {
+      var sib = node.previousElementSibling;
+      while (sib) {
+        if (sib.tagName === "BUTTON") {
+          sib = sib.previousElementSibling;
+          continue;
+        }
+        var skill = headerSkillName(sib);
+        if (skill) return skill;
+        sib = sib.previousElementSibling;
       }
-      var skill = headerSkillName(node);
-      if (skill) return skill;
-      node = node.previousElementSibling;
+      node = node.parentElement;
     }
     return null;
   }
@@ -849,45 +898,33 @@
     var xpM = (amountEl.textContent || "").match(/([\d,]+)\s*XP/i);
     if (!xpM || !isLikelyMemberName(displayName)) return null;
 
-    var hoursLeft = timeEl ? hoursFromTimeText(timeEl.textContent) : null;
+    var hoursLeft =
+      (timeEl ? hoursFromTimeText(timeEl.textContent) : null) ||
+      hoursFromTimeText(btn.textContent || "");
     var exp = Number(xpM[1].replace(/,/g, ""));
-
-    var endDate = null;
-    var inferredStartAt = null;
-    if (hoursLeft != null && hoursLeft >= 0 && hoursLeft <= 24) {
-      var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
-      endDate = new Date(endMs).toISOString();
-      inferredStartAt = new Date(endMs - TRIAL_MS).toISOString();
-    }
+    var schedule = scheduleFromHoursLeft(hoursLeft);
 
     return {
       displayName: displayName,
       exp: exp,
-      endDate: endDate,
-      inferredStartAt: inferredStartAt,
+      endDate: schedule.endDate,
+      inferredStartAt: schedule.inferredStartAt,
       hoursLeft: hoursLeft,
     };
   }
 
   function findTrialAssignmentButtons() {
-    var scopes = [
-      document.querySelector("guild-component"),
-      document.querySelector("guild-page"),
+    var buttons = queryButtonsIncludingShadow(
       document.body,
-    ];
+      "button.row-dark, button.row.row-dark",
+    );
     var out = [];
     var seen = {};
-    for (var s = 0; s < scopes.length; s++) {
-      var scope = scopes[s];
-      if (!scope) continue;
-      var buttons = scope.querySelectorAll("button.row-dark, button.row.row-dark");
-      for (var i = 0; i < buttons.length; i++) {
-        var btn = buttons[i];
-        if (!isTrialAssignmentButton(btn) || seen[btn]) continue;
-        seen[btn] = true;
-        out.push(btn);
-      }
-      if (out.length) break;
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      if (!isTrialAssignmentButton(btn) || seen[btn]) continue;
+      seen[btn] = true;
+      out.push(btn);
     }
     return out;
   }
@@ -1024,10 +1061,10 @@
 
     var endDate = null;
     var inferredStartAt = null;
-    if (hoursLeft != null && hoursLeft >= 0 && hoursLeft <= 24) {
-      var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
-      endDate = new Date(endMs).toISOString();
-      inferredStartAt = new Date(endMs - TRIAL_MS).toISOString();
+    if (hoursLeft != null) {
+      var schedule = scheduleFromHoursLeft(hoursLeft);
+      endDate = schedule.endDate;
+      inferredStartAt = schedule.inferredStartAt;
     }
 
     return {
@@ -1052,11 +1089,12 @@
         chunk = prev + " " + line;
       }
     }
+    chunk = appendAdjacentHours(lines, li, chunk);
 
     return parseTrialMemberText(chunk);
   }
 
-  function parseMemberLine(line, prevLine) {
+  function parseMemberLine(line, prevLine, nextLine) {
     if (!isTrialMemberXpLine(line)) return null;
     var chunk = line;
     if (prevLine) {
@@ -1066,6 +1104,9 @@
       } else if (!/XP/i.test(prev) && !/^\d+\s*h/i.test(prev)) {
         chunk = prev + " " + line;
       }
+    }
+    if (nextLine && /^\d+\s*h(?:ours?)?$/i.test(String(nextLine).trim())) {
+      chunk = chunk + " " + String(nextLine).trim();
     }
     return parseTrialMemberText(chunk);
   }
