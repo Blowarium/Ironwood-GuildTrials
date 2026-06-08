@@ -365,7 +365,7 @@ export function buildStaticIronwoodTrialSyncBookmarklet(): string {
 }
 
 export function buildUserscriptTrialSyncInstallUrl(appOrigin: string): string {
-  return `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_USERSCRIPT_PATH}`;
+  return `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_USERSCRIPT_PATH}?v=${TRIAL_SYNC_SCRIPT_VERSION}`;
 }
 
 export function isTrialSyncHelperInstalled(): boolean {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — Trial Sync
 // @namespace    ironwood-guild-trials
-// @version      1.4.0
+// @version      1.6.0
 // @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
