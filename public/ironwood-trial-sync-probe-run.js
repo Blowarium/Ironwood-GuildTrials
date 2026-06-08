@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.9.5";
+  var SCRIPT_VERSION = "1.9.6";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -55,6 +55,20 @@
       }),
     );
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function returnToPlanner(destination) {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.location.href = destination;
+        window.opener.focus();
+        window.close();
+        return;
+      }
+    } catch (e) {
+      /* opener navigation blocked */
+    }
+    location.href = destination;
   }
 
   function installCaptureHook() {
@@ -1112,7 +1126,7 @@
       var destination = returnUrl + sep + "trialProbe=" + encodeURIComponent(toBase64Url(report));
       await sleep(700);
       sessionStorage.removeItem("igt-trial-probe-run");
-      location.href = destination;
+      returnToPlanner(destination);
     } catch (err) {
       setStatus("Probe failed", err && err.message ? err.message : String(err));
     }

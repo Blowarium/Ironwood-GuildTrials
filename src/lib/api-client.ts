@@ -4,6 +4,7 @@ import {
   collectActiveTrialAssignments,
   mapGameDisplayNameToMember,
   type IronwoodTrialSyncPayload,
+  trialSyncStartTimesMatch,
   type TrialSyncApplyResult,
 } from "./ironwood-trial-sync";
 import type {
@@ -215,12 +216,6 @@ export async function deleteSignup(payload: {
   return {};
 }
 
-function startTimesClose(a: string, b: string): boolean {
-  const ta = new Date(a).getTime();
-  const tb = new Date(b).getTime();
-  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
-  return Math.abs(ta - tb) <= 60_000;
-}
 
 /** Upsert planner signups from an in-game Ironwood trial snapshot. */
 export async function syncTrialSignupsFromGame(
@@ -272,7 +267,7 @@ export async function syncTrialSignupsFromGame(
     const existing = byMember.get(assignment.memberName);
     const sameSkill = existing?.skill === assignment.skill;
     const sameTime =
-      existing != null && startTimesClose(existing.planned_start_at, assignment.plannedStartAt);
+      existing != null && trialSyncStartTimesMatch(existing.planned_start_at, assignment.plannedStartAt);
 
     if (existing && sameSkill && sameTime) {
       result.unchanged.push(assignment.memberName);

@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.5";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.6";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -140,7 +140,15 @@ export type TrialSyncApplyResult = {
   payloadSource?: string;
 };
 
-const START_AT_TOLERANCE_MS = 60_000;
+/** Treat planner and game start times as matching within this window. */
+export const TRIAL_SYNC_START_TOLERANCE_MS = 60 * 60 * 1000;
+
+export function trialSyncStartTimesMatch(a: string, b: string): boolean {
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
+  return Math.abs(ta - tb) <= TRIAL_SYNC_START_TOLERANCE_MS;
+}
 
 export function countTimedMembersInPayload(
   payload: IronwoodTrialSyncPayload,
@@ -524,10 +532,7 @@ export function findWeekOffsetForStart(weekStartIso: string, at = new Date()): n
 }
 
 function startTimesMatch(a: string, b: string): boolean {
-  const ta = new Date(a).getTime();
-  const tb = new Date(b).getTime();
-  if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
-  return Math.abs(ta - tb) <= START_AT_TOLERANCE_MS;
+  return trialSyncStartTimesMatch(a, b);
 }
 
 /** Active in-game trial slots (endDate still in the future). One row per member. */

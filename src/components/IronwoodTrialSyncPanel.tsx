@@ -92,14 +92,14 @@ export function IronwoodTrialSyncPanel({
   const launchSync = useCallback(() => {
     if (!probeReturnUrl) return;
     setSyncing(true);
-    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), "_blank");
+    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), "igt-ironwood-trial-sync");
     window.setTimeout(() => setSyncing(false), 3000);
   }, [probeReturnUrl]);
 
   const launchProbe = useCallback(() => {
     if (!probeReturnUrl) return;
     setProbing(true);
-    window.open(buildIronwoodTrialProbeLaunchUrl(probeReturnUrl), "_blank");
+    window.open(buildIronwoodTrialProbeLaunchUrl(probeReturnUrl), "igt-ironwood-trial-probe");
     window.setTimeout(() => setProbing(false), 3000);
   }, [probeReturnUrl]);
 
@@ -209,6 +209,11 @@ export function IronwoodTrialSyncPanel({
           </a>
         )}
       </div>
+
+      <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+        Ironwood opens in a short-lived helper tab and returns here when finished — your planner
+        tab stays open.
+      </p>
 
       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
         Use <strong className="text-slate-400">Run data probe</strong> to see what Ironwood

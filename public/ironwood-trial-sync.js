@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.5";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.6";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -108,6 +108,20 @@
       }),
     );
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function returnToPlanner(destination) {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.location.href = destination;
+        window.opener.focus();
+        window.close();
+        return;
+      }
+    } catch (e) {
+      /* opener navigation blocked */
+    }
+    location.href = destination;
   }
 
   function readObservableValue(subject) {
@@ -1535,7 +1549,7 @@
       );
       sessionStorage.removeItem(SYNC_RUN_KEY);
       await sleep(600);
-      location.href = destination;
+      returnToPlanner(destination);
     } catch (err) {
       setStatus("Sync failed", err && err.message ? err.message : String(err));
     }
