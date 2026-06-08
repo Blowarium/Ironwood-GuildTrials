@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.4";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.5";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -414,10 +414,25 @@
     return n;
   }
 
+  function countMembersWithTimedEndDate(payload) {
+    if (!payload || !payload.skills) return 0;
+    var now = Date.now();
+    var count = 0;
+    for (var i = 0; i < payload.skills.length; i++) {
+      var row = payload.skills[i];
+      for (var j = 0; j < (row.members || []).length; j++) {
+        var endMs = new Date(row.members[j].endDate).getTime();
+        if (!Number.isNaN(endMs) && endMs > now) count++;
+      }
+    }
+    return count;
+  }
+
   function payloadScore(payload) {
     if (!payload || !payload.skills) return -1;
     var members = countMembersInPayload(payload);
     if (!members) return -1;
+    var timed = countMembersWithTimedEndDate(payload);
     var sourceBonus =
       payload.source === "component"
         ? 3
@@ -432,7 +447,7 @@
                 : payload.source === "dom-columns"
                   ? 0
                   : 0;
-    return members * 10 + sourceBonus;
+    return timed * 25 + members * 5 + sourceBonus;
   }
 
   function trialMembersForSkill(trial, skillId) {
@@ -608,9 +623,14 @@
   }
 
   function resolveMemberSchedule(parsed) {
-    var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
-    var inferredStartAt = parsed.inferredStartAt || inferStart(endDate);
-    return { endDate: endDate, inferredStartAt: inferredStartAt };
+    if (!parsed || !parsed.endDate) {
+      return { endDate: null, inferredStartAt: null };
+    }
+    var endDate = parsed.endDate;
+    return {
+      endDate: endDate,
+      inferredStartAt: parsed.inferredStartAt || inferStart(endDate),
+    };
   }
 
   function guildWeekStartFromInstant(iso) {
@@ -960,6 +980,7 @@
       seenMemberKeys[memberKey] = true;
 
       var schedule = resolveMemberSchedule(parsed);
+      if (!schedule.endDate) continue;
 
       membersBySkill[skillName].push({
         displayName: parsed.displayName,
@@ -1186,6 +1207,7 @@
         var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
         var schedule = resolveMemberSchedule(parsed);
+        if (!schedule.endDate) continue;
         members.push({
           displayName: parsed.displayName,
           skillName: block.skillName,
@@ -1250,6 +1272,7 @@
         var parsed = parseMemberContextFromLines(lines, li);
         if (!parsed) continue;
         var schedule = resolveMemberSchedule(parsed);
+        if (!schedule.endDate) continue;
         members.push({
           displayName: parsed.displayName,
           skillName: skill,
@@ -1291,6 +1314,16 @@
   }
 
   function readTrialPayloadFromPage() {
+    var fromDomRows = normalizeFromDomRows();
+    if (fromDomRows && countMembersWithTimedEndDate(fromDomRows) > 0) {
+      return fromDomRows;
+    }
+
+    var fromDomText = normalizeFromVisibleText();
+    if (fromDomText && countMembersWithTimedEndDate(fromDomText) > 0) {
+      return fromDomText;
+    }
+
     var candidates = [];
     var cmp = findGuildTrialsComponent();
     var skillData = findSkillDataMap();
@@ -1312,11 +1345,11 @@
       candidates.push(buildSkillsPayload(guild, skillData, cmp, "api"));
     }
 
-    var fromDomRows = normalizeFromDomRows();
-    if (fromDomRows) candidates.push(fromDomRows);
+    var fromDomRowsFallback = normalizeFromDomRows();
+    if (fromDomRowsFallback) candidates.push(fromDomRowsFallback);
 
-    var fromDomText = normalizeFromVisibleText();
-    if (fromDomText) candidates.push(fromDomText);
+    var fromDomTextFallback = normalizeFromVisibleText();
+    if (fromDomTextFallback) candidates.push(fromDomTextFallback);
 
     var fromDom = normalizeFromDomScoped();
     if (fromDom) candidates.push(fromDom);

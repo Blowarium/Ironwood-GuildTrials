@@ -22,7 +22,7 @@ import {
   normalizeSignupTiming,
   syncSignups,
 } from "@/lib/trial-schedule";
-import { guildDateFromInstant } from "@/lib/guild-timezone";
+import { trialWindowOverlapsWeek } from "@/lib/ironwood-trial-sync";
 import type {
   PatchSignupPayload,
   SignupPayload,
@@ -72,17 +72,12 @@ function validatePayload(body: SignupPayload): string | null {
   }
   if (!isMember(body.memberName)) return "Unknown guild member.";
   if (!isSkill(body.skill)) return "Unknown skill.";
-  if (!isDateInWeek(body.plannedDate, body.weekStart)) {
-    return "Planned day must be within the selected trial week.";
-  }
   if (body.plannedStartAt) {
-    const startDate = guildDateFromInstant(body.plannedStartAt);
-    if (!isDateInWeek(startDate, body.weekStart)) {
-      return "Start time must fall within the selected trial week.";
+    if (!trialWindowOverlapsWeek(body.plannedStartAt, body.weekStart)) {
+      return "Trial must overlap the selected planner week.";
     }
-    if (startDate !== body.plannedDate) {
-      return "Start time does not match the selected day.";
-    }
+  } else if (!isDateInWeek(body.plannedDate, body.weekStart)) {
+    return "Planned day must be within the selected trial week.";
   }
   return null;
 }

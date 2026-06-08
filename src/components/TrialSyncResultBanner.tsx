@@ -21,7 +21,10 @@ export function TrialSyncResultBanner({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-medium text-violet-100">Ironwood trial sync applied</p>
-          <p className="mt-1 text-xs text-slate-400">Week of {weekStart}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Week of {weekStart}
+            {result.payloadSource ? ` · source ${result.payloadSource}` : ""}
+          </p>
           <ul className="mt-2 space-y-0.5 text-xs text-slate-300">
             {result.created.length > 0 && (
               <li>

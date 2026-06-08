@@ -8,7 +8,7 @@ import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import { guildDateFromInstant, guildWeekStart } from "./guild-timezone";
 import { IRONWOOD_ORIGIN, IRONWOOD_SKILL_NAME_MAP } from "./ironwood-xp-import";
 import { getWeekStart } from "./weeks";
-import { TRIAL_DURATION_MS } from "./trial-schedule";
+import { TRIAL_DURATION_MS, weekBoundsLocal } from "./trial-schedule";
 import type { TrialSignup } from "./types";
 
 export const TRIAL_SYNC_PROBE_SCRIPT_PATH = "/ironwood-trial-sync-probe.js";
@@ -20,7 +20,7 @@ export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.4";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.5";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -98,6 +98,8 @@ export type IronwoodTrialSyncPayload = {
   guildCreditsEarned: number;
   guildCreditsMax: number;
   skills: IronwoodTrialSyncSkillSource[];
+  /** Where assignment data came from (dom-rows, dom-text, api, component, …). */
+  source?: string;
   /** displayNames from in-game that did not match MEMBERS. */
   unmatchedNames?: string[];
   errors?: string[];
@@ -134,9 +136,37 @@ export type TrialSyncApplyResult = {
   unchanged: Member[];
   skipped: Array<{ displayName: string; reason: string }>;
   errors: Array<{ member: Member; error: string }>;
+  /** Payload source used for sync (dom-rows, dom-text, api, etc.). */
+  payloadSource?: string;
 };
 
 const START_AT_TOLERANCE_MS = 60_000;
+
+export function countTimedMembersInPayload(
+  payload: IronwoodTrialSyncPayload,
+  now = new Date(),
+): number {
+  const nowMs = now.getTime();
+  let count = 0;
+  for (const skillRow of payload.skills) {
+    for (const member of skillRow.members) {
+      const endMs = new Date(member.endDate).getTime();
+      if (!Number.isNaN(endMs) && endMs > nowMs) count++;
+    }
+  }
+  return count;
+}
+
+export function trialWindowOverlapsWeek(
+  plannedStartAt: string,
+  weekStart: string,
+): boolean {
+  const startMs = new Date(plannedStartAt).getTime();
+  if (Number.isNaN(startMs)) return false;
+  const endMs = startMs + TRIAL_DURATION_MS;
+  const { start, end } = weekBoundsLocal(weekStart);
+  return endMs > start.getTime() && startMs < end.getTime();
+}
 
 // ---------------------------------------------------------------------------
 // Mapping helpers
@@ -538,9 +568,10 @@ export function collectActiveTrialAssignments(
       }
 
       const endMs = new Date(member.endDate).getTime();
-      if (!Number.isNaN(endMs) && endMs <= nowMs) continue;
+      if (Number.isNaN(endMs) || endMs <= nowMs) continue;
 
       const plannedStartAt = inferTrialStartAtFromEndDate(member.endDate);
+      if (Number.isNaN(new Date(plannedStartAt).getTime())) continue;
       byMember.set(memberName, {
         memberName,
         skill,

@@ -240,6 +240,7 @@ export async function syncTrialSignupsFromGame(
     unchanged: [],
     skipped: [],
     errors: [],
+    payloadSource: payload.source,
   };
 
   const skippedNames = new Set<string>();

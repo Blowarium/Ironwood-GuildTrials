@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.9.4";
+  var SCRIPT_VERSION = "1.9.5";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -197,8 +197,10 @@
   }
 
   function resolveMemberSchedule(parsed) {
-    var endDate = parsed.endDate || null;
-    if (!endDate) return { endDate: null, inferredStartAt: null };
+    if (!parsed || !parsed.endDate) {
+      return { endDate: null, inferredStartAt: null };
+    }
+    var endDate = parsed.endDate;
     return {
       endDate: endDate,
       inferredStartAt: parsed.inferredStartAt || inferStart(endDate),
