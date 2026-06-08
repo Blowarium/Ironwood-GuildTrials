@@ -8,19 +8,33 @@ import {
 } from "@/lib/ironwood-xp-import";
 import {
   buildIronwoodTrialSyncConsoleSnippet,
+  buildIronwoodTrialSyncHelperProbeUrl,
   buildIronwoodTrialSyncLaunchUrl,
   buildStaticIronwoodTrialSyncBookmarklet,
   buildUserscriptTrialSyncInstallUrl,
+  isIronwoodOrigin,
+  isIronwoodTrialSyncHelperMessage,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
 } from "@/lib/ironwood-trial-sync";
 
+function markHelperReady(
+  setLocal: (ready: boolean) => void,
+  onParent?: (ready: boolean) => void,
+) {
+  markTrialSyncHelperInstalled();
+  setLocal(true);
+  onParent?.(true);
+}
+
 export function IronwoodTrialSyncPanel({
   returnUrl,
   helperReady: helperReadyProp,
+  onHelperReadyChange,
 }: {
   returnUrl: string;
   helperReady?: boolean;
+  onHelperReadyChange?: (ready: boolean) => void;
 }) {
   const [helperReadyLocal, setHelperReadyLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -34,9 +48,26 @@ export function IronwoodTrialSyncPanel({
     return window.location.origin;
   }, []);
 
+  const probeHelper = useCallback(() => {
+    if (isTrialSyncHelperInstalled()) {
+      markHelperReady(setHelperReadyLocal, onHelperReadyChange);
+      return;
+    }
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = buildIronwoodTrialSyncHelperProbeUrl();
+    document.body.appendChild(iframe);
+    window.setTimeout(() => iframe.remove(), 8000);
+  }, [onHelperReadyChange]);
+
   useEffect(() => {
-    setHelperReadyLocal(isTrialSyncHelperInstalled());
-  }, []);
+    if (isTrialSyncHelperInstalled()) {
+      setHelperReadyLocal(true);
+      onHelperReadyChange?.(true);
+      return;
+    }
+    probeHelper();
+  }, [onHelperReadyChange, probeHelper]);
 
   const userscriptInstallUrl = useMemo(
     () => (appOrigin ? buildUserscriptTrialSyncInstallUrl(appOrigin) : ""),
@@ -53,9 +84,13 @@ export function IronwoodTrialSyncPanel({
   const launchSync = useCallback(() => {
     if (!returnUrl) return;
     setSyncing(true);
-    window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), "_blank", "noopener,noreferrer");
+    window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), "_blank");
     window.setTimeout(() => setSyncing(false), 3000);
   }, [returnUrl]);
+
+  function handleInstallClick() {
+    window.setTimeout(probeHelper, 2500);
+  }
 
   async function copySnippet() {
     try {
@@ -112,6 +147,7 @@ export function IronwoodTrialSyncPanel({
             href={userscriptInstallUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleInstallClick}
             className="inline-block rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 aria-disabled:pointer-events-none aria-disabled:opacity-50"
             aria-disabled={!userscriptInstallUrl}
           >
@@ -143,6 +179,7 @@ export function IronwoodTrialSyncPanel({
             href={userscriptInstallUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={handleInstallClick}
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:border-slate-500"
           >
             Reinstall helper
@@ -219,7 +256,8 @@ export function IronwoodTrialSyncPanel({
 export function useTrialSyncHelperListener(onReady: () => void) {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
-      if (event.data?.type !== "igt-trial-sync-helper-active" || event.data?.v !== 1) return;
+      if (!isIronwoodOrigin(event.origin)) return;
+      if (!isIronwoodTrialSyncHelperMessage(event.data)) return;
       markTrialSyncHelperInstalled();
       onReady();
     }

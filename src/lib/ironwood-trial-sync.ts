@@ -15,6 +15,9 @@ export const TRIAL_SYNC_PROBE_SCRIPT_PATH = "/ironwood-trial-sync-probe.js";
 export const TRIAL_SYNC_SCRIPT_PATH = "/ironwood-trial-sync.js";
 export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
 export const TRIAL_SYNC_HELPER_STORAGE_KEY = "igt-trial-sync-helper-installed";
+export const TRIAL_SYNC_HELPER_PROBE_PARAM = "igtHelperProbe";
+export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.4.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -308,6 +311,22 @@ export function decodeTrialSyncPayload(encoded: string): IronwoodTrialSyncPayloa
   }
 }
 
+export function buildIronwoodTrialSyncHelperProbeUrl(): string {
+  const url = new URL(IRONWOOD_ORIGIN);
+  url.searchParams.set(TRIAL_SYNC_HELPER_PROBE_PARAM, TRIAL_SYNC_HELPER_PROBE_VALUE);
+  return url.toString();
+}
+
+export function isIronwoodTrialSyncHelperMessage(data: unknown): boolean {
+  if (!data || typeof data !== "object") return false;
+  const msg = data as { type?: string; v?: number };
+  return msg.type === "igt-trial-sync-helper-active" && msg.v === 1;
+}
+
+export function isIronwoodOrigin(origin: string): boolean {
+  return /^https:\/\/(www\.)?ironwoodrpg\.com$/i.test(origin);
+}
+
 export function buildIronwoodTrialSyncProbeUrl(appOrigin?: string): string {
   const origin = (appOrigin ?? IRONWOOD_ORIGIN).replace(/\/$/, "");
   return `${origin}${TRIAL_SYNC_PROBE_SCRIPT_PATH}`;
@@ -321,12 +340,12 @@ export function buildIronwoodTrialSyncLaunchUrl(returnUrl: string): string {
 }
 
 export function buildIronwoodTrialSyncConsoleSnippet(appOrigin: string, returnUrl: string): string {
-  const src = `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_SCRIPT_PATH}?v=1.3.0&return=${encodeURIComponent(returnUrl)}`;
+  const src = `${appOrigin.replace(/\/$/, "")}${TRIAL_SYNC_SCRIPT_PATH}?v=${TRIAL_SYNC_SCRIPT_VERSION}&return=${encodeURIComponent(returnUrl)}`;
   return `(function(){var s=document.createElement('script');s.src='${src}';document.body.appendChild(s);})();`;
 }
 
 export function buildStaticIronwoodTrialSyncBookmarklet(): string {
-  const code = `(function(){var p=new URLSearchParams(location.search);var r=p.get('igtReturn');if(!r){r=sessionStorage.getItem('igt-trial-sync-return');}if(!r){alert('Tap Sync from Ironwood in Guild Trials first, then run this bookmark on the Ironwood tab.');return;}if(location.hostname.indexOf('ironwoodrpg')<0){alert('Open ironwoodrpg.com first.');return;}var o=new URL(r).origin;var path=location.pathname.replace(/\\/$/,'')||'/';if(path!=='/guild'){sessionStorage.setItem('igt-trial-sync-return',r);sessionStorage.setItem('igt-trial-sync-run','1');location.assign(o+'/guild?igtTrialSync=1&igtReturn='+encodeURIComponent(r));return;}var s=o+'/ironwood-trial-sync.js?v=1.3.0&return='+encodeURIComponent(r);var e=document.createElement('script');e.src=s;(document.body||document.documentElement).appendChild(e);})();`;
+  const code = `(function(){var p=new URLSearchParams(location.search);var r=p.get('igtReturn');if(!r){r=sessionStorage.getItem('igt-trial-sync-return');}if(!r){alert('Tap Sync from Ironwood in Guild Trials first, then run this bookmark on the Ironwood tab.');return;}if(location.hostname.indexOf('ironwoodrpg')<0){alert('Open ironwoodrpg.com first.');return;}var o=new URL(r).origin;var path=location.pathname.replace(/\\/$/,'')||'/';if(path!=='/guild'){sessionStorage.setItem('igt-trial-sync-return',r);sessionStorage.setItem('igt-trial-sync-run','1');location.assign(o+'/guild?igtTrialSync=1&igtReturn='+encodeURIComponent(r));return;}var s=o+'/ironwood-trial-sync.js?v=${TRIAL_SYNC_SCRIPT_VERSION}&return='+encodeURIComponent(r);var e=document.createElement('script');e.src=s;(document.body||document.documentElement).appendChild(e);})();`;
   return `javascript:${encodeURIComponent(code)}`;
 }
 

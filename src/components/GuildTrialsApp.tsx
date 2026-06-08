@@ -744,6 +744,7 @@ export function GuildTrialsApp() {
                   <IronwoodTrialSyncPanel
                     returnUrl={trialSyncReturnUrl}
                     helperReady={trialSyncHelperReady}
+                    onHelperReadyChange={setTrialSyncHelperReady}
                   />
                 )}
               </div>
