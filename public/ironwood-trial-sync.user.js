@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — Trial Sync
 // @namespace    ironwood-guild-trials
-// @version      1.8.3
+// @version      1.8.4
 // @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
@@ -14,7 +14,8 @@
 
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.8.3";
+  var PROBE_RUN_KEY = "igt-trial-probe-run";
+  var SCRIPT_VERSION = "1.8.4";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
 
   function resolveReturnUrl(raw) {
@@ -154,7 +155,93 @@
     }
   }
 
-  installCaptureHook();
+  try {
+    installCaptureHook();
+  } catch (e) {
+    /* capture hook failed — sync/probe can still run */
+  }
+
+  function mountTarget() {
+    return document.body || document.documentElement;
+  }
+
+  function showBootstrapOverlay(title, status, detail) {
+    var id = "igt-trial-helper-bootstrap";
+    var overlay = document.getElementById(id);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = id;
+      overlay.style.cssText =
+        "position:fixed;inset:0;z-index:2147483646;background:rgba(8,12,22,0.92);color:#e2e8f0;font:14px/1.5 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none;";
+      overlay.innerHTML =
+        '<div style="max-width:440px;text-align:center;pointer-events:auto;background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">' +
+        '<p id="igt-trial-helper-title" style="font-size:18px;font-weight:600;margin:0 0 8px"></p>' +
+        '<p id="igt-trial-helper-status" style="margin:0;color:#94a3b8"></p>' +
+        '<p id="igt-trial-helper-detail" style="margin:12px 0 0;font-size:12px;color:#64748b"></p>' +
+        "</div>";
+      var target = mountTarget();
+      if (target) target.appendChild(overlay);
+    }
+    var t = document.getElementById("igt-trial-helper-title");
+    var s = document.getElementById("igt-trial-helper-status");
+    var d = document.getElementById("igt-trial-helper-detail");
+    if (t) t.textContent = title;
+    if (s) s.textContent = status;
+    if (d) d.textContent = detail || "";
+    return overlay;
+  }
+
+  function ensureBootstrapOverlay(title, status, detail) {
+    var overlay = showBootstrapOverlay(title, status, detail);
+    if (overlay && overlay.parentNode) return overlay;
+    window.setTimeout(function () {
+      ensureBootstrapOverlay(title, status, detail);
+    }, 50);
+    return null;
+  }
+
+  function loadAppScript(scriptPath, returnUrl, title) {
+    var appOrigin = returnOrigin(returnUrl) || DEFAULT_APP_ORIGIN;
+    ensureBootstrapOverlay(title, "Loading helper script…", appOrigin);
+
+    function inject() {
+      var loadKey = scriptPath + "|" + returnUrl;
+      if (window.__IGT_REMOTE_SCRIPT_KEY__ === loadKey) return;
+      window.__IGT_REMOTE_SCRIPT_KEY__ = loadKey;
+
+      var script = document.createElement("script");
+      script.src =
+        appOrigin +
+        scriptPath +
+        "?v=" +
+        SCRIPT_VERSION +
+        "&return=" +
+        encodeURIComponent(returnUrl);
+      script.onload = function () {
+        showBootstrapOverlay(title, "Helper script loaded", "Continuing…");
+      };
+      script.onerror = function () {
+        window.__IGT_REMOTE_SCRIPT_KEY__ = "";
+        showBootstrapOverlay(
+          title,
+          "Could not load helper script",
+          "Tampermonkey blocked " +
+            appOrigin +
+            ". Reinstall the helper (v" +
+            SCRIPT_VERSION +
+            ") or disable ad blockers for Ironwood.",
+        );
+      };
+      (document.body || document.documentElement).appendChild(script);
+    }
+
+    if (document.body) {
+      inject();
+    } else {
+      document.addEventListener("DOMContentLoaded", inject);
+      window.setTimeout(inject, 250);
+    }
+  }
 
   function notifyPlannerHelperActive() {
     var msg = { type: "igt-trial-sync-helper-active", v: 1 };
@@ -181,70 +268,53 @@
     return;
   }
 
-  var probeRun = params.get("igtTrialProbe") === "1";
+  if (params.get("igtTrialProbe") === "1") {
+    sessionStorage.setItem(PROBE_RUN_KEY, "1");
+    var probeReturnFromUrl = resolveReturnUrl(params.get("igtReturn"));
+    if (probeReturnFromUrl) sessionStorage.setItem(SYNC_RETURN_KEY, probeReturnFromUrl);
+  }
+
+  var probeRun =
+    params.get("igtTrialProbe") === "1" || sessionStorage.getItem(PROBE_RUN_KEY) === "1";
   if (probeRun) {
-    var probeReturnUrl = resolveReturnUrl(params.get("igtReturn"));
-    if (!probeReturnUrl) return;
-
-    var probeOrigin = returnOrigin(probeReturnUrl);
-    if (!probeOrigin) return;
-
-    function startProbe() {
-      if (document.getElementById("igt-trial-probe-overlay")) return;
-      notifyPlannerHelperActive();
-      if (!document.body) {
-        setTimeout(startProbe, 100);
-        return;
-      }
-      var script = document.createElement("script");
-      script.src =
-        probeOrigin +
-        "/ironwood-trial-sync-probe-run.js?v=" +
-        SCRIPT_VERSION +
-        "&return=" +
-        encodeURIComponent(probeReturnUrl);
-      document.body.appendChild(script);
+    var probeReturnUrl =
+      resolveReturnUrl(params.get("igtReturn")) ||
+      resolveReturnUrl(sessionStorage.getItem(SYNC_RETURN_KEY));
+    if (!probeReturnUrl) {
+      ensureBootstrapOverlay(
+        "Trial data probe",
+        "Missing return URL",
+        "Start the probe from Guild Trials planner.",
+      );
+      return;
     }
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", startProbe);
-    } else {
-      startProbe();
-    }
+    notifyPlannerHelperActive();
+    loadAppScript("/ironwood-trial-sync-probe-run.js", probeReturnUrl, "Probing trial data");
     return;
+  }
+
+  if (params.get("igtTrialSync") === "1") {
+    sessionStorage.setItem(SYNC_RUN_KEY, "1");
+    var syncReturnFromUrl = resolveReturnUrl(params.get("igtReturn"));
+    if (syncReturnFromUrl) sessionStorage.setItem(SYNC_RETURN_KEY, syncReturnFromUrl);
   }
 
   var resuming = sessionStorage.getItem(SYNC_RUN_KEY) === "1";
   if (params.get("igtTrialSync") !== "1" && !resuming) return;
 
-  var returnUrl = resolveReturnUrl(
-    params.get("igtReturn") || (resuming ? sessionStorage.getItem(SYNC_RETURN_KEY) : null),
-  );
-  if (!returnUrl) return;
-
-  var appOrigin = returnOrigin(returnUrl);
-  if (!appOrigin) return;
-
-  function startSync() {
-    if (document.getElementById("igt-trial-sync-overlay")) return;
-    notifyPlannerHelperActive();
-    if (!document.body) {
-      setTimeout(startSync, 100);
-      return;
-    }
-    var script = document.createElement("script");
-    script.src =
-      appOrigin +
-      "/ironwood-trial-sync.js?v=" +
-      SCRIPT_VERSION +
-      "&return=" +
-      encodeURIComponent(returnUrl);
-    document.body.appendChild(script);
+  var returnUrl =
+    resolveReturnUrl(params.get("igtReturn")) ||
+    resolveReturnUrl(sessionStorage.getItem(SYNC_RETURN_KEY));
+  if (!returnUrl) {
+    ensureBootstrapOverlay(
+      "Syncing guild trials",
+      "Missing return URL",
+      "Start sync from Guild Trials planner.",
+    );
+    return;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", startSync);
-  } else {
-    startSync();
-  }
+  notifyPlannerHelperActive();
+  loadAppScript("/ironwood-trial-sync.js", returnUrl, "Syncing guild trials");
 })();

@@ -3,7 +3,7 @@
  * Captures getGuild/getGuildTrial API data, opens Trials tab, syncs to planner.
  */
 (function ironwoodGuildTrialsSync() {
-  if (!/ironwoodrpg\.com$/i.test(location.hostname)) {
+  if (!/(^|\.)ironwoodrpg\.com$/i.test(location.hostname)) {
     alert("Guild Trials sync must be run on ironwoodrpg.com while logged in.");
     return;
   }
@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.8.3";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.8.4";
     (document.head || document.documentElement).appendChild(script);
   }
 

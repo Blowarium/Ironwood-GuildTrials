@@ -3,11 +3,11 @@
  * Uses the same Trials-tab navigation as ironwood-trial-sync.js.
  */
 (function ironwoodTrialProbeRun() {
-  if (!/ironwoodrpg\.com$/i.test(location.hostname)) return;
+  if (!/(^|\.)ironwoodrpg\.com$/i.test(location.hostname)) return;
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.8.3";
+  var SCRIPT_VERSION = "1.8.4";
 
   var SKILL_ORDER = [
     "Woodcutting",
@@ -392,17 +392,29 @@
     return out;
   }
 
-  var overlay = document.createElement("div");
+  var overlay = document.getElementById("igt-trial-probe-overlay");
+  if (!overlay) {
+    overlay = document.getElementById("igt-trial-helper-bootstrap");
+  }
+  if (!overlay) {
+    overlay = document.createElement("div");
+  }
   overlay.id = "igt-trial-probe-overlay";
   overlay.style.cssText =
     "position:fixed;inset:0;z-index:999999;background:rgba(8,12,22,0.92);color:#e2e8f0;font:14px/1.5 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none;";
-  overlay.innerHTML =
-    '<div style="max-width:440px;text-align:center;pointer-events:auto;background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">' +
-    '<p style="font-size:18px;font-weight:600;margin:0 0 8px">Probing trial data</p>' +
-    '<p id="igt-trial-probe-status" style="margin:0;color:#94a3b8">Starting…</p>' +
-    '<p id="igt-trial-probe-detail" style="margin:12px 0 0;font-size:12px;color:#64748b"></p>' +
-    "</div>";
-  document.body.appendChild(overlay);
+  if (!overlay.querySelector("#igt-trial-probe-status")) {
+    overlay.innerHTML =
+      '<div style="max-width:440px;text-align:center;pointer-events:auto;background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:20px 24px;box-shadow:0 8px 32px rgba(0,0,0,0.4)">' +
+      '<p style="font-size:18px;font-weight:600;margin:0 0 8px">Probing trial data</p>' +
+      '<p id="igt-trial-probe-status" style="margin:0;color:#94a3b8">Starting…</p>' +
+      '<p id="igt-trial-probe-detail" style="margin:12px 0 0;font-size:12px;color:#64748b"></p>' +
+      "</div>";
+  }
+  if (!overlay.parentNode) {
+    (document.body || document.documentElement).appendChild(overlay);
+  }
+  var bootstrap = document.getElementById("igt-trial-helper-bootstrap");
+  if (bootstrap && bootstrap !== overlay) bootstrap.remove();
 
   function setOverlayWatchMode(watch) {
     overlay.style.background = watch ? "rgba(8,12,22,0.15)" : "rgba(8,12,22,0.92)";
@@ -585,6 +597,7 @@
       var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
       var destination = returnUrl + sep + "trialProbe=" + encodeURIComponent(toBase64Url(report));
       await sleep(700);
+      sessionStorage.removeItem("igt-trial-probe-run");
       location.href = destination;
     } catch (err) {
       setStatus("Probe failed", err && err.message ? err.message : String(err));
