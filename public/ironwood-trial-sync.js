@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.6.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.7.0";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -112,8 +112,22 @@
 
   function readObservableValue(subject) {
     if (!subject) return null;
+    if (typeof subject === "object" && !subject.getValue && Array.isArray(subject)) return subject;
     if (typeof subject.getValue === "function") return subject.getValue();
     if (typeof subject.value !== "undefined") return subject.value;
+    if (typeof subject._value !== "undefined") return subject._value;
+    return null;
+  }
+
+  function scanAllNgContexts(matcher, limit) {
+    var all = document.querySelectorAll("*");
+    var max = Math.min(all.length, limit || 8000);
+    for (var i = 0; i < max; i++) {
+      var node = all[i];
+      if (!node.__ngContext__) continue;
+      var hit = findInNgContext(node.__ngContext__, new WeakSet(), 0, matcher);
+      if (hit) return hit;
+    }
     return null;
   }
 
@@ -177,6 +191,15 @@
   }
 
   function findGuildTrialsComponent() {
+    function isHost(obj) {
+      return Boolean(
+        obj && obj.guild$ && (obj.trialSkills$ || obj.getTrial || obj.changeTab),
+      );
+    }
+    function isTrialSkillsHost(obj) {
+      return Boolean(obj && obj.trialSkills$);
+    }
+
     var selectors = ["guild-component", "guild-page", "app-guild", "app-root"];
     for (var s = 0; s < selectors.length; s++) {
       var nodes = document.querySelectorAll(selectors[s]);
@@ -185,7 +208,7 @@
         if (typeof window.ng !== "undefined" && typeof window.ng.getComponent === "function") {
           try {
             var cmp = window.ng.getComponent(el);
-            if (cmp && cmp.guild$ && (cmp.trialSkills$ || cmp.getTrial)) return cmp;
+            if (cmp && (isHost(cmp) || isTrialSkillsHost(cmp))) return cmp;
           } catch (e) {
             /* continue */
           }
@@ -195,40 +218,30 @@
           if (Array.isArray(lView)) {
             for (var li = 0; li < lView.length; li++) {
               var item = lView[li];
-              if (item && item.guild$ && (item.trialSkills$ || item.getTrial || item.changeTab)) {
-                return item;
-              }
+              if (item && (isHost(item) || isTrialSkillsHost(item))) return item;
             }
           }
-          var fromCtx = findInNgContext(
-            el.__ngContext__,
-            new WeakSet(),
-            0,
-            function (obj) {
-              return obj && obj.guild$ && (obj.trialSkills$ || obj.getTrial || obj.changeTab);
-            },
-          );
+          var fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0, isHost);
+          if (fromCtx) return fromCtx;
+          fromCtx = findInNgContext(el.__ngContext__, new WeakSet(), 0, isTrialSkillsHost);
           if (fromCtx) return fromCtx;
         }
       }
     }
 
-    var all = document.querySelectorAll("*");
-    var limit = Math.min(all.length, 3000);
-    for (var i = 0; i < limit; i++) {
-      var node = all[i];
-      if (!node.__ngContext__) continue;
-      var hit = findInNgContext(
-        node.__ngContext__,
-        new WeakSet(),
-        0,
-        function (obj) {
-          return obj && obj.guild$ && (obj.trialSkills$ || obj.getTrial || obj.changeTab);
-        },
+    return scanAllNgContexts(isHost, 8000) || scanAllNgContexts(isTrialSkillsHost, 8000);
+  }
+
+  function findTrialRecordInPage() {
+    return scanAllNgContexts(function (obj) {
+      return Boolean(
+        obj &&
+          obj.members &&
+          obj.skills &&
+          obj.requiredExp != null &&
+          obj.startDate,
       );
-      if (hit) return hit;
-    }
-    return null;
+    }, 8000);
   }
 
   function findGuildHost() {
@@ -253,12 +266,30 @@
   function readGuildFromAnySource() {
     var capture = captureState().guild;
     if (capture && capture.trial) return capture;
-    var host = findGuildHost();
+    var host = findGuildTrialsComponent();
     var fromHost = readGuildFromHost(host);
     if (fromHost && fromHost.trial) return fromHost;
+
+    var trialOnly = findTrialRecordInPage();
+    if (trialOnly) {
+      return { trial: trialOnly, name: capture && capture.name, id: capture && capture.id };
+    }
+
     if (capture && guildLooksLoaded(capture)) return capture;
     if (fromHost && guildLooksLoaded(fromHost)) return fromHost;
     return capture || fromHost;
+  }
+
+  function guildFromCaptureRaw() {
+    var raw = captureState().raw || [];
+    for (var i = raw.length - 1; i >= 0; i--) {
+      var d = raw[i].d;
+      if (!d) continue;
+      if (d.value && d.value.guild && d.value.guild.trial) return d.value.guild;
+      if (d.guild && d.guild.trial) return d.guild;
+      if (d.trial && d.trial.members) return { trial: d.trial };
+    }
+    return null;
   }
 
   function clickTrialsTabDom() {
@@ -423,6 +454,62 @@
     return payload;
   }
 
+  function buildPayloadFromTrialSkillsOnly(cmp, skillData, source) {
+    if (!cmp || !cmp.trialSkills$) return null;
+    var trialSkills = readObservableValue(cmp.trialSkills$);
+    if (!Array.isArray(trialSkills) || !trialSkills.length) return null;
+
+    var guild = readGuildFromHost(cmp) || guildFromCaptureRaw() || {};
+    var trial = guild.trial || findTrialRecordInPage() || {};
+    var requiredExp = trial.requiredExp || 0;
+    var skills = [];
+
+    for (var si = 0; si < trialSkills.length; si++) {
+      var row = trialSkills[si];
+      if (row.requiredExp && !requiredExp) requiredExp = row.requiredExp;
+      var skillName = skillNameForRow(skillData, row);
+      if (!skillName || SKILL_ORDER.indexOf(skillName) < 0) continue;
+
+      var members = membersForSkillRow(trial, row).map(function (m) {
+        return mapMemberRecord(m, skillName, source);
+      });
+      if (!members.length) continue;
+
+      skills.push({
+        skill: skillName,
+        skillId: row.id,
+        currentExp: row.currentExp || 0,
+        requiredExp: requiredExp || row.requiredExp || 0,
+        complete: requiredExp ? (row.currentExp || 0) >= requiredExp : false,
+        members: members,
+      });
+    }
+
+    if (!skills.length) return null;
+
+    var startDate = trial.startDate || new Date().toISOString();
+    if (!trial.startDate) trial = Object.assign({}, trial, { startDate: startDate, requiredExp: requiredExp });
+    if (!guild.trial) guild = Object.assign({}, guild, { trial: trial });
+
+    skills.sort(function (a, b) {
+      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
+    });
+
+    var skillValues = Object.values(trial.skills || {});
+    var credit = calcCreditProgress(
+      skillValues.length ? skillValues : skills,
+      requiredExp || 1,
+      trial.creditReward || 0,
+    );
+    return finalizePayload(
+      { source: source, skills: skills },
+      guild,
+      trial,
+      skillValues.length ? skillValues : skills,
+      credit,
+    );
+  }
+
   function buildSkillsPayload(guild, skillData, cmp, source) {
     if (!guild || !guild.trial) return null;
     var trial = guild.trial;
@@ -542,11 +629,15 @@
 
   function normalizeFromComponent(cmp) {
     if (!cmp) return null;
+    var skillData = cmp.SKILL_DATA || findSkillDataMap();
+    var fromTrialSkills = buildPayloadFromTrialSkillsOnly(cmp, skillData, "component");
+    if (fromTrialSkills) return fromTrialSkills;
+
     var guild = readGuildFromHost(cmp);
     if (!guild || !guild.trial) {
       return { error: "No active guild trial on guild$.trial", guild: guild || null };
     }
-    return buildSkillsPayload(guild, cmp.SKILL_DATA || findSkillDataMap(), cmp, "component");
+    return buildSkillsPayload(guild, skillData, cmp, "component");
   }
 
   function isNodeAfter(startEl, node) {
@@ -555,8 +646,34 @@
   }
 
   function isNodeBefore(endEl, node) {
-    if (!endEl || !node || !endEl.compareDocumentPosition) return true;
-    return Boolean(endEl.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING);
+    if (!endEl || !node) return true;
+    if (!node.compareDocumentPosition) return true;
+    return Boolean(node.compareDocumentPosition(endEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }
+
+  function headerSkillName(el) {
+    var text = (el.textContent || "").trim();
+    if (text.length > 80) return null;
+    var firstLine = text.split("\n")[0].trim();
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      var skill = SKILL_ORDER[si];
+      if (new RegExp("^" + skill.replace(/-/g, "\\-") + "\\s+Trial\\b", "i").test(firstLine)) {
+        return skill;
+      }
+    }
+    return null;
+  }
+
+  function collectClickablesBetween(startEl, endEl) {
+    var nodes = document.querySelectorAll("button, [role='button'], a, div, span");
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (!isNodeAfter(startEl, node)) continue;
+      if (endEl && !isNodeBefore(endEl, node)) continue;
+      out.push(node);
+    }
+    return out;
   }
 
   function parseMemberButton(btnText) {
@@ -571,39 +688,34 @@
   }
 
   function normalizeFromDomScoped() {
-    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4");
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
     var skillBlocks = [];
     var seenSkills = {};
 
     for (var i = 0; i < headers.length; i++) {
-      var text = (headers[i].textContent || "").trim();
-      var trialMatch = text.match(/^(.+) Trial$/);
-      if (!trialMatch) continue;
-      var skillName = trialMatch[1];
-      if (SKILL_ORDER.indexOf(skillName) < 0 || seenSkills[skillName]) continue;
+      var skillName = headerSkillName(headers[i]);
+      if (!skillName || seenSkills[skillName]) continue;
       seenSkills[skillName] = true;
       skillBlocks.push({ el: headers[i], skillName: skillName });
     }
 
-    if (!skillBlocks.length) return null;
+    if (!skillBlocks.length) return normalizeFromVisibleText();
 
     var skills = [];
-    var allButtons = document.querySelectorAll("button");
 
     for (var b = 0; b < skillBlocks.length; b++) {
       var block = skillBlocks[b];
       var nextEl = skillBlocks[b + 1] ? skillBlocks[b + 1].el : null;
       var members = [];
+      var clickables = collectClickablesBetween(block.el, nextEl);
 
-      for (var bi = 0; bi < allButtons.length; bi++) {
-        var btn = allButtons[bi];
-        if (!isNodeAfter(block.el, btn)) continue;
-        if (nextEl && !isNodeBefore(nextEl, btn)) continue;
-        var parsed = parseMemberButton(btn.textContent || "");
+      for (var bi = 0; bi < clickables.length; bi++) {
+        var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
         members.push({
           displayName: parsed.displayName,
           skillName: block.skillName,
+          skillId: block.skillName,
           exp: parsed.exp,
           endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
           inferredStartAt: new Date().toISOString(),
@@ -612,11 +724,11 @@
       }
 
       if (members.length) {
-        skills.push({ skill: block.skillName, members: members });
+        skills.push({ skill: block.skillName, skillId: block.skillName, members: members });
       }
     }
 
-    if (!skills.length) return null;
+    if (!skills.length) return normalizeFromVisibleText();
 
     return {
       v: 1,
@@ -637,13 +749,90 @@
     };
   }
 
+  function normalizeFromVisibleText() {
+    var bodyText = document.body ? document.body.innerText || "" : "";
+    if (!/\bTrial\b/i.test(bodyText)) return null;
+
+    var skills = [];
+    for (var s = 0; s < SKILL_ORDER.length; s++) {
+      var skill = SKILL_ORDER[s];
+      var escaped = skill.replace(/-/g, "\\-");
+      var nextPattern = SKILL_ORDER.map(function (sk) {
+        return sk.replace(/-/g, "\\-");
+      }).join("|");
+      var re = new RegExp(
+        escaped + "\\s+Trial\\s*([\\s\\S]*?)(?=(?:" + nextPattern + ")\\s+Trial\\b|$)",
+        "i",
+      );
+      var match = bodyText.match(re);
+      if (!match) continue;
+
+      var section = match[1] || "";
+      var members = [];
+      var lines = section.split("\n");
+      for (var li = 0; li < lines.length; li++) {
+        var line = lines[li].trim();
+        var xpM = line.match(/([\d,]+)\s*XP/i);
+        if (!xpM) continue;
+        var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
+        if (name.length < 2) {
+          if (li > 0 && lines[li - 1].trim().length >= 2 && !/XP/i.test(lines[li - 1])) {
+            name = lines[li - 1].trim();
+          } else {
+            continue;
+          }
+        }
+        members.push({
+          displayName: name,
+          skillName: skill,
+          skillId: skill,
+          exp: Number(xpM[1].replace(/,/g, "")),
+          endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
+          inferredStartAt: new Date().toISOString(),
+          method: "dom-text",
+        });
+      }
+
+      if (members.length) {
+        skills.push({ skill: skill, skillId: skill, members: members });
+      }
+    }
+
+    if (!skills.length) return null;
+
+    return {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      source: "dom",
+      guildName: null,
+      guildId: null,
+      trialWeekStart: guildWeekStartFromInstant(new Date().toISOString()),
+      trialStartDate: null,
+      trialEndDate: null,
+      requiredExp: null,
+      trialsCompleted: 0,
+      trialsTotal: 16,
+      guildCreditsEarned: 0,
+      guildCreditsMax: 0,
+      skills: skills,
+      errors: ["Text DOM fallback — verify synced times in planner"],
+    };
+  }
+
   function readTrialPayloadFromPage() {
     var candidates = [];
     var cmp = findGuildTrialsComponent();
-    var guild = readGuildFromAnySource();
     var skillData = findSkillDataMap();
+    var guild = readGuildFromAnySource();
+    if (!guild || !guild.trial) {
+      var capturedGuild = guildFromCaptureRaw();
+      if (capturedGuild) guild = capturedGuild;
+    }
 
     if (cmp) {
+      var fromTrialSkills = buildPayloadFromTrialSkillsOnly(cmp, skillData, "component");
+      if (fromTrialSkills) candidates.push(fromTrialSkills);
+
       var fromComponent = normalizeFromComponent(cmp);
       if (fromComponent && !fromComponent.error) candidates.push(fromComponent);
     }
@@ -653,12 +842,13 @@
     }
 
     var fromDom = normalizeFromDomScoped();
-    if (fromDom && !payloadHasDuplicateMembers(fromDom)) candidates.push(fromDom);
+    if (fromDom) candidates.push(fromDom);
 
     var best = null;
     var bestScore = -1;
     for (var ci = 0; ci < candidates.length; ci++) {
       var score = payloadScore(candidates[ci]);
+      if (payloadHasDuplicateMembers(candidates[ci])) score -= 50;
       if (score > bestScore) {
         bestScore = score;
         best = candidates[ci];
@@ -724,7 +914,7 @@
     var host = findGuildTrialsComponent();
     setStatus("Opening Trials tab…", "Loading trial assignments.");
     await triggerTrialLoad(host);
-    await sleep(1200);
+    await sleep(2500);
 
     for (var trialAttempt = 0; trialAttempt < 60; trialAttempt++) {
       host = findGuildTrialsComponent() || host;
@@ -747,6 +937,7 @@
 
       var cmp = findGuildTrialsComponent();
       var guild = readGuildFromAnySource();
+      var domProbe = normalizeFromDomScoped();
       var detail =
         "component=" +
         (cmp ? "yes" : "no") +
@@ -755,7 +946,11 @@
         ", trial.members=" +
         (guild && guild.trial && guild.trial.members
           ? Object.keys(guild.trial.members).length
-          : 0);
+          : 0) +
+        ", domMembers=" +
+        (domProbe ? countMembersInPayload(domProbe) : 0) +
+        ", capture=" +
+        (captureState().raw ? captureState().raw.length : 0);
 
       setStatus(
         "Loading trial data…",

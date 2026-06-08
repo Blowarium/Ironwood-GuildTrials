@@ -42,7 +42,7 @@
   }
 
   function shouldCapture(url) {
-    return /getGuild/i.test(url || "");
+    return /(getGuild|GuildTrial|guildTrial|\/guild)/i.test(url || "");
   }
 
   var oOpen = XMLHttpRequest.prototype.open;
