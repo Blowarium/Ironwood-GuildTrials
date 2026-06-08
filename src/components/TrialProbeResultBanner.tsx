@@ -32,12 +32,15 @@ export function TrialProbeResultBanner({
           </p>
 
           <ul className="mt-2 space-y-0.5 text-xs">
+            {diagLine("capture hook installed", d.captureHookInstalled)}
             {diagLine("Trials tab active (UI)", d.trialsTabActive ?? false)}
             {d.navigationMethod != null && (
               <li className="text-slate-300">
                 Navigation method: <span className="font-mono">{d.navigationMethod}</span>
               </li>
             )}
+            {diagLine("DOM skill headers visible", d.domSkillHeadersFound ?? 0)}
+            {diagLine("DOM member XP lines", d.domMemberXpLinesFound ?? 0)}
             {diagLine("Angular component found", d.componentFound)}
             {diagLine("guild$ observable", d.hasGuildObservable)}
             {diagLine("trialSkills$ observable", d.hasTrialSkillsObservable)}

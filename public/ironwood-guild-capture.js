@@ -1,12 +1,12 @@
 /**
  * Page-context network hook for Ironwood guild API responses.
- * Loaded via script src (avoids inline-script CSP issues).
+ * Inlined in Tampermonkey userscript at document-start; also loaded via script src.
  */
 (function ironwoodGuildCapture() {
   if (window.__IGT_GUILD_CAPTURE_INSTALLED__) return;
   window.__IGT_GUILD_CAPTURE_INSTALLED__ = 1;
 
-  var capture = { guild: null, raw: [] };
+  var capture = { guild: null, raw: [], urls: [] };
   window.__IGT_GUILD_CAPTURE__ = capture;
 
   function absorb(data) {
@@ -31,7 +31,29 @@
     else if (g && g.trial) capture.guild.trial = g.trial;
   }
 
+  function shouldCaptureUrl(url) {
+    var u = String(url || "");
+    if (/getGuild/i.test(u)) return true;
+    if (/GuildTrial/i.test(u)) return true;
+    if (/cloudfunctions\.net/i.test(u)) return true;
+    if (/\/guild/i.test(u)) return true;
+    return false;
+  }
+
+  function looksLikeTrialJson(text) {
+    if (!text || text.length < 12) return false;
+    return text.indexOf('"trial"') >= 0 && text.indexOf('"members"') >= 0;
+  }
+
+  function rememberUrl(url) {
+    if (!url) return;
+    capture.urls.push(String(url));
+    if (capture.urls.length > 30) capture.urls.shift();
+  }
+
   function inspect(text, url) {
+    if (!text) return;
+    if (!shouldCaptureUrl(url) && !looksLikeTrialJson(text)) return;
     try {
       var d = JSON.parse(text);
       capture.raw.push({ url: url || "", d: d });
@@ -39,10 +61,6 @@
     } catch (e) {
       /* ignore non-JSON */
     }
-  }
-
-  function shouldCapture(url) {
-    return /(getGuild|GuildTrial|guildTrial|\/guild)/i.test(url || "");
   }
 
   var oOpen = XMLHttpRequest.prototype.open;
@@ -54,7 +72,14 @@
   XMLHttpRequest.prototype.send = function () {
     var x = this;
     x.addEventListener("load", function () {
-      if (shouldCapture(x.__igtUrl)) inspect(x.responseText, x.__igtUrl);
+      rememberUrl(x.__igtUrl);
+      inspect(x.responseText, x.__igtUrl);
+    });
+    x.addEventListener("readystatechange", function () {
+      if (x.readyState === 4) {
+        rememberUrl(x.__igtUrl);
+        inspect(x.responseText, x.__igtUrl);
+      }
     });
     return oSend.apply(this, arguments);
   };
@@ -63,16 +88,15 @@
     var oFetch = window.fetch;
     window.fetch = function (input, init) {
       var u = typeof input === "string" ? input : (input && input.url) || "";
+      rememberUrl(u);
       return oFetch.apply(this, arguments).then(function (res) {
-        if (shouldCapture(u)) {
-          res
-            .clone()
-            .text()
-            .then(function (t) {
-              inspect(t, u);
-            })
-            .catch(function () {});
-        }
+        res
+          .clone()
+          .text()
+          .then(function (t) {
+            inspect(t, u);
+          })
+          .catch(function () {});
         return res;
       });
     };

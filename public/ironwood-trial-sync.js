@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.7.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.8.3";
     (document.head || document.documentElement).appendChild(script);
   }
 

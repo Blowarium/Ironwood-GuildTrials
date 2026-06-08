@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ironwood Guild Trials — Trial Sync
 // @namespace    ironwood-guild-trials
-// @version      1.8.2
+// @version      1.8.3
 // @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
@@ -14,7 +14,7 @@
 
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
-  var SCRIPT_VERSION = "1.8.2";
+  var SCRIPT_VERSION = "1.8.3";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
 
   function resolveReturnUrl(raw) {
@@ -55,26 +55,103 @@
 
   function installCaptureHook() {
     if (window.__IGT_GUILD_CAPTURE_INSTALLED__) return;
-    var origin = appOriginFromSession();
-    var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=" + SCRIPT_VERSION;
-    script.onerror = function () {
-      /* Inline fallback if external script blocked */
-      var code =
-        "(function(){if(window.__IGT_GUILD_CAPTURE_INSTALLED__)return;" +
-        "var s=document.createElement('script');" +
-        "s.src='" +
-        origin +
-        "/ironwood-guild-capture.js?v=" +
-        SCRIPT_VERSION +
-        "';" +
-        "(document.head||document.documentElement).appendChild(s);})();";
-      var el = document.createElement("script");
-      el.textContent = code;
-      (document.head || document.documentElement).appendChild(el);
-      el.remove();
+    window.__IGT_GUILD_CAPTURE_INSTALLED__ = 1;
+
+    var capture = { guild: null, raw: [], urls: [] };
+    window.__IGT_GUILD_CAPTURE__ = capture;
+
+    function absorb(data) {
+      if (!data) return;
+      var g = data;
+      var trial = null;
+      if (data.value && data.value.guild) {
+        g = data.value.guild;
+        trial = data.value.trial || null;
+      } else if (data.guild) {
+        g = data.guild;
+        trial = data.trial || null;
+      } else if (data.trial && !data.name && !data.id) {
+        trial = data.trial;
+        g = null;
+      }
+      if (!capture.guild) capture.guild = {};
+      if (g && (g.name || g.id || g.members || g.trial)) {
+        capture.guild = Object.assign({}, capture.guild, g);
+      }
+      if (trial) capture.guild.trial = trial;
+      else if (g && g.trial) capture.guild.trial = g.trial;
+    }
+
+    function shouldCaptureUrl(url) {
+      var u = String(url || "");
+      if (/getGuild/i.test(u)) return true;
+      if (/GuildTrial/i.test(u)) return true;
+      if (/cloudfunctions\.net/i.test(u)) return true;
+      if (/\/guild/i.test(u)) return true;
+      return false;
+    }
+
+    function looksLikeTrialJson(text) {
+      if (!text || text.length < 12) return false;
+      return text.indexOf('"trial"') >= 0 && text.indexOf('"members"') >= 0;
+    }
+
+    function rememberUrl(url) {
+      if (!url) return;
+      capture.urls.push(String(url));
+      if (capture.urls.length > 30) capture.urls.shift();
+    }
+
+    function inspect(text, url) {
+      if (!text) return;
+      if (!shouldCaptureUrl(url) && !looksLikeTrialJson(text)) return;
+      try {
+        var d = JSON.parse(text);
+        capture.raw.push({ url: url || "", d: d });
+        absorb(d);
+      } catch (e) {
+        /* ignore */
+      }
+    }
+
+    var oOpen = XMLHttpRequest.prototype.open;
+    var oSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (m, u) {
+      this.__igtUrl = String(u || "");
+      return oOpen.apply(this, arguments);
     };
-    (document.head || document.documentElement).appendChild(script);
+    XMLHttpRequest.prototype.send = function () {
+      var x = this;
+      x.addEventListener("load", function () {
+        rememberUrl(x.__igtUrl);
+        inspect(x.responseText, x.__igtUrl);
+      });
+      x.addEventListener("readystatechange", function () {
+        if (x.readyState === 4) {
+          rememberUrl(x.__igtUrl);
+          inspect(x.responseText, x.__igtUrl);
+        }
+      });
+      return oSend.apply(this, arguments);
+    };
+
+    if (window.fetch) {
+      var oFetch = window.fetch;
+      window.fetch = function (input, init) {
+        var u = typeof input === "string" ? input : (input && input.url) || "";
+        rememberUrl(u);
+        return oFetch.apply(this, arguments).then(function (res) {
+          res
+            .clone()
+            .text()
+            .then(function (t) {
+              inspect(t, u);
+            })
+            .catch(function () {});
+          return res;
+        });
+      };
+    }
   }
 
   installCaptureHook();

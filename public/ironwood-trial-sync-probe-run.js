@@ -7,7 +7,26 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.8.2";
+  var SCRIPT_VERSION = "1.8.3";
+
+  var SKILL_ORDER = [
+    "Woodcutting",
+    "Mining",
+    "Smelting",
+    "Smithing",
+    "Enchanting",
+    "Farming",
+    "Alchemy",
+    "Fishing",
+    "Cooking",
+    "Delving",
+    "Imbuing",
+    "Exploring",
+    "One-handed",
+    "Two-handed",
+    "Ranged",
+    "Defense",
+  ];
 
   var scriptEl = document.currentScript;
   var scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
@@ -51,7 +70,7 @@
     (document.head || document.documentElement).appendChild(script);
   }
 
-  installCaptureHook();
+  if (!window.__IGT_GUILD_CAPTURE_INSTALLED__) installCaptureHook();
 
   function readObservableValue(subject) {
     if (!subject) return null;
@@ -190,6 +209,59 @@
     var activeBtn = document.querySelector("button.active, button[aria-selected='true']");
     if (activeBtn && /Trials/i.test(activeBtn.textContent || "")) return true;
     return false;
+  }
+
+  function headerSkillName(el) {
+    var text = (el.textContent || "").trim();
+    if (text.length > 80) return null;
+    var firstLine = text.split("\n")[0].trim();
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      var skill = SKILL_ORDER[si];
+      if (new RegExp("^" + skill.replace(/-/g, "\\-") + "\\s+Trial\\b", "i").test(firstLine)) {
+        return skill;
+      }
+    }
+    return null;
+  }
+
+  function probeDomVisible() {
+    var bodyText = document.body ? document.body.innerText || "" : "";
+    var skillHeaders = 0;
+    var memberXpLines = 0;
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    var seenSkills = {};
+
+    for (var i = 0; i < headers.length; i++) {
+      var skillName = headerSkillName(headers[i]);
+      if (!skillName || seenSkills[skillName]) continue;
+      seenSkills[skillName] = true;
+      skillHeaders++;
+    }
+
+    for (var s = 0; s < SKILL_ORDER.length; s++) {
+      var skill = SKILL_ORDER[s];
+      var escaped = skill.replace(/-/g, "\\-");
+      var nextPattern = SKILL_ORDER.map(function (sk) {
+        return sk.replace(/-/g, "\\-");
+      }).join("|");
+      var re = new RegExp(
+        escaped + "\\s+Trial\\s*([\\s\\S]*?)(?=(?:" + nextPattern + ")\\s+Trial\\b|$)",
+        "i",
+      );
+      var match = bodyText.match(re);
+      if (!match) continue;
+      var section = match[1] || "";
+      var lines = section.split("\n");
+      for (var li = 0; li < lines.length; li++) {
+        if (/([\d,]+)\s*XP/i.test(lines[li])) memberXpLines++;
+      }
+    }
+
+    return {
+      skillHeaders: skillHeaders,
+      memberXpLines: memberXpLines,
+      hasRequiredExp: /Required\s+(Exp|XP)/i.test(bodyText),
+    };
   }
 
   function clickTrialsTabDom() {
@@ -453,6 +525,8 @@
       var captureUrls = (capture.raw || []).slice(-5).map(function (r) {
         return r.url;
       });
+      var recentNetworkUrls = (capture.urls || []).slice(-8);
+      var domProbe = probeDomVisible();
 
       var report = {
         v: 1,
@@ -480,6 +554,9 @@
           trialsTabActive: nav.trialsTabActive,
           trialsTabClickAttempted: nav.trialsTabClickAttempted,
           navigationMethod: nav.navigationMethod,
+          domSkillHeadersFound: domProbe.skillHeaders,
+          domMemberXpLinesFound: domProbe.memberXpLines,
+          domHasRequiredExp: domProbe.hasRequiredExp,
         },
         trialMeta: trial
           ? {
@@ -491,6 +568,7 @@
         assignments: assignments.slice(0, 40),
         samples: {
           captureUrls: captureUrls,
+          recentNetworkUrls: recentNetworkUrls,
           trialMemberKeys:
             trial && trial.members ? Object.keys(trial.members).slice(0, 12) : [],
         },
