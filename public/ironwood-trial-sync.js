@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.2";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -390,13 +390,16 @@
   }
 
   function mapMemberRecord(m, skillName, method) {
+    var endDate = m.endDate || null;
+    var inferredStartAt =
+      m.inferredStartAt || (endDate ? inferStart(endDate) : null);
     return {
       displayName: m.displayName,
       skillId: m.skillId,
       skillName: skillName,
       exp: m.exp,
-      endDate: m.endDate,
-      inferredStartAt: inferStart(m.endDate),
+      endDate: endDate,
+      inferredStartAt: inferredStartAt,
       actionId: m.actionId != null ? m.actionId : null,
       method: method,
     };
@@ -420,9 +423,15 @@
         ? 3
         : payload.source === "api"
           ? 2
-          : payload.source === "dom-columns"
-            ? 2
-            : 0;
+          : payload.source === "dom-rows"
+            ? 5
+            : payload.source === "dom-text"
+              ? 4
+              : payload.source === "dom"
+                ? 2
+                : payload.source === "dom-columns"
+                  ? 0
+                  : 0;
     return members * 10 + sourceBonus;
   }
 
@@ -734,13 +743,20 @@
       if (seenMemberKeys[memberKey]) continue;
       seenMemberKeys[memberKey] = skillName;
 
+      var endDate = parsed.endDate;
+      var inferredStartAt = parsed.inferredStartAt;
+      if (!endDate) {
+        endDate = new Date(Date.now() + TRIAL_MS).toISOString();
+        inferredStartAt = new Date().toISOString();
+      }
+
       membersBySkill[skillName].push({
         displayName: parsed.displayName,
         skillName: skillName,
         skillId: skillName,
         exp: parsed.exp,
-        endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
-        inferredStartAt: new Date().toISOString(),
+        endDate: endDate,
+        inferredStartAt: inferredStartAt,
         method: "dom-columns",
       });
     }
@@ -786,6 +802,160 @@
       }
     }
     return null;
+  }
+
+  function elementHasClass(el, className) {
+    if (!el || !el.className) return false;
+    if (typeof el.className !== "string") return false;
+    return (" " + el.className + " ").indexOf(" " + className + " ") >= 0;
+  }
+
+  function hoursFromTimeText(text) {
+    var m = String(text || "").match(/\b(\d+)\s*h(?:ours?)?\b/i);
+    return m ? Number(m[1]) : null;
+  }
+
+  function isTrialAssignmentButton(el) {
+    if (!el || el.tagName !== "BUTTON") return false;
+    if (!elementHasClass(el, "row-dark")) return false;
+    var nameEl = el.querySelector(".name");
+    var amountEl = el.querySelector(".amount");
+    if (!nameEl || !amountEl) return false;
+    if (!/XP/i.test(amountEl.textContent || "")) return false;
+    return isLikelyMemberName((nameEl.textContent || "").trim());
+  }
+
+  function skillForTrialAssignmentButton(btn) {
+    var node = btn.previousElementSibling;
+    while (node) {
+      if (node.tagName === "BUTTON") {
+        node = node.previousElementSibling;
+        continue;
+      }
+      var skill = headerSkillName(node);
+      if (skill) return skill;
+      node = node.previousElementSibling;
+    }
+    return null;
+  }
+
+  function parseTrialAssignmentButton(btn) {
+    var nameEl = btn.querySelector(".name");
+    var amountEl = btn.querySelector(".amount");
+    var timeEl = btn.querySelector(".time");
+    if (!nameEl || !amountEl) return parseMemberButton(btn.textContent || "");
+
+    var displayName = (nameEl.textContent || "").trim();
+    var xpM = (amountEl.textContent || "").match(/([\d,]+)\s*XP/i);
+    if (!xpM || !isLikelyMemberName(displayName)) return null;
+
+    var hoursLeft = timeEl ? hoursFromTimeText(timeEl.textContent) : null;
+    var exp = Number(xpM[1].replace(/,/g, ""));
+
+    var endDate = null;
+    var inferredStartAt = null;
+    if (hoursLeft != null && hoursLeft >= 0 && hoursLeft <= 24) {
+      var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
+      endDate = new Date(endMs).toISOString();
+      inferredStartAt = new Date(endMs - TRIAL_MS).toISOString();
+    }
+
+    return {
+      displayName: displayName,
+      exp: exp,
+      endDate: endDate,
+      inferredStartAt: inferredStartAt,
+      hoursLeft: hoursLeft,
+    };
+  }
+
+  function findTrialAssignmentButtons() {
+    var scopes = [
+      document.querySelector("guild-component"),
+      document.querySelector("guild-page"),
+      document.body,
+    ];
+    var out = [];
+    var seen = {};
+    for (var s = 0; s < scopes.length; s++) {
+      var scope = scopes[s];
+      if (!scope) continue;
+      var buttons = scope.querySelectorAll("button.row-dark, button.row.row-dark");
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        if (!isTrialAssignmentButton(btn) || seen[btn]) continue;
+        seen[btn] = true;
+        out.push(btn);
+      }
+      if (out.length) break;
+    }
+    return out;
+  }
+
+  function normalizeFromDomRows() {
+    var buttons = findTrialAssignmentButtons();
+    if (!buttons.length) return null;
+
+    var membersBySkill = {};
+    for (var si = 0; si < SKILL_ORDER.length; si++) {
+      membersBySkill[SKILL_ORDER[si]] = [];
+    }
+
+    var seenMemberKeys = {};
+    for (var bi = 0; bi < buttons.length; bi++) {
+      var btn = buttons[bi];
+      var parsed = parseTrialAssignmentButton(btn);
+      if (!parsed) continue;
+
+      var skillName = skillForTrialAssignmentButton(btn);
+      if (!skillName) continue;
+
+      var memberKey = normalizeMemberKey(parsed.displayName);
+      if (seenMemberKeys[memberKey]) continue;
+      seenMemberKeys[memberKey] = true;
+
+      var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
+      var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
+
+      membersBySkill[skillName].push({
+        displayName: parsed.displayName,
+        skillName: skillName,
+        skillId: skillName,
+        exp: parsed.exp,
+        endDate: endDate,
+        inferredStartAt: inferredStartAt,
+        method: "dom-rows",
+      });
+    }
+
+    var skills = [];
+    for (var sk = 0; sk < SKILL_ORDER.length; sk++) {
+      var skill = SKILL_ORDER[sk];
+      var members = membersBySkill[skill];
+      if (members.length) {
+        skills.push({ skill: skill, skillId: skill, members: members });
+      }
+    }
+
+    if (!skills.length) return null;
+
+    return {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      source: "dom-rows",
+      guildName: null,
+      guildId: null,
+      trialWeekStart: guildWeekStartFromInstant(new Date().toISOString()),
+      trialStartDate: null,
+      trialEndDate: null,
+      requiredExp: null,
+      trialsCompleted: 0,
+      trialsTotal: 16,
+      guildCreditsEarned: 0,
+      guildCreditsMax: 0,
+      skills: skills,
+      errors: [],
+    };
   }
 
   function collectClickablesBetween(startEl, endEl) {
@@ -834,22 +1004,70 @@
     return true;
   }
 
-  function parseMemberLine(line, prevLine) {
-    if (!isTrialMemberXpLine(line)) return null;
-    var xpM = line.match(/([\d,]+)\s*XP/i);
+  function parseTrialMemberText(raw) {
+    if (!raw) return null;
+    var text = String(raw).replace(/\s+/g, " ").trim();
+    var xpM = text.match(/([\d,]+)\s*XP/i);
     if (!xpM) return null;
-    var name = line.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-    if (!isLikelyMemberName(name)) {
-      if (prevLine && isLikelyMemberName(String(prevLine).trim()) && !/XP/i.test(String(prevLine))) {
-        name = String(prevLine).trim();
-      } else {
-        return null;
-      }
+
+    var exp = Number(xpM[1].replace(/,/g, ""));
+    var hoursM = text.match(/\b(\d+)\s*h(?:ours?)?\b/i);
+    var hoursLeft = hoursM ? Number(hoursM[1]) : null;
+
+    var name = text
+      .replace(/([\d,]+)\s*XP/gi, " ")
+      .replace(/\b(\d+)\s*h(?:ours?)?\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!isLikelyMemberName(name)) return null;
+
+    var endDate = null;
+    var inferredStartAt = null;
+    if (hoursLeft != null && hoursLeft >= 0 && hoursLeft <= 24) {
+      var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
+      endDate = new Date(endMs).toISOString();
+      inferredStartAt = new Date(endMs - TRIAL_MS).toISOString();
     }
+
     return {
       displayName: name,
-      exp: Number(xpM[1].replace(/,/g, "")),
+      exp: exp,
+      endDate: endDate,
+      inferredStartAt: inferredStartAt,
+      hoursLeft: hoursLeft,
     };
+  }
+
+  function parseMemberContextFromLines(lines, li) {
+    var line = lines[li].trim();
+    if (!isTrialMemberXpLine(line)) return null;
+
+    var chunk = line;
+    if (li > 0) {
+      var prev = lines[li - 1].trim();
+      if (/^\d+\s*h(?:ours?)?$/i.test(prev)) {
+        chunk = (li > 1 ? lines[li - 2].trim() + " " : "") + prev + " " + line;
+      } else if (!/XP/i.test(prev) && !/^\d+\s*h/i.test(prev)) {
+        chunk = prev + " " + line;
+      }
+    }
+
+    return parseTrialMemberText(chunk);
+  }
+
+  function parseMemberLine(line, prevLine) {
+    if (!isTrialMemberXpLine(line)) return null;
+    var chunk = line;
+    if (prevLine) {
+      var prev = String(prevLine).trim();
+      if (/^\d+\s*h(?:ours?)?$/i.test(prev)) {
+        chunk = prev + " " + line;
+      } else if (!/XP/i.test(prev) && !/^\d+\s*h/i.test(prev)) {
+        chunk = prev + " " + line;
+      }
+    }
+    return parseTrialMemberText(chunk);
   }
 
   function dedupeSkillsByMemberName(skills) {
@@ -878,16 +1096,20 @@
   }
 
   function parseMemberButton(btnText) {
-    var parsed = parseMemberLine(btnText, "");
-    if (parsed) return parsed;
-    var xpMatch = btnText.match(/([\d,]+)\s*XP/i);
-    if (!xpMatch) return null;
-    var withoutXp = btnText.replace(/[\d,]+/g, " ").replace(/XP/gi, " ").replace(/\s+/g, " ").trim();
-    if (!isLikelyMemberName(withoutXp)) return null;
-    return {
-      displayName: withoutXp,
-      exp: Number(xpMatch[1].replace(/,/g, "")),
-    };
+    var flat = parseTrialMemberText(String(btnText).replace(/\n/g, " "));
+    if (flat) return flat;
+
+    var lines = String(btnText)
+      .split("\n")
+      .map(function (l) {
+        return l.trim();
+      })
+      .filter(Boolean);
+    for (var li = 0; li < lines.length; li++) {
+      var parsed = parseMemberContextFromLines(lines, li);
+      if (parsed) return parsed;
+    }
+    return null;
   }
 
   function normalizeFromDomScoped() {
@@ -915,13 +1137,15 @@
       for (var bi = 0; bi < clickables.length; bi++) {
         var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
+        var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
+        var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
         members.push({
           displayName: parsed.displayName,
           skillName: block.skillName,
           skillId: block.skillName,
           exp: parsed.exp,
-          endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
-          inferredStartAt: new Date().toISOString(),
+          endDate: endDate,
+          inferredStartAt: inferredStartAt,
           method: "dom",
         });
       }
@@ -976,15 +1200,17 @@
       var members = [];
       var lines = section.split("\n");
       for (var li = 0; li < lines.length; li++) {
-        var parsed = parseMemberLine(lines[li], li > 0 ? lines[li - 1] : "");
+        var parsed = parseMemberContextFromLines(lines, li);
         if (!parsed) continue;
+        var endDate = parsed.endDate || new Date(Date.now() + TRIAL_MS).toISOString();
+        var inferredStartAt = parsed.inferredStartAt || new Date().toISOString();
         members.push({
           displayName: parsed.displayName,
           skillName: skill,
           skillId: skill,
           exp: parsed.exp,
-          endDate: new Date(Date.now() + TRIAL_MS).toISOString(),
-          inferredStartAt: new Date().toISOString(),
+          endDate: endDate,
+          inferredStartAt: inferredStartAt,
           method: "dom-text",
         });
       }
@@ -1002,7 +1228,7 @@
     return {
       v: 1,
       importedAt: new Date().toISOString(),
-      source: "dom",
+      source: "dom-text",
       guildName: null,
       guildId: null,
       trialWeekStart: guildWeekStartFromInstant(new Date().toISOString()),
@@ -1040,14 +1266,17 @@
       candidates.push(buildSkillsPayload(guild, skillData, cmp, "api"));
     }
 
-    var fromDomColumns = normalizeFromDomColumns();
-    if (fromDomColumns) candidates.push(fromDomColumns);
+    var fromDomRows = normalizeFromDomRows();
+    if (fromDomRows) candidates.push(fromDomRows);
+
+    var fromDomText = normalizeFromVisibleText();
+    if (fromDomText) candidates.push(fromDomText);
 
     var fromDom = normalizeFromDomScoped();
     if (fromDom) candidates.push(fromDom);
 
-    var fromDomText = normalizeFromVisibleText();
-    if (fromDomText) candidates.push(fromDomText);
+    var fromDomColumns = normalizeFromDomColumns();
+    if (fromDomColumns) candidates.push(fromDomColumns);
 
     var best = null;
     var bestScore = -1;
@@ -1132,13 +1361,18 @@
 
       var payload = readTrialPayloadFromPage();
       if (!payload || countMembersInPayload(payload) === 0) {
-        var domColumnsPayload = normalizeFromDomColumns();
-        if (domColumnsPayload && countMembersInPayload(domColumnsPayload) > 0) {
-          payload = domColumnsPayload;
+        var domRowsPayload = normalizeFromDomRows();
+        if (domRowsPayload && countMembersInPayload(domRowsPayload) > 0) {
+          payload = domRowsPayload;
         } else {
           var domTextPayload = normalizeFromVisibleText();
           if (domTextPayload && countMembersInPayload(domTextPayload) > 0) {
             payload = domTextPayload;
+          } else {
+            var domColumnsPayload = normalizeFromDomColumns();
+            if (domColumnsPayload && countMembersInPayload(domColumnsPayload) > 0) {
+              payload = domColumnsPayload;
+            }
           }
         }
       }
