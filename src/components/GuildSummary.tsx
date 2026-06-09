@@ -67,6 +67,7 @@ function SkillStatusChip({
 
 function SkillChipRow({
   items,
+  className,
 }: {
   items: {
     skill: Skill;
@@ -74,11 +75,12 @@ function SkillChipRow({
     xpAdequacy?: SkillXpAdequacy;
     showLabel?: boolean;
   }[];
+  className?: string;
 }) {
   if (items.length === 0) return null;
 
   return (
-    <ul className="mt-1 flex flex-wrap gap-0.5 sm:mt-1.5 sm:gap-1">
+    <ul className={`flex flex-wrap gap-0.5 sm:gap-1 ${className ?? "mt-1 sm:mt-1.5"}`}>
       {items.map((item) => (
         <SkillStatusChip key={`${item.tone}-${item.skill}`} {...item} />
       ))}
@@ -167,23 +169,12 @@ export function GuildSummary({
     });
   }
 
-  const inProgressChips = [
-    ...stats.skillsActiveNow.map((skill) => ({
+  const inProgressChipItems = (skills: Skill[], tone: "active" | "scheduled" | "completed") =>
+    skills.map((skill) => ({
       skill,
-      tone: "active" as const,
+      tone,
       xpAdequacy: xpBySkill.get(skill),
-    })),
-    ...stats.skillsScheduledOnly.map((skill) => ({
-      skill,
-      tone: "scheduled" as const,
-      xpAdequacy: xpBySkill.get(skill),
-    })),
-    ...stats.skillsTrialRunsComplete.map((skill) => ({
-      skill,
-      tone: "completed" as const,
-      xpAdequacy: xpBySkill.get(skill),
-    })),
-  ];
+    }));
 
   return (
     <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-4">
@@ -217,7 +208,20 @@ export function GuildSummary({
           {inProgressCount > 0 ? (
             <>
               <StatusLine segments={inProgressStatusSegments} />
-              <SkillChipRow items={inProgressChips} />
+              <div className="mt-1 space-y-0.5 sm:mt-1.5 sm:space-y-1">
+                <SkillChipRow
+                  className=""
+                  items={inProgressChipItems(stats.skillsActiveNow, "active")}
+                />
+                <SkillChipRow
+                  className=""
+                  items={inProgressChipItems(stats.skillsScheduledOnly, "scheduled")}
+                />
+                <SkillChipRow
+                  className=""
+                  items={inProgressChipItems(stats.skillsTrialRunsComplete, "completed")}
+                />
+              </div>
             </>
           ) : (
             <p className="mt-0.5 hidden text-xs text-slate-500 sm:mt-1 sm:block">
