@@ -1,40 +1,86 @@
 import type { GuildStats } from "@/lib/stats";
 import type { Skill } from "@/lib/constants";
-import type { SkillXpCoverage } from "@/lib/skill-xp-coverage";
+import {
+  adequacyLabel,
+  type SkillXpAdequacy,
+  type SkillXpCoverage,
+} from "@/lib/skill-xp-coverage";
 import { SkillIcon } from "./SkillIcon";
 
-function SkillChipList({
-  skills,
-  tone,
-}: {
-  skills: Skill[];
-  tone: "emerald" | "sky" | "indigo" | "amber";
-}) {
-  const chipClass =
-    tone === "emerald"
-      ? "bg-emerald-950/40 text-emerald-200/90"
-      : tone === "sky"
-        ? "bg-sky-950/50"
-        : tone === "indigo"
-          ? "bg-indigo-950/40"
-          : "bg-amber-950/40 text-amber-200/90";
-  const labelClass = tone === "amber" ? "text-[9px] sm:text-[10px]" : "";
+type TrialChipTone = "active" | "scheduled" | "completed" | "marked" | "needs_signup";
 
-  if (skills.length === 0) return null;
+const TRIAL_CHIP_BG: Record<TrialChipTone, string> = {
+  active: "bg-sky-400/35",
+  scheduled: "bg-indigo-400/35",
+  completed: "bg-emerald-400/35",
+  marked: "bg-emerald-400/35",
+  needs_signup: "bg-amber-400/35",
+};
+
+const TRIAL_STATUS_LABEL: Record<TrialChipTone, string> = {
+  active: "Active now",
+  scheduled: "Scheduled",
+  completed: "Completed",
+  marked: "Marked complete",
+  needs_signup: "Needs signup",
+};
+
+function xpBorderClass(tone: TrialChipTone, adequacy: SkillXpAdequacy | undefined): string {
+  if (tone === "marked" || tone === "needs_signup") {
+    return "border border-transparent";
+  }
+  if (adequacy === "enough") return "border border-emerald-400";
+  if (adequacy === "needs_more") return "border border-amber-300";
+  return "border border-red-400";
+}
+
+function SkillStatusChip({
+  skill,
+  tone,
+  xpAdequacy,
+  showLabel = false,
+}: {
+  skill: Skill;
+  tone: TrialChipTone;
+  xpAdequacy?: SkillXpAdequacy;
+  showLabel?: boolean;
+}) {
+  const titleParts = [TRIAL_STATUS_LABEL[tone], skill];
+  if (tone === "active" || tone === "scheduled" || tone === "completed") {
+    titleParts.push(adequacyLabel(xpAdequacy ?? "unknown"));
+  }
+
+  return (
+    <li
+      className={`flex items-center gap-0.5 rounded px-0.5 py-px sm:px-1 sm:py-0.5 ${TRIAL_CHIP_BG[tone]} ${xpBorderClass(tone, xpAdequacy)}`}
+      title={titleParts.join(" · ")}
+    >
+      <SkillIcon skill={skill} size="xs" />
+      {showLabel && (
+        <span className="max-w-[48px] truncate text-[9px] text-amber-100/90 sm:max-w-[64px] sm:text-[10px]">
+          {skill}
+        </span>
+      )}
+    </li>
+  );
+}
+
+function SkillChipRow({
+  items,
+}: {
+  items: {
+    skill: Skill;
+    tone: TrialChipTone;
+    xpAdequacy?: SkillXpAdequacy;
+    showLabel?: boolean;
+  }[];
+}) {
+  if (items.length === 0) return null;
 
   return (
     <ul className="mt-1 flex flex-wrap gap-0.5 sm:mt-1.5 sm:gap-1">
-      {skills.map((skill) => (
-        <li
-          key={skill}
-          className={`flex items-center gap-0.5 rounded px-0.5 py-px sm:px-1 sm:py-0.5 ${chipClass} ${labelClass}`}
-          title={skill}
-        >
-          <SkillIcon skill={skill} size="xs" />
-          {tone === "amber" && (
-            <span className="max-w-[48px] truncate sm:max-w-[64px]">{skill}</span>
-          )}
-        </li>
+      {items.map((item) => (
+        <SkillStatusChip key={`${item.tone}-${item.skill}`} {...item} />
       ))}
     </ul>
   );
@@ -66,6 +112,8 @@ export function GuildSummary({
   stats: GuildStats;
   xpCoverage?: SkillXpCoverage[];
 }) {
+  const xpBySkill = new Map(xpCoverage?.map((x) => [x.skill, x.adequacy]) ?? []);
+
   const inProgress = new Set(stats.skillsInProgress);
   const inProgressXp = xpCoverage?.filter((x) => inProgress.has(x.skill)) ?? [];
   const xpEnough = inProgressXp.filter((x) => x.adequacy === "enough").length;
@@ -119,6 +167,24 @@ export function GuildSummary({
     });
   }
 
+  const inProgressChips = [
+    ...stats.skillsActiveNow.map((skill) => ({
+      skill,
+      tone: "active" as const,
+      xpAdequacy: xpBySkill.get(skill),
+    })),
+    ...stats.skillsScheduledOnly.map((skill) => ({
+      skill,
+      tone: "scheduled" as const,
+      xpAdequacy: xpBySkill.get(skill),
+    })),
+    ...stats.skillsTrialRunsComplete.map((skill) => ({
+      skill,
+      tone: "completed" as const,
+      xpAdequacy: xpBySkill.get(skill),
+    })),
+  ];
+
   return (
     <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-4">
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
@@ -133,9 +199,12 @@ export function GuildSummary({
           <p className="hidden text-xs text-slate-500 sm:block">
             Manually marked when the guild trial for that skill is finished
           </p>
-          {stats.skillsMarkedComplete.length > 0 && (
-            <SkillChipList skills={stats.skillsMarkedComplete} tone="emerald" />
-          )}
+          <SkillChipRow
+            items={stats.skillsMarkedComplete.map((skill) => ({
+              skill,
+              tone: "marked" as const,
+            }))}
+          />
         </div>
 
         <div>
@@ -148,15 +217,7 @@ export function GuildSummary({
           {inProgressCount > 0 ? (
             <>
               <StatusLine segments={inProgressStatusSegments} />
-              {activeCount > 0 && (
-                <SkillChipList skills={stats.skillsActiveNow} tone="sky" />
-              )}
-              {scheduledCount > 0 && (
-                <SkillChipList skills={stats.skillsScheduledOnly} tone="indigo" />
-              )}
-              {completedRunsCount > 0 && (
-                <SkillChipList skills={stats.skillsTrialRunsComplete} tone="emerald" />
-              )}
+              <SkillChipRow items={inProgressChips} />
             </>
           ) : (
             <p className="mt-0.5 hidden text-xs text-slate-500 sm:mt-1 sm:block">
@@ -173,7 +234,13 @@ export function GuildSummary({
             {stats.skillsNeedingSignup.length}
           </p>
           {stats.skillsNeedingSignup.length > 0 ? (
-            <SkillChipList skills={stats.skillsNeedingSignup} tone="amber" />
+            <SkillChipRow
+              items={stats.skillsNeedingSignup.map((skill) => ({
+                skill,
+                tone: "needs_signup" as const,
+                showLabel: true,
+              }))}
+            />
           ) : (
             <p className="mt-0.5 text-[10px] text-emerald-400 sm:mt-1 sm:text-xs">
               All skills have someone
