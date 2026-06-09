@@ -84,14 +84,21 @@ export function SkillCoverageList({
           skills={needsSignup.map((s) => s.skill)}
         />
         <RecapBox
-          title={`Signed up (${inProgress.length})`}
+          title={`In progress (${inProgress.length})`}
           tone="sky"
           skills={inProgress.map((s) => s.skill)}
           skillTitles={Object.fromEntries(
             inProgress.map((s) => {
               const active = stats.skillsActiveNow.includes(s.skill);
               const scheduled = stats.skillsScheduledOnly.includes(s.skill);
-              const tag = active ? "active now" : scheduled ? "scheduled" : "signed up";
+              const completed = stats.skillsTrialRunsComplete.includes(s.skill);
+              const tag = active
+                ? "active now"
+                : scheduled
+                  ? "scheduled"
+                  : completed
+                    ? "completed"
+                    : "signed up";
               return [s.skill, `${s.skill} — ${s.contributorCount} signed up · ${tag}`];
             }),
           )}

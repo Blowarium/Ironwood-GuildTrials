@@ -23,6 +23,10 @@ export interface GuildStats {
   skillsActiveNow: Skill[];
   /** Not marked complete — has future planned signups, none active yet */
   skillsScheduledOnly: Skill[];
+  /** Not marked complete — all assigned trials finished their 24h window */
+  skillsTrialRunsComplete: Skill[];
+  /** Manually marked complete for the week */
+  skillsMarkedComplete: Skill[];
   /** No signups yet */
   skillsNeedingSignup: Skill[];
   skillCoverage: SkillCoverageRow[];
@@ -82,18 +86,24 @@ export function computeGuildStats(
   const skillsNeedingSignup = skillCoverage
     .filter((s) => s.weekState === "needs_signup")
     .map((s) => s.skill);
+  const skillsMarkedComplete = skillCoverage
+    .filter((s) => s.weekState === "complete")
+    .map((s) => s.skill);
 
   const inProgressSet = new Set(skillsInProgress);
   const skillsActiveNow: Skill[] = [];
   const skillsScheduledOnly: Skill[] = [];
+  const skillsTrialRunsComplete: Skill[] = [];
 
   for (const skill of SKILLS) {
     if (!inProgressSet.has(skill)) continue;
     const skillSignups = signups.filter((s) => s.skill === skill);
     const hasActive = skillSignups.some((s) => getEffectiveStatus(s) === "active");
     const hasPlanned = skillSignups.some((s) => getEffectiveStatus(s) === "planned");
+    const hasCompleted = skillSignups.some((s) => getEffectiveStatus(s) === "completed");
     if (hasActive) skillsActiveNow.push(skill);
     else if (hasPlanned) skillsScheduledOnly.push(skill);
+    else if (hasCompleted) skillsTrialRunsComplete.push(skill);
   }
 
   return {
@@ -103,6 +113,8 @@ export function computeGuildStats(
     skillsInProgress,
     skillsActiveNow,
     skillsScheduledOnly,
+    skillsTrialRunsComplete,
+    skillsMarkedComplete,
     skillsNeedingSignup,
     skillCoverage,
     assignedCount: signups.length,
