@@ -147,6 +147,17 @@ export async function ensureSchema(): Promise<void> {
     VALUES (${DEFAULT_GUILD_LEADER}, 'guild_leader')
     ON CONFLICT (member_name) DO NOTHING
   `;
+
+  await purgeNonMemberData(db);
+}
+
+async function purgeNonMemberData(db: NeonQueryFunction<false, false>): Promise<void> {
+  const allowed = [...MEMBERS];
+  await db`DELETE FROM trial_signups WHERE NOT (member_name = ANY(${allowed}))`;
+  await db`DELETE FROM member_preferences WHERE NOT (member_name = ANY(${allowed}))`;
+  await db`DELETE FROM guild_member_roles WHERE NOT (member_name = ANY(${allowed}))`;
+  await db`DELETE FROM member_skill_profiles WHERE NOT (member_name = ANY(${allowed}))`;
+  await db`DELETE FROM member_profile_meta WHERE NOT (member_name = ANY(${allowed}))`;
 }
 
 async function migrateNeutralPreferenceDefaults(db: NeonQueryFunction<false, false>): Promise<void> {

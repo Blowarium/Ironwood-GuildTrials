@@ -294,3 +294,23 @@ export const devStore = {
     return guildConfig;
   },
 };
+
+const allowedMembers = new Set<string>(MEMBERS);
+
+for (const signup of signups.values()) {
+  if (!allowedMembers.has(signup.member_name)) {
+    signups.delete(memberKey(signup.week_start, signup.member_name));
+  }
+}
+for (const memberName of roles.keys()) {
+  if (!allowedMembers.has(memberName)) roles.delete(memberName);
+}
+for (const memberName of skillProfiles.keys()) {
+  if (!allowedMembers.has(memberName)) skillProfiles.delete(memberName);
+}
+for (const memberName of profileMeta.keys()) {
+  if (!allowedMembers.has(memberName)) profileMeta.delete(memberName);
+}
+for (const memberName of preferences.keys()) {
+  if (!allowedMembers.has(memberName)) preferences.delete(memberName);
+}

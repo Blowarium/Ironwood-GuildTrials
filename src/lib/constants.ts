@@ -44,7 +44,6 @@ export const MEMBERS = [
   "Tagra",
   "Fio",
   "LecheurDeCul",
-  "jlruppa",
   "pikachu1986",
   "Abrams",
 ] as const;
