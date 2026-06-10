@@ -19,6 +19,14 @@ export function weekBoundsLocal(weekStartIso: string): { start: Date; end: Date 
   return { start, end };
 }
 
+/** 0–100 position of `now` within the week column, or null if outside that week. */
+export function weekNowLeftPercent(weekStartIso: string, now = new Date()): number | null {
+  const { start, end } = weekBoundsLocal(weekStartIso);
+  const t = now.getTime();
+  if (t < start.getTime() || t >= end.getTime()) return null;
+  return ((t - start.getTime()) / WEEK_DURATION_MS) * 100;
+}
+
 /** Map 0–1 position on the week bar to a guild-local start timestamp (Mon 00:00 → next Mon 00:00). */
 export function buildStartAtFromWeekFraction(weekStartIso: string, fraction: number): string {
   const clamped = Math.max(0, Math.min(1, fraction));

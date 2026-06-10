@@ -23,6 +23,7 @@ import { SkillCompletionToggle } from "./SkillCompletionToggle";
 import { StatusBadge } from "./StatusBadge";
 import type { CellTarget } from "./CellAssignmentModal";
 import { GuildEventLegend, GuildEventWeekBar } from "./GuildEventWeekBar";
+import { WeekNowLine } from "./WeekNowLine";
 import { guildEventForSkill } from "@/lib/guild-events";
 
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -85,6 +86,7 @@ function MobileSkillWeekTrack({
     <div className="mt-1.5 overflow-hidden rounded border border-slate-700/40">
       <div className="relative h-5 border-b border-slate-700/30 bg-slate-950/40">
         <DayColumnGuides weekDays={weekDays} />
+        <WeekNowLine weekStart={weekStart} />
         <GuildEventWeekBar weekStart={weekStart} height={20} matchType={eventType} overlay />
       </div>
 
@@ -101,6 +103,7 @@ function MobileSkillWeekTrack({
         }`}
       >
         <DayColumnGuides weekDays={weekDays} />
+        <WeekNowLine weekStart={weekStart} />
         {segments.map((seg) => {
           const { signup, plannedStartAt, plannedEndAt, lane } = seg;
           const topPx = MOBILE_TRACK_PAD + lane * (MOBILE_BLOCK_HEIGHT + MOBILE_LANE_GAP);
@@ -200,9 +203,16 @@ function skillRowClass(weekState: SkillCoverageRow["weekState"] | undefined): st
   return "";
 }
 
-function WeekTimelineHeader({ weekDays }: { weekDays: string[] }) {
+function WeekTimelineHeader({
+  weekDays,
+  weekStart,
+}: {
+  weekDays: string[];
+  weekStart: string;
+}) {
   return (
     <div className="relative h-9 w-full border-b border-slate-700/40">
+      <WeekNowLine weekStart={weekStart} />
       {weekDays.map((d, i) => (
         <div
           key={d}
@@ -253,6 +263,7 @@ function MobileWeeklyTimeline({
         <GuildEventLegend />
         <div className="relative h-6 overflow-hidden rounded border border-slate-700/40 bg-slate-950/40">
           <DayColumnGuides weekDays={weekDays} />
+          <WeekNowLine weekStart={weekStart} />
           <GuildEventWeekBar weekStart={weekStart} height={24} />
         </div>
       </div>
@@ -388,7 +399,7 @@ export function WeeklyTimeline({
                 Skill
               </th>
               <th className="p-0 text-left text-xs font-medium text-slate-400">
-                <WeekTimelineHeader weekDays={weekDays} />
+                <WeekTimelineHeader weekDays={weekDays} weekStart={weekStart} />
               </th>
               <th className="sticky right-0 z-10 w-24 bg-[#131f36] px-2 py-2 text-right text-xs font-medium text-slate-500">
                 Week done?
@@ -402,7 +413,10 @@ export function WeeklyTimeline({
                 <p className="text-[9px] leading-tight text-slate-500">48h each</p>
               </td>
               <td className="p-1 align-middle">
-                <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+                <div className="relative min-h-9">
+                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+                  <WeekNowLine weekStart={weekStart} />
+                </div>
               </td>
               <td className="sticky right-0 z-10 bg-[#131f36]" />
             </tr>
@@ -467,6 +481,7 @@ export function WeeklyTimeline({
                           : "border-dashed border-slate-700/60"
                       }`}
                     >
+                      <WeekNowLine weekStart={weekStart} />
                       {weekDays.slice(1).map((d, i) => (
                         <div
                           key={d}
