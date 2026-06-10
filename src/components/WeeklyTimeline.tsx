@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
 import { SKILLS, TRIAL_BLOCK_STYLES, type Member, type Skill } from "@/lib/constants";
 import {
   adequacyClass,
@@ -211,12 +212,19 @@ function WeekTimelineHeader({
   weekStart: string;
 }) {
   return (
-    <div className="relative h-9 w-full border-b border-slate-700/40">
+    <div className="relative h-9 w-full">
       <WeekNowLine weekStart={weekStart} />
-      {weekDays.map((d, i) => (
+      {weekDays.slice(1).map((d, i) => (
         <div
           key={d}
-          className="absolute top-0 flex h-full flex-col justify-center border-l border-slate-700/50 px-1"
+          className="pointer-events-none absolute inset-y-0 border-l border-slate-700/35"
+          style={{ left: `${((i + 1) / 7) * 100}%` }}
+        />
+      ))}
+      {weekDays.map((d, i) => (
+        <div
+          key={`label-${d}`}
+          className="absolute top-0 flex h-full flex-col justify-center px-1"
           style={{ left: `${(i / 7) * 100}%`, width: `${100 / 7}%` }}
         >
           <span className="text-[10px] font-medium text-slate-400">{DAY_HEADERS[i]}</span>
@@ -225,6 +233,27 @@ function WeekTimelineHeader({
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+function TimelineTrackShell({
+  children,
+  className = "border-slate-700/50",
+  style,
+  ...rest
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+} & Omit<ComponentPropsWithoutRef<"div">, "className" | "style" | "children">) {
+  return (
+    <div
+      style={style}
+      className={`relative w-full min-w-[720px] rounded-md border ${className}`}
+      {...rest}
+    >
+      {children}
     </div>
   );
 }
@@ -392,16 +421,23 @@ export function WeeklyTimeline({
       </div>
 
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full table-fixed border-collapse text-sm">
+          <colgroup>
+            <col className="w-44" />
+            <col />
+            <col className="w-24" />
+          </colgroup>
           <thead>
             <tr className="border-b border-slate-700/60">
-              <th className="sticky left-0 z-10 w-44 bg-[#131f36] px-3 py-2 text-left text-xs font-medium text-slate-400">
+              <th className="sticky left-0 z-10 bg-[#131f36] px-3 py-2 text-left text-xs font-medium text-slate-400">
                 Skill
               </th>
-              <th className="p-0 text-left text-xs font-medium text-slate-400">
-                <WeekTimelineHeader weekDays={weekDays} weekStart={weekStart} />
+              <th className="p-1 align-middle text-left text-xs font-medium text-slate-400">
+                <TimelineTrackShell className="border-slate-700/50 bg-transparent">
+                  <WeekTimelineHeader weekDays={weekDays} weekStart={weekStart} />
+                </TimelineTrackShell>
               </th>
-              <th className="sticky right-0 z-10 w-24 bg-[#131f36] px-2 py-2 text-right text-xs font-medium text-slate-500">
+              <th className="sticky right-0 z-10 bg-[#131f36] px-2 py-2 text-right text-xs font-medium text-slate-500">
                 Week done?
               </th>
             </tr>
@@ -413,10 +449,10 @@ export function WeeklyTimeline({
                 <p className="text-[9px] leading-tight text-slate-500">48h each</p>
               </td>
               <td className="p-1 align-middle">
-                <div className="relative min-h-9">
-                  <GuildEventWeekBar weekStart={weekStart} minWidth={TIMELINE_MIN_WIDTH} />
+                <TimelineTrackShell className="min-h-9 border-slate-700/50 bg-slate-950/40">
+                  <GuildEventWeekBar weekStart={weekStart} height={36} overlay />
                   <WeekNowLine weekStart={weekStart} />
-                </div>
+                </TimelineTrackShell>
               </td>
               <td className="sticky right-0 z-10 bg-[#131f36]" />
             </tr>
@@ -460,8 +496,15 @@ export function WeeklyTimeline({
                     </div>
                   </td>
                   <td className="p-1 align-middle">
-                    <div
+                    <TimelineTrackShell
                       style={{ height: timelineHeight }}
+                      className={`cursor-crosshair bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 ${
+                        dimmed ? "opacity-60" : ""
+                      } ${
+                        segments.length > 0
+                          ? "border-slate-600/80"
+                          : "border-dashed border-slate-700/60"
+                      }`}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => {
                         e.preventDefault();
@@ -473,13 +516,6 @@ export function WeeklyTimeline({
                           slotTargetFromEvent(skill, weekStart, e.currentTarget, e.clientX),
                         );
                       }}
-                      className={`relative w-full min-w-[720px] cursor-crosshair rounded-md border bg-gradient-to-r from-slate-900/30 to-slate-950/50 transition hover:border-sky-500/40 ${
-                        dimmed ? "opacity-60" : ""
-                      } ${
-                        segments.length > 0
-                          ? "border-slate-600/80"
-                          : "border-dashed border-slate-700/60"
-                      }`}
                     >
                       <WeekNowLine weekStart={weekStart} />
                       {weekDays.slice(1).map((d, i) => (
@@ -546,7 +582,7 @@ export function WeeklyTimeline({
                           </button>
                         );
                       })}
-                    </div>
+                    </TimelineTrackShell>
                   </td>
                   <td className="sticky right-0 z-10 bg-[#131f36] px-2 py-2 align-middle">
                     {cov && (
