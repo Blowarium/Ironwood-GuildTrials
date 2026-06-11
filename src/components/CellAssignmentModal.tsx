@@ -9,11 +9,13 @@ import {
   type Skill,
 } from "@/lib/constants";
 import {
-  applyTimeToDate,
+  applyDisplayTimeToDate,
+  buildStartAt,
+  defaultStartAtForDate,
+  displayTimeInputValue,
   formatDateTimeLabel,
   formatTimeLabel,
   getEffectiveStatus,
-  timeInputValue,
 } from "@/lib/trial-schedule";
 import { useDebouncedAutoSave } from "@/lib/use-auto-save";
 import type { TrialSignup } from "@/lib/types";
@@ -34,16 +36,17 @@ export interface CellTarget {
 function initialTimeValue(
   target: CellTarget,
   editingSignup: TrialSignup | null,
+  plannedDate: string,
 ): string {
-  if (editingSignup) return timeInputValue(editingSignup.planned_start_at);
-  if (target.plannedStartAt) return timeInputValue(target.plannedStartAt);
+  if (editingSignup) return displayTimeInputValue(editingSignup.planned_start_at);
+  if (target.plannedStartAt) return displayTimeInputValue(target.plannedStartAt);
   if (target.dayFraction != null) {
     const totalMin = Math.floor(target.dayFraction * 24 * 60);
-    const h = String(Math.floor(totalMin / 60)).padStart(2, "0");
-    const m = String(totalMin % 60).padStart(2, "0");
-    return `${h}:${m}`;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return displayTimeInputValue(buildStartAt(plannedDate, h, m));
   }
-  return "08:00";
+  return displayTimeInputValue(defaultStartAtForDate(plannedDate));
 }
 
 function CellAssignmentForm({
@@ -81,9 +84,11 @@ function CellAssignmentForm({
   const [plannedDate, setPlannedDate] = useState(
     editingSignup?.planned_date ?? target.plannedDate,
   );
-  const [timeValue, setTimeValue] = useState(() => initialTimeValue(target, editingSignup));
+  const [timeValue, setTimeValue] = useState(() =>
+    initialTimeValue(target, editingSignup, editingSignup?.planned_date ?? target.plannedDate),
+  );
 
-  const plannedStartAt = applyTimeToDate(plannedDate, timeValue);
+  const plannedStartAt = applyDisplayTimeToDate(plannedDate, timeValue);
 
   const previewStatus = getEffectiveStatus({
     id: 0,
@@ -215,7 +220,7 @@ function CellAssignmentForm({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Start time</span>
+              <span className="text-xs text-slate-400">Start time (your local time)</span>
               <input
                 type="time"
                 value={timeValue}
@@ -232,7 +237,7 @@ function CellAssignmentForm({
           </div>
           <p className="text-[10px] text-slate-500">
             Trials run 24h from start time. Status becomes Active at start and Completed when the
-            window ends.
+            window ends. Week grid and game sync use guild time (UTC+2).
           </p>
         </div>
 

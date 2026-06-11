@@ -3,6 +3,7 @@ import type { TrialSignup } from "./types";
 import {
   GUILD_DAY_MS,
   GUILD_TIMEZONE,
+  displayFormatLabel,
   guildDateFromInstant,
   guildFormatLabel,
   guildInstantFromLocal,
@@ -61,7 +62,7 @@ export function dateFromStartAt(iso: string): string {
 }
 
 export function formatTimeLabel(iso: string, short = false): string {
-  return guildFormatLabel(iso, {
+  return displayFormatLabel(iso, {
     hour: "numeric",
     minute: "2-digit",
     hour12: !short,
@@ -69,7 +70,7 @@ export function formatTimeLabel(iso: string, short = false): string {
 }
 
 export function formatDateTimeLabel(iso: string): string {
-  return guildFormatLabel(iso, {
+  return displayFormatLabel(iso, {
     weekday: "short",
     month: "short",
     day: "numeric",
@@ -237,14 +238,30 @@ export function trialSegmentInWeek(
   };
 }
 
+/** Guild-clock HH:mm for `<input type="time">` when editing in guild time. */
 export function timeInputValue(iso: string): string {
   const { hours, minutes } = guildTimeParts(iso);
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+/** Local-clock HH:mm for `<input type="time">` (display / edit in user timezone). */
+export function displayTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "08:00";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 export function applyTimeToDate(dateIso: string, timeValue: string): string {
   const [h, m] = timeValue.split(":").map(Number);
   return buildStartAt(dateIso, h || 0, m || 0);
+}
+
+/** Apply a local-time HH:mm on a guild calendar date; returns UTC ISO instant. */
+export function applyDisplayTimeToDate(dateIso: string, timeValue: string): string {
+  const [y, mo, d] = dateIso.split("-").map(Number);
+  const [h, m] = timeValue.split(":").map(Number);
+  if (!y || !mo || !d) return new Date(0).toISOString();
+  return new Date(y, mo - 1, d, h || 0, m || 0, 0, 0).toISOString();
 }
 
 export function normalizeSignupTiming(signup: Partial<TrialSignup> & Pick<TrialSignup, "planned_date">): {

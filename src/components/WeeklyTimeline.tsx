@@ -396,8 +396,8 @@ export function WeeklyTimeline({
           <GuildEventLegend />
         </div>
         <p className="hidden text-[10px] text-slate-500 sm:block">
-          One timeline per skill: Mon 00:00 → Sun 24:00 · 24h trials span across days · tap to
-          assign · drag to move
+          One timeline per skill: Mon 00:00 → Sun 24:00 guild time · times shown in your timezone ·
+          24h trials span across days · tap to assign · drag to move
         </p>
         <p className="text-[10px] text-sky-400/90 sm:hidden">
           Tap track or day to schedule · tap a trial block to edit

@@ -1,10 +1,12 @@
 import {
-  GUILD_TIMEZONE,
+  displayFormatLabel,
   guildAddDays,
   guildFormatLabel,
   guildInstantFromLocal,
+  guildMidnight,
   guildWeekStart,
 } from "./guild-timezone";
+import { weekBoundsLocal } from "./trial-schedule";
 
 /** Monday 00:00 guild time (UTC+2) for the trial week containing `date`, plus `weekOffset` weeks. */
 export function getWeekStart(date = new Date(), weekOffset = 0): string {
@@ -28,13 +30,12 @@ export function getWeekDays(weekStart: string): string[] {
 }
 
 export function formatWeekRange(weekStart: string): string {
-  const days = getWeekDays(weekStart);
+  const { start, end } = weekBoundsLocal(weekStart);
   const fmt = new Intl.DateTimeFormat(undefined, {
-    timeZone: GUILD_TIMEZONE,
     month: "short",
     day: "numeric",
   });
-  return `${fmt.format(parseISODate(days[0]))} – ${fmt.format(parseISODate(days[6]))}`;
+  return `${fmt.format(start)} – ${fmt.format(new Date(end.getTime() - 1))}`;
 }
 
 export function formatDayLabel(iso: string, short = false): string {
@@ -56,9 +57,9 @@ export function weekLabel(weekOffset: number): string {
   return `+${weekOffset} weeks`;
 }
 
-/** Tab label e.g. "Week of Jun 2" */
+/** Tab label e.g. "Week of Jun 2" (guild Monday, shown in local date). */
 export function formatWeekTabLabel(weekStart: string): string {
-  return `Week of ${guildFormatLabel(guildInstantFromLocal(weekStart, 12, 0), {
+  return `Week of ${displayFormatLabel(guildMidnight(weekStart), {
     month: "short",
     day: "numeric",
   })}`;

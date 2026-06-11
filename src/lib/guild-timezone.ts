@@ -1,6 +1,6 @@
 /**
- * Ironwood guild clock — fixed UTC+2 for all scheduling, resets, and display.
- * Daily reset and trial weeks are expressed in this timezone.
+ * Ironwood guild clock — fixed UTC+2 for scheduling, sync, and week boundaries.
+ * User-facing time labels use the browser's local timezone via displayFormatLabel.
  */
 export const GUILD_TIMEZONE = "Etc/GMT-2";
 
@@ -72,4 +72,20 @@ export function guildFormatLabel(
     ...options,
     timeZone: GUILD_TIMEZONE,
   }).format(new Date(iso));
+}
+
+/** Format an instant in the user's local timezone (display only). */
+export function displayFormatLabel(
+  iso: string | Date,
+  options: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat(undefined, options).format(new Date(iso));
+}
+
+/** Short timezone name for the user's locale, e.g. "CEST" or "GMT-5". */
+export function formatDisplayTimeZoneShort(at: Date = new Date()): string {
+  const part = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+    .formatToParts(at)
+    .find((p) => p.type === "timeZoneName");
+  return part?.value ?? "local";
 }

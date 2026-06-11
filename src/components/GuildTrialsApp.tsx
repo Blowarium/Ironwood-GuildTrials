@@ -33,6 +33,7 @@ import type { ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
 import { syncSignups, buildStartAtFromWeekFraction, dateFromStartAt } from "@/lib/trial-schedule";
+import { formatDisplayTimeZoneShort } from "@/lib/guild-timezone";
 import { computeGuildStats } from "@/lib/stats";
 import {
   readXpImportFromLocation,
@@ -617,7 +618,10 @@ export function GuildTrialsApp() {
         <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <p className="text-xs text-slate-400 sm:text-sm">
             {formatWeekRange(weekStart)}
-            <span className="text-slate-500"> · UTC+2</span>
+            <span className="text-slate-500">
+              {" "}
+              · Times in {formatDisplayTimeZoneShort()} · guild UTC+2
+            </span>
           </p>
           <div className="flex flex-wrap gap-1 sm:gap-2">
             {[0, 1, 2].map((offset) => {
