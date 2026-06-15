@@ -1,4 +1,4 @@
-import { MEMBERS, type Member } from "./constants";
+import { type Member } from "./constants";
 import {
   canEditProfileFor,
   canEditSignupFor,
@@ -7,17 +7,23 @@ import {
   isStaffRole,
 } from "./permissions";
 import { verifyStaffToken } from "./staff-auth-server";
-import { buildRolesMap, getMemberRole, isGuildRole, type GuildRole, type MemberRoleRow } from "./roles";
+import {
+  buildRolesMap,
+  getMemberRole,
+  isGuildRole,
+  type GuildRole,
+  type MemberRoleRow,
+} from "./roles";
+import { listGuildMemberNames } from "./guild-members";
 
 export type ActorResult =
   | { ok: true; actor: Member }
   | { ok: false; error: string; status: number };
 
 export function parseActor(value: unknown): Member | null {
-  if (typeof value !== "string" || !(MEMBERS as readonly string[]).includes(value)) {
-    return null;
-  }
-  return value as Member;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function parseStaffToken(value: unknown): string | null {
@@ -27,12 +33,13 @@ export function parseStaffToken(value: unknown): string | null {
 
 export async function loadRolesMap(
   db: NonNullable<ReturnType<typeof import("./db").getDb>>,
-): Promise<Map<Member, GuildRole>> {
+): Promise<Map<Member, import("./roles").GuildRole>> {
   const rows = (await db`
     SELECT member_name, role, updated_at::text, updated_by
     FROM guild_member_roles
   `) as MemberRoleRow[];
-  return buildRolesMap(rows);
+  const members = await listGuildMemberNames(db);
+  return buildRolesMap(rows, members);
 }
 
 export function requireActor(actor: Member | null): ActorResult {

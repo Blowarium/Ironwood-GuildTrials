@@ -47,6 +47,7 @@ import {
   buildPlannerTrialSyncReturnUrl,
   readTrialProbeFromLocation,
   readTrialSyncFromLocation,
+  setGuildMemberNames,
   type IronwoodTrialProbeReport,
   type IronwoodTrialSyncPayload,
   type TrialSyncApplyResult,
@@ -92,6 +93,7 @@ export function GuildTrialsApp() {
   const [signups, setSignups] = useState<TrialSignup[]>([]);
   const [completions, setCompletions] = useState<SkillWeekCompletion[]>([]);
   const [profiles, setProfiles] = useState<MemberProfile[]>([]);
+  const [memberNames, setMemberNames] = useState<Member[]>([]);
   const [rolesMap, setRolesMap] = useState<RolesMap>(() => buildRolesMap([]));
   const [roster, setRoster] = useState<MemberRosterEntry[]>([]);
   const [guildConfig, setGuildConfig] = useState<GuildConfig | null>(null);
@@ -131,8 +133,8 @@ export function GuildTrialsApp() {
   const isLeader = canManageRoles(currentRole);
 
   const stats = useMemo(
-    () => computeGuildStats(signups, completions),
-    [signups, completions],
+    () => computeGuildStats(signups, completions, memberNames),
+    [signups, completions, memberNames],
   );
 
   const hallLevel = guildConfig?.trial_hall_level ?? 0;
@@ -351,7 +353,9 @@ export function GuildTrialsApp() {
     try {
       const data = await fetchMembersData();
       setProfiles(data.profiles);
-      setRolesMap(buildRolesMap(data.roles));
+      setMemberNames(data.members);
+      setRolesMap(buildRolesMap(data.roles, data.members));
+      setGuildMemberNames(data.members);
     } catch {
       /* non-fatal */
     } finally {
@@ -399,6 +403,15 @@ export function GuildTrialsApp() {
     loadMembers();
     loadGuildConfig();
   }, [loadMembers, loadGuildConfig]);
+
+  useEffect(() => {
+    if (!membersLoaded || !currentUser) return;
+    if (memberNames.length > 0 && !memberNames.includes(currentUser)) {
+      localStorage.removeItem(MEMBER_STORAGE_KEY);
+      setCurrentUser("");
+      setMemberSelectOpen(true);
+    }
+  }, [membersLoaded, currentUser, memberNames]);
 
   useEffect(() => {
     if (view === "roster") loadRoster();
@@ -559,14 +572,22 @@ export function GuildTrialsApp() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-[#0c1424] text-slate-100">
-        <MemberSelectModal open={memberSelectOpen} onSelect={handleMemberSelect} />
+        <MemberSelectModal
+          open={memberSelectOpen}
+          members={memberNames}
+          onSelect={handleMemberSelect}
+        />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#0c1424] text-slate-100">
-      <MemberSelectModal open={memberSelectOpen} onSelect={handleMemberSelect} />
+      <MemberSelectModal
+        open={memberSelectOpen}
+        members={memberNames}
+        onSelect={handleMemberSelect}
+      />
 
       <header className="border-b border-slate-700/60 bg-[#111d33]/90 backdrop-blur">
         <div className="mx-auto max-w-[1600px] px-2 py-2 sm:px-4 sm:py-3">
@@ -771,6 +792,7 @@ export function GuildTrialsApp() {
               {view === "members" && (
                 <MemberView
                   signups={signups}
+                  members={memberNames}
                   currentUser={currentUser}
                   onSelectSignup={openSignup}
                 />
@@ -826,6 +848,7 @@ export function GuildTrialsApp() {
         open={!!modalTarget}
         target={modalTarget}
         signups={signups}
+        members={memberNames}
         currentUser={currentUser}
         editingSignup={editingSignup}
         canEditSignup={canEditSignup}

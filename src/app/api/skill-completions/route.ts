@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MEMBERS, SKILLS, type Member, type Skill } from "@/lib/constants";
+import { SKILLS, type Member, type Skill } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
+import { assertActiveMember } from "@/lib/guild-members";
 import type { SkillCompletionPayload, SkillWeekCompletion } from "@/lib/types";
-
-function isMember(name: string): name is Member {
-  return (MEMBERS as readonly string[]).includes(name);
-}
 
 function isSkill(name: string): name is Skill {
   return (SKILLS as readonly string[]).includes(name);
@@ -26,13 +23,17 @@ export async function PUT(request: NextRequest) {
   if (!isSkill(body.skill)) {
     return NextResponse.json({ error: "Unknown skill." }, { status: 400 });
   }
-  if (body.markedBy && !isMember(body.markedBy)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+
+  const db = getDb();
+  if (body.markedBy) {
+    const memberCheck = await assertActiveMember(db, body.markedBy);
+    if (memberCheck !== true) {
+      return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
+    }
   }
 
   const markedBy = body.markedBy ?? null;
 
-  const db = getDb();
   if (!db) {
     const completion = devStore.setSkillCompletion(
       body.weekStart,

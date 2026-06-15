@@ -124,12 +124,18 @@ export async function patchSignupStatus(payload: {
 export async function fetchMembersData(): Promise<{
   roles: MemberRoleRow[];
   profiles: MemberProfile[];
+  members: Member[];
   mode: "dev" | "database";
 }> {
   const res = await fetch("/api/members");
   if (!res.ok) throw new Error("Failed to load members");
   const data = await res.json();
-  return { roles: data.roles ?? [], profiles: data.profiles ?? [], mode: data.mode };
+  return {
+    roles: data.roles ?? [],
+    profiles: data.profiles ?? [],
+    members: data.members ?? [],
+    mode: data.mode,
+  };
 }
 
 export async function saveMemberProfile(payload: {
@@ -160,6 +166,21 @@ export async function saveMemberRole(payload: {
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not update role." };
   return { role: data.role };
+}
+
+export async function manageGuildMember(payload: {
+  actorMember: Member;
+  memberName: Member;
+  action: "add" | "remove";
+}): Promise<{ members?: Member[]; error?: string }> {
+  const res = await fetch("/api/members/manage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(withStaffAuth(payload)),
+  });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? "Could not update roster." };
+  return { members: data.members ?? [] };
 }
 
 export async function fetchMemberRoster(actorMember: Member): Promise<{

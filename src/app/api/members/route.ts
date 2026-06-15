@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MEMBERS, SKILLS, type Member } from "@/lib/constants";
+import { SKILLS, type Member } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
 import {
@@ -26,10 +26,7 @@ import {
   requireActor,
 } from "@/lib/server-auth";
 import { buildRolesMap, getMemberRole, type MemberRoleRow } from "@/lib/roles";
-
-function isMember(name: string): name is Member {
-  return (MEMBERS as readonly string[]).includes(name);
-}
+import { listGuildMemberNames, assertActiveMember } from "@/lib/guild-members";
 
 async function fetchProfileFromDb(
   db: NonNullable<ReturnType<typeof getDb>>,
@@ -74,59 +71,65 @@ export async function GET(request: NextRequest) {
   const memberParam = request.nextUrl.searchParams.get("member");
 
   if (!db) {
+    const members = devStore.listMemberNames();
     const roles = devStore.listRoles();
     const profiles = devStore.listProfiles();
     if (memberParam) {
-      if (!isMember(memberParam)) {
+      if (!members.includes(memberParam)) {
         return NextResponse.json({ error: "Unknown member." }, { status: 400 });
       }
       return NextResponse.json({
         profile: devStore.getProfile(memberParam),
         role: devStore.getRole(memberParam),
+        members,
         mode: "dev" as const,
       });
     }
     return NextResponse.json({
       roles,
       profiles,
+      members,
       mode: "dev" as const,
     });
   }
 
   await ensureSchema();
+  const members = await listGuildMemberNames(db);
   const roleRows = (await db`
     SELECT member_name, role, updated_at::text, updated_by
     FROM guild_member_roles
     ORDER BY member_name
   `) as MemberRoleRow[];
 
-  const rolesMap = buildRolesMap(roleRows);
+  const rolesMap = buildRolesMap(roleRows, members);
 
   if (memberParam) {
-    if (!isMember(memberParam)) {
+    if (!members.includes(memberParam)) {
       return NextResponse.json({ error: "Unknown member." }, { status: 400 });
     }
     const profile = await fetchProfileFromDb(db, memberParam);
     return NextResponse.json({
       profile,
       role: getMemberRole(rolesMap, memberParam),
+      members,
       mode: "database" as const,
     });
   }
 
   const profiles: MemberProfile[] = [];
-  for (const m of MEMBERS) {
+  for (const m of members) {
     profiles.push(await fetchProfileFromDb(db, m));
   }
 
   return NextResponse.json({
-    roles: MEMBERS.map((member_name) => ({
+    roles: members.map((member_name) => ({
       member_name,
       role: getMemberRole(rolesMap, member_name),
       updated_at: roleRows.find((r) => r.member_name === member_name)?.updated_at ?? new Date(0).toISOString(),
       updated_by: roleRows.find((r) => r.member_name === member_name)?.updated_by ?? null,
     })),
     profiles,
+    members,
     mode: "database" as const,
   });
 }
@@ -152,8 +155,14 @@ export async function PUT(request: NextRequest) {
   const actorMember = actorResult.actor;
   const staffToken = parseStaffToken(body.staffAuthToken);
 
-  if (!body.memberName || !isMember(body.memberName)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+  if (!body.memberName) {
+    return NextResponse.json({ error: "memberName is required." }, { status: 400 });
+  }
+
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
   const parsed = validateAndParseProfileSkills(body.skills ?? []);
@@ -161,9 +170,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: parsed.error }, { status: 400 });
   }
 
-  const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertProfileEdit(actorMember, body.memberName, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });
@@ -224,16 +232,21 @@ export async function PATCH(request: NextRequest) {
   const actorMember = actorResult.actor;
   const staffToken = parseStaffToken(body.staffAuthToken);
 
-  if (!body.memberName || !isMember(body.memberName)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+  if (!body.memberName) {
+    return NextResponse.json({ error: "memberName is required." }, { status: 400 });
+  }
+
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
   const role = parseRole(body.role);
   if (!role) return NextResponse.json({ error: "Invalid role." }, { status: 400 });
 
-  const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertLeader(actorMember, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });
@@ -278,14 +291,15 @@ export async function POST(request: NextRequest) {
 
   const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertStaffAuth(actorMember, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });
     }
 
+    const members = devStore.listMemberNames();
     const profilesMap = buildProfilesMap(devStore.listProfiles());
-    const roster: MemberRosterEntry[] = MEMBERS.map((member_name) => {
+    const roster: MemberRosterEntry[] = members.map((member_name) => {
       const profile = profilesMap.get(member_name);
       const stats = rosterStats(profile);
       return {
@@ -304,14 +318,20 @@ export async function POST(request: NextRequest) {
   }
 
   await ensureSchema();
-  const rolesMap = await loadRolesMap(db);
+  const members = await listGuildMemberNames(db);
+  const roleRows = (await db`
+    SELECT member_name, role, updated_at::text, updated_by
+    FROM guild_member_roles
+    ORDER BY member_name
+  `) as MemberRoleRow[];
+  const rolesMap = buildRolesMap(roleRows, members);
   const perm = assertStaffAuth(actorMember, rolesMap, staffToken);
   if (perm !== true) {
     return NextResponse.json({ error: perm.error }, { status: perm.status });
   }
 
   const roster: MemberRosterEntry[] = [];
-  for (const member_name of MEMBERS) {
+  for (const member_name of members) {
     const profile = await fetchProfileFromDb(db, member_name);
     const stats = rosterStats(profile);
     roster.push({

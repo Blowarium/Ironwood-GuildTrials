@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { GUILD_ROLES, ROLE_LABELS, type GuildRole } from "@/lib/roles";
 import type { MemberRosterEntry } from "@/lib/member-profile";
 import type { Member } from "@/lib/constants";
-import { saveMemberRole } from "@/lib/api-client";
+import { manageGuildMember, saveMemberRole } from "@/lib/api-client";
 import { canManageRoles } from "@/lib/permissions";
 import { RoleBadge } from "./ProfileHeaderBar";
 import { LastEditedNote } from "./LastEditedNote";
@@ -23,6 +23,9 @@ export function MemberRosterView({
   onOpenProfile: (member: Member) => void;
 }) {
   const [savingRole, setSavingRole] = useState<Member | null>(null);
+  const [removingMember, setRemovingMember] = useState<Member | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const isLeader = canManageRoles(currentUserRole);
 
@@ -35,6 +38,44 @@ export function MemberRosterView({
       role,
     });
     setSavingRole(null);
+    if (err) {
+      setError(err);
+      return;
+    }
+    onRefresh();
+  }
+
+  async function handleAddMember(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newMemberName.trim()) return;
+    setAdding(true);
+    setError(null);
+    const { error: err } = await manageGuildMember({
+      actorMember: currentUser,
+      memberName: newMemberName.trim(),
+      action: "add",
+    });
+    setAdding(false);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setNewMemberName("");
+    onRefresh();
+  }
+
+  async function handleRemoveMember(member: Member) {
+    if (!window.confirm(`Remove ${member} from the guild roster? Their profile and trial data will be deleted.`)) {
+      return;
+    }
+    setRemovingMember(member);
+    setError(null);
+    const { error: err } = await manageGuildMember({
+      actorMember: currentUser,
+      memberName: member,
+      action: "remove",
+    });
+    setRemovingMember(null);
     if (err) {
       setError(err);
       return;
@@ -74,6 +115,31 @@ export function MemberRosterView({
             </p>
           </div>
         </div>
+        {isLeader && (
+          <form
+            onSubmit={handleAddMember}
+            className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-700/50 pt-3"
+          >
+            <label className="min-w-0 flex-1">
+              <span className="text-[10px] uppercase tracking-wide text-slate-500">Add member</span>
+              <input
+                type="text"
+                value={newMemberName}
+                onChange={(e) => setNewMemberName(e.target.value)}
+                placeholder="Character name"
+                disabled={adding}
+                className="mt-1 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white placeholder:text-slate-500"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={adding || !newMemberName.trim()}
+              className="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
+            >
+              {adding ? "Adding…" : "Add"}
+            </button>
+          </form>
+        )}
         {error && <p className="mt-2 text-sm text-red-300">{error}</p>}
       </div>
 
@@ -85,13 +151,25 @@ export function MemberRosterView({
           >
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-xs font-medium text-slate-200">{row.member_name}</p>
-              <button
-                type="button"
-                onClick={() => onOpenProfile(row.member_name)}
-                className="shrink-0 text-[10px] text-sky-400 hover:underline"
-              >
-                Profile
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenProfile(row.member_name)}
+                  className="text-[10px] text-sky-400 hover:underline"
+                >
+                  Profile
+                </button>
+                {isLeader && row.member_name !== currentUser && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMember(row.member_name)}
+                    disabled={removingMember === row.member_name}
+                    className="text-[10px] text-red-400 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
               {isLeader && row.member_name !== currentUser ? (
@@ -196,13 +274,25 @@ export function MemberRosterView({
                   />
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={() => onOpenProfile(row.member_name)}
-                    className="text-xs text-sky-400 hover:underline"
-                  >
-                    View
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenProfile(row.member_name)}
+                      className="text-xs text-sky-400 hover:underline"
+                    >
+                      View
+                    </button>
+                    {isLeader && row.member_name !== currentUser && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(row.member_name)}
+                        disabled={removingMember === row.member_name}
+                        className="text-xs text-red-400 hover:underline disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

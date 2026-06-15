@@ -3,7 +3,6 @@
 import { useState } from "react";
 import {
   ALREADY_ASSIGNED_MSG,
-  MEMBERS,
   SKILLS,
   type Member,
   type Skill,
@@ -52,6 +51,7 @@ function initialTimeValue(
 function CellAssignmentForm({
   target,
   signups,
+  members,
   currentUser,
   editingSignup,
   canEditSignup,
@@ -63,6 +63,7 @@ function CellAssignmentForm({
 }: {
   target: CellTarget;
   signups: TrialSignup[];
+  members: Member[];
   currentUser: Member | "";
   editingSignup: TrialSignup | null;
   canEditSignup: (member: Member) => boolean;
@@ -200,7 +201,7 @@ function CellAssignmentForm({
               className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
             >
               <option value="">Select member…</option>
-              {(canAssignOthers ? MEMBERS : currentUser ? [currentUser] : []).map((m) => (
+              {(canAssignOthers ? members : currentUser ? [currentUser] : []).map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
@@ -279,6 +280,7 @@ export function CellAssignmentModal({
   open,
   target,
   signups,
+  members,
   currentUser,
   editingSignup,
   canEditSignup,
@@ -291,6 +293,7 @@ export function CellAssignmentModal({
   open: boolean;
   target: CellTarget | null;
   signups: TrialSignup[];
+  members: Member[];
   currentUser: Member | "";
   editingSignup: TrialSignup | null;
   canEditSignup: (member: Member) => boolean;
@@ -314,6 +317,7 @@ export function CellAssignmentModal({
       key={formKey}
       target={target}
       signups={signups}
+      members={members}
       currentUser={currentUser}
       editingSignup={editingSignup}
       canEditSignup={canEditSignup}

@@ -28,8 +28,9 @@ import { defaultStartAtForDate, getEffectiveStatus, normalizeSignupTiming } from
 const signups = new Map<string, TrialSignup>();
 const completions = new Map<string, SkillWeekCompletion>();
 const preferences = new Map<string, MemberPreferences>();
+let guildMembers: Member[] = [...MEMBERS];
 const roles = new Map<string, MemberRoleRow>(
-  buildDefaultRoles().map((r) => [r.member_name, r]),
+  buildDefaultRoles(guildMembers).map((r) => [r.member_name, r]),
 );
 const profileMeta = new Map<
   string,
@@ -186,8 +187,38 @@ export const devStore = {
     return row;
   },
 
+  listMemberNames(): Member[] {
+    return [...guildMembers].sort((a, b) => a.localeCompare(b));
+  },
+
+  addMember(memberName: Member, actor: Member | null): void {
+    if (!guildMembers.includes(memberName)) {
+      guildMembers.push(memberName);
+      guildMembers.sort((a, b) => a.localeCompare(b));
+    }
+    if (!roles.has(memberName)) {
+      roles.set(memberName, {
+        member_name: memberName,
+        role: defaultRoleForMember(memberName),
+        updated_at: new Date().toISOString(),
+        updated_by: actor,
+      });
+    }
+  },
+
+  removeMember(memberName: Member): void {
+    guildMembers = guildMembers.filter((m) => m !== memberName);
+    roles.delete(memberName);
+    skillProfiles.delete(memberName);
+    profileMeta.delete(memberName);
+    preferences.delete(memberName);
+    for (const [k, v] of signups) {
+      if (v.member_name === memberName) signups.delete(k);
+    }
+  },
+
   listRoles(): MemberRoleRow[] {
-    return MEMBERS.map((member_name) => {
+    return guildMembers.map((member_name) => {
       const row = roles.get(member_name);
       if (row) return row;
       return {
@@ -215,7 +246,7 @@ export const devStore = {
   },
 
   listProfiles(): MemberProfile[] {
-    return MEMBERS.map((member_name) => this.getProfile(member_name));
+    return guildMembers.map((member_name) => this.getProfile(member_name));
   },
 
   getProfile(memberName: Member): MemberProfile {
@@ -295,7 +326,7 @@ export const devStore = {
   },
 };
 
-const allowedMembers = new Set<string>(MEMBERS);
+const allowedMembers = new Set<string>(guildMembers);
 
 for (const signup of signups.values()) {
   if (!allowedMembers.has(signup.member_name)) {

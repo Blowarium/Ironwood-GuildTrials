@@ -235,14 +235,19 @@ export function SuggestionsView({
     [profiles],
   );
 
+  const memberNames = useMemo(
+    () => profiles.map((p) => p.member_name).sort((a, b) => a.localeCompare(b)),
+    [profiles],
+  );
+
   const hallLevel = guildConfig?.trial_hall_level ?? 0;
 
   const plan = useMemo(
-    () => buildOptimalSchedule(profilesMap, signups, weekDays, hallLevel),
-    [profilesMap, signups, weekDays, hallLevel],
+    () => buildOptimalSchedule(profilesMap, signups, weekDays, hallLevel, memberNames),
+    [profilesMap, signups, weekDays, hallLevel, memberNames],
   );
 
-  const prefsCount = membersWithRankedProfiles(profilesMap);
+  const prefsCount = membersWithRankedProfiles(profilesMap, memberNames);
   const mySuggestion = plan.suggestions.find((s) => s.member === currentUser);
   const myExistingSignup = plan.alreadyScheduled.find((s) => s.member_name === currentUser);
 

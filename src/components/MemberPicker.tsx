@@ -1,11 +1,13 @@
-import { MEMBERS, type Member } from "@/lib/constants";
+import type { Member } from "@/lib/constants";
 
 export function MemberPicker({
   value,
   onChange,
+  members,
 }: {
   value: Member | "";
   onChange: (m: Member | "") => void;
+  members: Member[];
 }) {
   return (
     <label className="block">
@@ -16,7 +18,7 @@ export function MemberPicker({
         className="mt-1.5 w-full max-w-xs rounded-lg border border-slate-600 bg-slate-900 px-3 py-2.5 text-sm text-white shadow-inner"
       >
         <option value="">Select your name…</option>
-        {MEMBERS.map((m) => (
+        {members.map((m) => (
           <option key={m} value={m}>
             {m}
           </option>

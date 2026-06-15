@@ -1,4 +1,4 @@
-import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
+import { SKILLS, type Member, type Skill } from "./constants";
 import type { MemberPreferences } from "./preferences";
 import { parseXp } from "./preferences";
 import { findCatalogAction } from "./ironwood-action-catalog";
@@ -293,9 +293,13 @@ export function validateAndParseProfileSkills(
   return { rows: rows.sort((a, b) => a.skill.localeCompare(b.skill)) };
 }
 
-export function membersWithRankedProfiles(map: ProfilesMap): number {
+export function membersWithRankedProfiles(
+  map: ProfilesMap,
+  members?: readonly Member[],
+): number {
+  const list = members ?? [...map.keys()];
   let n = 0;
-  for (const m of MEMBERS) {
+  for (const m of list) {
     const stats = rosterStats(map.get(m));
     if (stats.ranked_skill_count >= 3) n++;
   }

@@ -1,11 +1,16 @@
 import { neon, NeonQueryFunction } from "@neondatabase/serverless";
-import { MEMBERS, type Skill } from "./constants";
+import type { Skill } from "./constants";
 import {
   inferPreferencesCustomized,
   isLegacyFactoryDefaultRanks,
   NEUTRAL_PREFERENCE_RANK,
 } from "./member-profile";
 import { DEFAULT_GUILD_LEADER } from "./roles";
+import {
+  listGuildMemberNames,
+  purgeNonMemberData as purgeRosterNonMembers,
+  seedGuildMembersIfEmpty,
+} from "./guild-members";
 
 let sql: NeonQueryFunction<false, false> | null = null;
 
@@ -140,6 +145,16 @@ export async function ensureSchema(): Promise<void> {
     ADD COLUMN IF NOT EXISTS preferences_customized BOOLEAN NOT NULL DEFAULT FALSE
   `;
 
+  await db`
+    CREATE TABLE IF NOT EXISTS guild_members (
+      member_name TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by TEXT
+    )
+  `;
+
+  await seedGuildMembersIfEmpty(db);
+
   await migrateNeutralPreferenceDefaults(db);
 
   await db`
@@ -148,20 +163,12 @@ export async function ensureSchema(): Promise<void> {
     ON CONFLICT (member_name) DO NOTHING
   `;
 
-  await purgeNonMemberData(db);
-}
-
-async function purgeNonMemberData(db: NeonQueryFunction<false, false>): Promise<void> {
-  const allowed = [...MEMBERS];
-  await db`DELETE FROM trial_signups WHERE NOT (member_name = ANY(${allowed}))`;
-  await db`DELETE FROM member_preferences WHERE NOT (member_name = ANY(${allowed}))`;
-  await db`DELETE FROM guild_member_roles WHERE NOT (member_name = ANY(${allowed}))`;
-  await db`DELETE FROM member_skill_profiles WHERE NOT (member_name = ANY(${allowed}))`;
-  await db`DELETE FROM member_profile_meta WHERE NOT (member_name = ANY(${allowed}))`;
+  await purgeRosterNonMembers(db);
 }
 
 async function migrateNeutralPreferenceDefaults(db: NeonQueryFunction<false, false>): Promise<void> {
-  for (const memberName of MEMBERS) {
+  const memberNames = await listGuildMemberNames(db);
+  for (const memberName of memberNames) {
     const metaRows = (await db`
       SELECT preferences_customized FROM member_profile_meta WHERE member_name = ${memberName}
     `) as { preferences_customized: boolean }[];

@@ -1,4 +1,4 @@
-import { MEMBERS, SKILLS, type Skill } from "./constants";
+import { SKILLS, type Member, type Skill } from "./constants";
 import { getEffectiveStatus } from "./trial-schedule";
 import type { SkillWeekCompletion, TrialSignup } from "./types";
 
@@ -48,9 +48,10 @@ export function buildCompletionMap(
 export function computeGuildStats(
   signups: TrialSignup[],
   completions: SkillWeekCompletion[],
+  members: readonly Member[],
 ): GuildStats {
   const assignedMembers = new Set(signups.map((s) => s.member_name));
-  const unassignedMembers = MEMBERS.filter((m) => !assignedMembers.has(m));
+  const unassignedMembers = members.filter((m) => !assignedMembers.has(m));
   const completionMap = buildCompletionMap(completions);
 
   const skillCoverage: SkillCoverageRow[] = SKILLS.map((skill) => {
@@ -118,7 +119,7 @@ export function computeGuildStats(
     skillsNeedingSignup,
     skillCoverage,
     assignedCount: signups.length,
-    totalMembers: MEMBERS.length,
+    totalMembers: members.length,
     unassignedMembers: [...unassignedMembers],
   };
 }

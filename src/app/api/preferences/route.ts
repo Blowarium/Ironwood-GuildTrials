@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MEMBERS, type Member, type Skill } from "@/lib/constants";
+import { type Member, type Skill } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
+import { assertActiveMember } from "@/lib/guild-members";
 import { parseXp, validatePreferences, type MemberPreferences } from "@/lib/preferences";
-
-function isMember(name: string): name is Member {
-  return (MEMBERS as readonly string[]).includes(name);
-}
 
 export async function GET() {
   const db = getDb();
@@ -44,8 +41,14 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  if (!body.memberName || !isMember(body.memberName)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+  if (!body.memberName) {
+    return NextResponse.json({ error: "memberName is required." }, { status: 400 });
+  }
+
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
   const p1 = body.pref1 ?? "";
@@ -61,7 +64,6 @@ export async function PUT(request: NextRequest) {
   const xp2 = parseXp(body.xp2);
   const xp3 = parseXp(body.xp3);
 
-  const db = getDb();
   if (!db) {
     const preferences = devStore.setPreferences(
       body.memberName,

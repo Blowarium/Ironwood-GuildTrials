@@ -1,12 +1,14 @@
 "use client";
 
-import { MEMBERS, type Member } from "@/lib/constants";
+import type { Member } from "@/lib/constants";
 
 export function MemberSelectModal({
   open,
+  members,
   onSelect,
 }: {
   open: boolean;
+  members: Member[];
   onSelect: (member: Member) => void;
 }) {
   if (!open) return null;
@@ -27,7 +29,7 @@ export function MemberSelectModal({
           profile and permissions.
         </p>
         <ul className="mt-4 max-h-[50vh] space-y-1 overflow-y-auto">
-          {MEMBERS.map((m) => (
+          {members.map((m) => (
             <li key={m}>
               <button
                 type="button"

@@ -11,6 +11,16 @@ import { getWeekStart } from "./weeks";
 import { TRIAL_DURATION_MS, weekBoundsLocal } from "./trial-schedule";
 import type { TrialSignup } from "./types";
 
+let guildMemberNames: readonly string[] = [...MEMBERS];
+
+export function setGuildMemberNames(names: readonly string[]): void {
+  guildMemberNames = names.length > 0 ? names : [...MEMBERS];
+}
+
+export function getGuildMemberNames(): readonly string[] {
+  return guildMemberNames;
+}
+
 export const TRIAL_SYNC_PROBE_SCRIPT_PATH = "/ironwood-trial-sync-probe.js";
 export const TRIAL_SYNC_SCRIPT_PATH = "/ironwood-trial-sync.js";
 export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
@@ -190,17 +200,18 @@ export function mapIronwoodSkillName(name: string): Skill | null {
 export function mapGameDisplayNameToMember(displayName: string): Member | null {
   const trimmed = displayName.trim();
   if (!trimmed) return null;
-  if ((MEMBERS as readonly string[]).includes(trimmed)) return trimmed as Member;
+  const roster = guildMemberNames;
+  if (roster.includes(trimmed)) return trimmed;
 
   const lower = trimmed.toLowerCase();
-  const caseInsensitive = (MEMBERS as readonly Member[]).find((m) => m.toLowerCase() === lower);
+  const caseInsensitive = roster.find((m) => m.toLowerCase() === lower);
   if (caseInsensitive) return caseInsensitive;
 
   // Ironwood UI sometimes truncates names in buttons (e.g. "Geo" → GeoPapPiano).
-  const prefixHits = (MEMBERS as readonly Member[]).filter((m) => m.toLowerCase().startsWith(lower));
+  const prefixHits = roster.filter((m) => m.toLowerCase().startsWith(lower));
   if (prefixHits.length === 1) return prefixHits[0];
 
-  const containsHits = (MEMBERS as readonly Member[]).filter(
+  const containsHits = roster.filter(
     (m) => m.toLowerCase().includes(lower) || lower.includes(m.toLowerCase()),
   );
   if (containsHits.length === 1) return containsHits[0];

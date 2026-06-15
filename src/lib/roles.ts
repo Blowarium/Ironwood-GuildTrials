@@ -28,8 +28,8 @@ export function defaultRoleForMember(member: Member): GuildRole {
   return member === DEFAULT_GUILD_LEADER ? "guild_leader" : "guild_member";
 }
 
-export function buildDefaultRoles(): MemberRoleRow[] {
-  return MEMBERS.map((member_name) => ({
+export function buildDefaultRoles(members: readonly Member[] = MEMBERS): MemberRoleRow[] {
+  return members.map((member_name) => ({
     member_name,
     role: defaultRoleForMember(member_name),
     updated_at: new Date().toISOString(),
@@ -37,12 +37,13 @@ export function buildDefaultRoles(): MemberRoleRow[] {
   }));
 }
 
-export function buildRolesMap(rows: MemberRoleRow[]): RolesMap {
+export function buildRolesMap(rows: MemberRoleRow[], members?: readonly Member[]): RolesMap {
   const map = new Map<Member, GuildRole>();
   for (const row of rows) {
     map.set(row.member_name, row.role);
   }
-  for (const m of MEMBERS) {
+  const roster = members ?? rows.map((r) => r.member_name);
+  for (const m of roster) {
     if (!map.has(m)) map.set(m, defaultRoleForMember(m));
   }
   return map;

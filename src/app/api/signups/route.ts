@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  MEMBERS,
   SKILLS,
   TRIAL_STATUSES,
   type Member,
@@ -9,6 +8,7 @@ import {
 } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
+import { assertActiveMember } from "@/lib/guild-members";
 import {
   assertSignupEdit,
   loadRolesMap,
@@ -30,10 +30,6 @@ import type {
   TrialSignup,
 } from "@/lib/types";
 import { isDateInWeek } from "@/lib/weeks";
-
-function isMember(name: string): name is Member {
-  return (MEMBERS as readonly string[]).includes(name);
-}
 
 function isSkill(name: string): name is Skill {
   return (SKILLS as readonly string[]).includes(name);
@@ -66,11 +62,15 @@ async function persistStatusSync(db: NonNullable<ReturnType<typeof getDb>>, rows
   }
 }
 
-function validatePayload(body: SignupPayload): string | null {
+async function validatePayload(
+  db: ReturnType<typeof getDb>,
+  body: SignupPayload,
+): Promise<string | null> {
   if (!body.weekStart || !body.memberName || !body.skill || !body.plannedDate) {
     return "Missing required fields.";
   }
-  if (!isMember(body.memberName)) return "Unknown guild member.";
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) return memberCheck.error;
   if (!isSkill(body.skill)) return "Unknown skill.";
   if (body.plannedStartAt) {
     if (!trialWindowOverlapsWeek(body.plannedStartAt, body.weekStart)) {
@@ -134,7 +134,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  const error = validatePayload(body);
+  const db = getDb();
+  const error = await validatePayload(db, body);
   if (error) return NextResponse.json({ error }, { status: 400 });
 
   const actor = parseActor(body.actorMember);
@@ -162,9 +163,8 @@ export async function POST(request: NextRequest) {
     updated_at: "",
   });
 
-  const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertSignupEdit(actorMember, body.memberName, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });
@@ -225,8 +225,10 @@ export async function PATCH(request: NextRequest) {
   if (!body.id || !body.memberName || !body.status) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
-  if (!isMember(body.memberName)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
   if (!isStatus(body.status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
@@ -240,9 +242,8 @@ export async function PATCH(request: NextRequest) {
   const actorMember = actorResult.actor;
   const staffToken = parseStaffToken(body.staffAuthToken);
 
-  const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertSignupEdit(actorMember, body.memberName, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });
@@ -284,9 +285,14 @@ export async function DELETE(request: NextRequest) {
   const actorParam = request.nextUrl.searchParams.get("actorMember");
   const staffToken = parseStaffToken(request.nextUrl.searchParams.get("staffAuthToken"));
 
+  const db = getDb();
   const id = idParam ? Number(idParam) : NaN;
-  if (!idParam || Number.isNaN(id) || !memberName || !isMember(memberName)) {
+  if (!idParam || Number.isNaN(id) || !memberName) {
     return NextResponse.json({ error: "id and memberName are required." }, { status: 400 });
+  }
+  const memberCheck = await assertActiveMember(db, memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
   const actor = parseActor(actorParam);
@@ -296,9 +302,8 @@ export async function DELETE(request: NextRequest) {
   }
   const actorMember = actorResult.actor;
 
-  const db = getDb();
   if (!db) {
-    const rolesMap = buildRolesMap(devStore.listRoles());
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
     const perm = assertSignupEdit(actorMember, memberName, rolesMap, staffToken);
     if (perm !== true) {
       return NextResponse.json({ error: perm.error }, { status: perm.status });

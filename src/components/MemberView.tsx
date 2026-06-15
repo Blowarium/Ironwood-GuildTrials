@@ -1,6 +1,6 @@
 "use client";
 
-import { MEMBERS, type Member, type Skill } from "@/lib/constants";
+import { type Member, type Skill } from "@/lib/constants";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { formatTimeLabel, getEffectiveStatus } from "@/lib/trial-schedule";
@@ -51,17 +51,19 @@ function MemberAssignmentRow({
 
 export function MemberView({
   signups,
+  members,
   currentUser,
   onSelectSignup,
 }: {
   signups: TrialSignup[];
+  members: Member[];
   currentUser: Member | "";
   onSelectSignup: (s: TrialSignup) => void;
 }) {
   return (
     <>
       <div className="space-y-1 md:hidden">
-        {MEMBERS.map((m) => {
+        {members.map((m) => {
           const s = signups.find((x) => x.member_name === m);
           return (
             <div
@@ -109,7 +111,7 @@ export function MemberView({
             </tr>
           </thead>
           <tbody>
-            {MEMBERS.map((m) => {
+            {members.map((m) => {
               const s = signups.find((x) => x.member_name === m);
               return (
                 <tr

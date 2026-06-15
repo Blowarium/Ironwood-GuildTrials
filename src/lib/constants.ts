@@ -48,7 +48,7 @@ export const MEMBERS = [
   "Abrams",
 ] as const;
 
-export type Member = (typeof MEMBERS)[number];
+export type Member = string;
 
 export const TRIAL_STATUSES = ["planned", "active", "completed"] as const;
 export type TrialStatus = (typeof TRIAL_STATUSES)[number];

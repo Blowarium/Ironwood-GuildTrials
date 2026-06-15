@@ -1,4 +1,4 @@
-import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
+import { SKILLS, type Member, type Skill } from "./constants";
 import {
   compareSkillsByPreferenceRank,
   getPreferenceRankFromProfile,
@@ -245,6 +245,7 @@ export function buildOptimalSchedule(
   existingSignups: TrialSignup[],
   weekDays: string[],
   hallLevel: number,
+  members: readonly Member[],
 ): SchedulePlan {
   const required = trialXpRequired(hallLevel);
   const alreadyScheduled = [...existingSignups];
@@ -257,7 +258,7 @@ export function buildOptimalSchedule(
     dayLoad.set(s.planned_date, (dayLoad.get(s.planned_date) ?? 0) + 1);
   }
 
-  let pool = MEMBERS.filter((m) => !scheduledMembers.has(m));
+  let pool = members.filter((m) => !scheduledMembers.has(m));
   const suggestions: ScheduleSuggestion[] = [];
 
   function assign(member: Member, skill: Skill) {
@@ -301,7 +302,7 @@ export function buildOptimalSchedule(
     assign(bestMember, bestSkill);
   }
 
-  const membersWithPreferences = membersWithRankedProfiles(profiles);
+  const membersWithPreferences = membersWithRankedProfiles(profiles, members);
   const skillProgress = buildSkillProgress(skillState, required);
   const skillsCoveredAfterPlan = skillProgress.filter((s) => s.memberCount > 0).length;
   const skillsXpCompleteAfterPlan = skillProgress.filter((s) => s.remaining <= 0).length;

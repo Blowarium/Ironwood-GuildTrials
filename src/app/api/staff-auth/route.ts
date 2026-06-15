@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { MEMBERS, type Member } from "@/lib/constants";
+import type { Member } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
+import { assertActiveMember } from "@/lib/guild-members";
 import { isStaffRole } from "@/lib/permissions";
 import { loadRolesMap, parseActor, requireActor } from "@/lib/server-auth";
 import {
@@ -12,10 +13,6 @@ import {
   verifyStaffToken,
 } from "@/lib/staff-auth-server";
 import { buildRolesMap, getMemberRole } from "@/lib/roles";
-
-function isMember(name: string): name is Member {
-  return (MEMBERS as readonly string[]).includes(name);
-}
 
 async function roleForMember(member: Member): Promise<import("@/lib/roles").GuildRole> {
   const db = getDb();
@@ -29,7 +26,13 @@ export async function GET(request: NextRequest) {
   const memberParam = request.nextUrl.searchParams.get("member");
   const tokenParam = request.nextUrl.searchParams.get("token");
 
-  if (!memberParam || !isMember(memberParam) || !tokenParam) {
+  if (!memberParam || !tokenParam) {
+    return NextResponse.json({ valid: false }, { status: 400 });
+  }
+
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, memberParam);
+  if (memberCheck !== true) {
     return NextResponse.json({ valid: false }, { status: 400 });
   }
 
@@ -60,11 +63,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
   }
 
-  if (!body.memberName || !isMember(body.memberName)) {
-    return NextResponse.json({ error: "Unknown guild member." }, { status: 400 });
+  if (!body.memberName) {
+    return NextResponse.json({ error: "memberName is required." }, { status: 400 });
   }
   if (!body.password || typeof body.password !== "string") {
     return NextResponse.json({ error: "Password is required." }, { status: 400 });
+  }
+
+  const db = getDb();
+  const memberCheck = await assertActiveMember(db, body.memberName);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
   const role = await roleForMember(body.memberName);
