@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import type { Member, Skill } from "@/lib/constants";
 import type { GuildConfig } from "@/lib/guild-config";
-import { buildProfilesMap, getPreferenceRankFromProfile, membersWithRankedProfiles, type ProfilesMap } from "@/lib/member-profile";
+import { buildProfilesMap, getPreferenceRankFromProfile, getXpPerHourForSkill, membersWithRankedProfiles, type MemberProfile, type ProfilesMap } from "@/lib/member-profile";
 import { buildOptimalSchedule, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import type { SkillXpProgress } from "@/lib/trial-xp";
-import { formatXp } from "@/lib/trial-xp";
+import { formatXp, soloCompletesTrial, trialXpContribution } from "@/lib/trial-xp";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { formatTimeLabel } from "@/lib/trial-schedule";
@@ -47,6 +47,61 @@ function soloClass(solo: boolean | null): string {
   if (solo === true) return "text-emerald-400";
   if (solo === false) return "text-amber-300";
   return "text-slate-500";
+}
+
+function trialXpForSkill(profile: MemberProfile | undefined, skill: Skill, required: number) {
+  const xpPerHour = getXpPerHourForSkill(profile, skill);
+  return {
+    xpPerHour,
+    contribution: trialXpContribution(xpPerHour),
+    soloCompletes: soloCompletesTrial(xpPerHour, required),
+  };
+}
+
+function TrialXpCell({
+  xpPerHour,
+  contribution,
+  soloCompletes,
+}: {
+  xpPerHour: number | null;
+  contribution: number;
+  soloCompletes: boolean | null;
+}) {
+  if (xpPerHour == null) {
+    return <span className="text-slate-500">—</span>;
+  }
+  return (
+    <span className={soloClass(soloCompletes)}>
+      {formatXp(contribution)}
+      <span className="text-slate-500"> ({soloLabel(soloCompletes)})</span>
+    </span>
+  );
+}
+
+const assignmentTableColGroup = (
+  <colgroup>
+    <col className="w-[17%]" />
+    <col className="w-[15%]" />
+    <col className="w-[22%]" />
+    <col className="w-[16%]" />
+    <col className="w-[22%]" />
+    <col className="w-[8%]" />
+  </colgroup>
+);
+
+function AssignmentTableHead() {
+  return (
+    <thead>
+      <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
+        <th className="px-3 py-2">Member</th>
+        <th className="px-3 py-2">Skill</th>
+        <th className="px-3 py-2">When</th>
+        <th className="px-3 py-2">Pref</th>
+        <th className="px-3 py-2">Trial XP (5%)</th>
+        <th className="px-3 py-2" />
+      </tr>
+    </thead>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -411,10 +466,10 @@ export function SuggestionsView({
           </h3>
           <div className="space-y-1 md:hidden">
             {plan.alreadyScheduled.map((s) => {
-              const preferenceRank = getPreferenceRankFromProfile(
-                profilesMap.get(s.member_name),
-                s.skill as Skill,
-              );
+              const profile = profilesMap.get(s.member_name);
+              const skill = s.skill as Skill;
+              const preferenceRank = getPreferenceRankFromProfile(profile, skill);
+              const trialXp = trialXpForSkill(profile, skill, plan.trialXpRequired);
               return (
               <div
                 key={s.id}
@@ -423,7 +478,7 @@ export function SuggestionsView({
                 <p className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-slate-200">
                   <span className="font-medium">{s.member_name}</span>
                   <span className="text-slate-500">·</span>
-                  <SkillIcon skill={s.skill as Skill} size="xs" />
+                  <SkillIcon skill={skill} size="xs" />
                   <span className="text-slate-300">{s.skill}</span>
                 </p>
                 <p className="text-[10px] text-slate-500">
@@ -432,33 +487,37 @@ export function SuggestionsView({
                 </p>
                 <p className={`text-[10px] ${rankClass(preferenceRank)}`}>
                   {rankLabel(preferenceRank)}
+                  {trialXp.xpPerHour != null && (
+                    <>
+                      {" "}
+                      · {formatXp(trialXp.contribution)} XP (
+                      <span className={soloClass(trialXp.soloCompletes)}>
+                        {soloLabel(trialXp.soloCompletes)}
+                      </span>
+                      )
+                    </>
+                  )}
                 </p>
               </div>
               );
             })}
           </div>
           <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
-                  <th className="px-3 py-2">Member</th>
-                  <th className="px-3 py-2">Skill</th>
-                  <th className="px-3 py-2">When</th>
-                  <th className="px-3 py-2">Pref</th>
-                </tr>
-              </thead>
+            <table className="w-full min-w-[720px] table-fixed text-sm">
+              {assignmentTableColGroup}
+              <AssignmentTableHead />
               <tbody>
                 {plan.alreadyScheduled.map((s) => {
-                  const preferenceRank = getPreferenceRankFromProfile(
-                    profilesMap.get(s.member_name),
-                    s.skill as Skill,
-                  );
+                  const profile = profilesMap.get(s.member_name);
+                  const skill = s.skill as Skill;
+                  const preferenceRank = getPreferenceRankFromProfile(profile, skill);
+                  const trialXp = trialXpForSkill(profile, skill, plan.trialXpRequired);
                   return (
                   <tr key={s.id} className="border-b border-slate-800/50">
-                    <td className="px-3 py-2 text-slate-200">{s.member_name}</td>
+                    <td className="px-3 py-2 font-medium text-slate-200">{s.member_name}</td>
                     <td className="px-3 py-2">
                       <span className="inline-flex items-center gap-1.5">
-                        <SkillIcon skill={s.skill as Skill} size="xs" />
+                        <SkillIcon skill={skill} size="xs" />
                         {s.skill}
                       </span>
                     </td>
@@ -469,6 +528,10 @@ export function SuggestionsView({
                     <td className={`px-3 py-2 text-xs ${rankClass(preferenceRank)}`}>
                       {rankLabel(preferenceRank)}
                     </td>
+                    <td className="px-3 py-2 text-xs">
+                      <TrialXpCell {...trialXp} />
+                    </td>
+                    <td className="px-3 py-2" />
                   </tr>
                   );
                 })}
@@ -529,17 +592,9 @@ export function SuggestionsView({
               ))}
             </div>
             <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
-                    <th className="px-3 py-2">Member</th>
-                    <th className="px-3 py-2">Skill</th>
-                    <th className="px-3 py-2">When</th>
-                    <th className="px-3 py-2">Pref</th>
-                    <th className="px-3 py-2">Trial XP (5%)</th>
-                    <th className="px-3 py-2" />
-                  </tr>
-                </thead>
+              <table className="w-full min-w-[720px] table-fixed text-sm">
+                {assignmentTableColGroup}
+                <AssignmentTableHead />
                 <tbody>
                   {plan.suggestions.map((s) => (
                     <tr
@@ -563,14 +618,11 @@ export function SuggestionsView({
                         {rankLabel(s.preferenceRank)}
                       </td>
                       <td className="px-3 py-2 text-xs">
-                        {s.xpPerHour != null ? (
-                          <span className={soloClass(s.soloCompletes)}>
-                            {formatXp(s.trialXpContribution)}
-                            <span className="text-slate-500"> ({soloLabel(s.soloCompletes)})</span>
-                          </span>
-                        ) : (
-                          <span className="text-slate-500">—</span>
-                        )}
+                        <TrialXpCell
+                          xpPerHour={s.xpPerHour}
+                          contribution={s.trialXpContribution}
+                          soloCompletes={s.soloCompletes}
+                        />
                       </td>
                       <td className="px-3 py-2 text-right">
                         <button
