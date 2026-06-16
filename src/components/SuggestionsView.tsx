@@ -535,6 +535,7 @@ export function SuggestionsView({
                     <th className="px-3 py-2">Member</th>
                     <th className="px-3 py-2">Skill</th>
                     <th className="px-3 py-2">When</th>
+                    <th className="px-3 py-2">Pref</th>
                     <th className="px-3 py-2">Trial XP (5%)</th>
                     <th className="px-3 py-2" />
                   </tr>
