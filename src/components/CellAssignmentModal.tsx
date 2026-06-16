@@ -8,13 +8,15 @@ import {
   type Skill,
 } from "@/lib/constants";
 import {
-  applyDisplayTimeToDate,
+  applyTimeToDate,
   buildStartAt,
   defaultStartAtForDate,
-  displayTimeInputValue,
   formatDateTimeLabel,
   formatTimeLabel,
   getEffectiveStatus,
+  snapDisplayTimeValue,
+  snapStartAtToWholeHour,
+  timeInputValue,
 } from "@/lib/trial-schedule";
 import { useDebouncedAutoSave } from "@/lib/use-auto-save";
 import type { TrialSignup } from "@/lib/types";
@@ -39,15 +41,13 @@ function initialTimeValue(
   editingSignup: TrialSignup | null,
   plannedDate: string,
 ): string {
-  if (editingSignup) return displayTimeInputValue(editingSignup.planned_start_at);
-  if (target.plannedStartAt) return displayTimeInputValue(target.plannedStartAt);
+  if (editingSignup) return timeInputValue(editingSignup.planned_start_at);
+  if (target.plannedStartAt) return timeInputValue(target.plannedStartAt);
   if (target.dayFraction != null) {
-    const totalMin = Math.floor(target.dayFraction * 24 * 60);
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
-    return displayTimeInputValue(buildStartAt(plannedDate, h, m));
+    const h = Math.min(23, Math.floor(target.dayFraction * 24));
+    return timeInputValue(buildStartAt(plannedDate, h, 0));
   }
-  return displayTimeInputValue(defaultStartAtForDate(plannedDate));
+  return timeInputValue(defaultStartAtForDate(plannedDate));
 }
 
 function CellAssignmentForm({
@@ -91,7 +91,7 @@ function CellAssignmentForm({
     initialTimeValue(target, editingSignup, editingSignup?.planned_date ?? target.plannedDate),
   );
 
-  const plannedStartAt = applyDisplayTimeToDate(plannedDate, timeValue);
+  const plannedStartAt = snapStartAtToWholeHour(applyTimeToDate(plannedDate, timeValue));
 
   const previewStatus = getEffectiveStatus({
     id: 0,
@@ -223,11 +223,12 @@ function CellAssignmentForm({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Start time (your local time)</span>
+              <span className="text-xs text-slate-400">Start time (guild UTC+2, whole hours)</span>
               <input
                 type="time"
+                step={3600}
                 value={timeValue}
-                onChange={(e) => setTimeValue(e.target.value)}
+                onChange={(e) => setTimeValue(snapDisplayTimeValue(e.target.value))}
                 disabled={!member || !canEditThis}
                 className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
               />
@@ -239,8 +240,8 @@ function CellAssignmentForm({
             <StatusBadge status={previewStatus} />
           </div>
           <p className="text-[10px] text-slate-500">
-            Trials run 24h from start time. Status becomes Active at start and Completed when the
-            window ends. Week grid and game sync use guild time (UTC+2).
+            Trials run 24h from start time on the hour (:00). Status becomes Active at start and
+            Completed when the window ends. Week grid and game sync use guild time (UTC+2).
           </p>
         </div>
 

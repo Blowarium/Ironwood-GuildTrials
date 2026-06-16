@@ -8,7 +8,7 @@ import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import { guildDateFromInstant, guildWeekStart } from "./guild-timezone";
 import { IRONWOOD_ORIGIN, IRONWOOD_SKILL_NAME_MAP } from "./ironwood-xp-import";
 import { getWeekStart } from "./weeks";
-import { TRIAL_DURATION_MS, weekBoundsLocal } from "./trial-schedule";
+import { TRIAL_DURATION_MS, snapStartAtToWholeHour, weekBoundsLocal } from "./trial-schedule";
 import type { TrialSignup, SkillWeekCompletion } from "./types";
 
 let guildMemberNames: readonly string[] = [...MEMBERS];
@@ -32,7 +32,7 @@ export const TRIAL_SYNC_HELPER_WINDOW_NAME = "igt-ironwood-trial-sync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.9";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.10.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -159,14 +159,14 @@ export type TrialSyncApplyResult = {
   completionErrors: Array<{ skill: Skill; error: string }>;
 };
 
-/** Treat planner and game start times as matching within this window. */
+/** @deprecated Whole-hour scheduling compares snapped instants exactly. */
 export const TRIAL_SYNC_START_TOLERANCE_MS = 60 * 60 * 1000;
 
 export function trialSyncStartTimesMatch(a: string, b: string): boolean {
   const ta = new Date(a).getTime();
   const tb = new Date(b).getTime();
   if (Number.isNaN(ta) || Number.isNaN(tb)) return false;
-  return Math.abs(ta - tb) <= TRIAL_SYNC_START_TOLERANCE_MS;
+  return snapStartAtToWholeHour(a) === snapStartAtToWholeHour(b);
 }
 
 export function countTimedMembersInPayload(
@@ -231,7 +231,7 @@ export function mapGameDisplayNameToMember(
 export function inferTrialStartAtFromEndDate(endDate: string): string {
   const endMs = new Date(endDate).getTime();
   if (Number.isNaN(endMs)) return new Date(0).toISOString();
-  return new Date(endMs - TRIAL_DURATION_MS).toISOString();
+  return snapStartAtToWholeHour(new Date(endMs - TRIAL_DURATION_MS).toISOString());
 }
 
 /** Monday week_start for planner, from guild.trial.startDate. */

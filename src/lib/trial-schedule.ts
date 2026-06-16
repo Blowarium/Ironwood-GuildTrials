@@ -9,10 +9,12 @@ import {
   guildInstantFromLocal,
   guildMidnight,
   guildTimeParts,
+  guildAddDays,
 } from "./guild-timezone";
 
 export const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
 export const WEEK_DURATION_MS = 7 * TRIAL_DURATION_MS;
+export const GUILD_HOUR_MS = 60 * 60 * 1000;
 
 export function weekBoundsLocal(weekStartIso: string): { start: Date; end: Date } {
   const start = guildMidnight(weekStartIso);
@@ -28,11 +30,38 @@ export function weekNowLeftPercent(weekStartIso: string, now = new Date()): numb
   return ((t - start.getTime()) / WEEK_DURATION_MS) * 100;
 }
 
+/** Round a start instant to the nearest whole hour on the guild clock (:00). */
+export function snapStartAtToWholeHour(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  let date = guildDateFromInstant(iso);
+  const { hours, minutes } = guildTimeParts(iso);
+  let h = hours;
+  if (minutes >= 30) {
+    h += 1;
+    if (h >= 24) {
+      h = 0;
+      date = guildAddDays(date, 1);
+    }
+  }
+  return guildInstantFromLocal(date, h, 0);
+}
+
+/** HH:mm with minutes forced to :00 for `<input type="time" step="3600">`. */
+export function snapDisplayTimeValue(timeValue: string): string {
+  const [h] = timeValue.split(":");
+  const hour = Number(h);
+  if (Number.isNaN(hour)) return "08:00";
+  return `${String(Math.max(0, Math.min(23, hour))).padStart(2, "0")}:00`;
+}
+
 /** Map 0–1 position on the week bar to a guild-local start timestamp (Mon 00:00 → next Mon 00:00). */
 export function buildStartAtFromWeekFraction(weekStartIso: string, fraction: number): string {
   const clamped = Math.max(0, Math.min(1, fraction));
   const { start } = weekBoundsLocal(weekStartIso);
-  return new Date(start.getTime() + Math.floor(clamped * WEEK_DURATION_MS)).toISOString();
+  const raw = new Date(start.getTime() + Math.floor(clamped * WEEK_DURATION_MS)).toISOString();
+  return snapStartAtToWholeHour(raw);
 }
 
 /** Default trial start: 08:00 guild time on the chosen day. */
@@ -43,18 +72,16 @@ export function defaultStartAtForDate(dateIso: string): string {
   return guildInstantFromLocal(dateIso, 8, 0);
 }
 
-export function buildStartAt(dateIso: string, hours: number, minutes: number): string {
+export function buildStartAt(dateIso: string, hours: number, _minutes = 0): string {
   if (!dateIso) return defaultStartAtForDate(guildDateFromInstant(new Date()));
   if (Number.isNaN(guildMidnight(dateIso).getTime())) return defaultStartAtForDate(dateIso);
-  return guildInstantFromLocal(dateIso, hours, minutes);
+  return guildInstantFromLocal(dateIso, hours, 0);
 }
 
 export function buildStartAtFromDayFraction(dateIso: string, fraction: number): string {
   const clamped = Math.max(0, Math.min(1, fraction));
-  const totalMinutes = Math.floor(clamped * 24 * 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return buildStartAt(dateIso, hours, minutes);
+  const hours = Math.min(23, Math.floor(clamped * 24));
+  return buildStartAt(dateIso, hours, 0);
 }
 
 export function dateFromStartAt(iso: string): string {
@@ -62,6 +89,10 @@ export function dateFromStartAt(iso: string): string {
 }
 
 export function formatTimeLabel(iso: string, short = false): string {
+  const d = new Date(iso);
+  if (!Number.isNaN(d.getTime()) && d.getMinutes() === 0 && d.getSeconds() === 0) {
+    return displayFormatLabel(iso, { hour: "numeric", hour12: !short });
+  }
   return displayFormatLabel(iso, {
     hour: "numeric",
     minute: "2-digit",
@@ -240,38 +271,39 @@ export function trialSegmentInWeek(
 
 /** Guild-clock HH:mm for `<input type="time">` when editing in guild time. */
 export function timeInputValue(iso: string): string {
-  const { hours, minutes } = guildTimeParts(iso);
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  const { hours } = guildTimeParts(iso);
+  return `${String(hours).padStart(2, "0")}:00`;
 }
 
 /** Local-clock HH:mm for `<input type="time">` (display / edit in user timezone). */
 export function displayTimeInputValue(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "08:00";
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:00`;
 }
 
 export function applyTimeToDate(dateIso: string, timeValue: string): string {
-  const [h, m] = timeValue.split(":").map(Number);
-  return buildStartAt(dateIso, h || 0, m || 0);
+  const [h] = timeValue.split(":").map(Number);
+  return buildStartAt(dateIso, h || 0, 0);
 }
 
 /** Apply a local-time HH:mm on a guild calendar date; returns UTC ISO instant. */
 export function applyDisplayTimeToDate(dateIso: string, timeValue: string): string {
   const [y, mo, d] = dateIso.split("-").map(Number);
-  const [h, m] = timeValue.split(":").map(Number);
+  const [h] = timeValue.split(":").map(Number);
   if (!y || !mo || !d) return new Date(0).toISOString();
-  return new Date(y, mo - 1, d, h || 0, m || 0, 0, 0).toISOString();
+  return new Date(y, mo - 1, d, h || 0, 0, 0, 0).toISOString();
 }
 
 export function normalizeSignupTiming(signup: Partial<TrialSignup> & Pick<TrialSignup, "planned_date">): {
   planned_date: string;
   planned_start_at: string;
 } {
-  const planned_start_at =
+  const planned_start_at = snapStartAtToWholeHour(
     signup.planned_start_at && signup.planned_start_at.length > 0
       ? signup.planned_start_at
-      : defaultStartAtForDate(signup.planned_date);
+      : defaultStartAtForDate(signup.planned_date),
+  );
   const planned_date = dateFromStartAt(planned_start_at);
   return { planned_date, planned_start_at };
 }

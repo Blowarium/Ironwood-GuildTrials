@@ -9,6 +9,8 @@
   }
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
+  var GUILD_OFFSET_MS = 2 * 60 * 60 * 1000;
+  var GUILD_DAY_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
@@ -633,10 +635,55 @@
     return payload;
   }
 
+  function guildDateFromInstant(iso) {
+    var t = new Date(iso).getTime() + GUILD_OFFSET_MS;
+    var d = new Date(t);
+    var y = d.getUTCFullYear();
+    var m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    var day = String(d.getUTCDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function guildTimeParts(iso) {
+    var t = new Date(iso).getTime() + GUILD_OFFSET_MS;
+    var d = new Date(t);
+    return { hours: d.getUTCHours(), minutes: d.getUTCMinutes() };
+  }
+
+  function guildAddDays(dateIso, days) {
+    var parts = dateIso.split("-").map(Number);
+    var anchor = Date.UTC(parts[0], parts[1] - 1, parts[2] + days, 0, 0, 0) - GUILD_OFFSET_MS;
+    return guildDateFromInstant(new Date(anchor));
+  }
+
+  function guildInstantFromLocal(dateIso, hours, minutes) {
+    var parts = dateIso.split("-").map(Number);
+    return new Date(
+      Date.UTC(parts[0], parts[1] - 1, parts[2], hours, minutes || 0, 0) - GUILD_OFFSET_MS,
+    ).toISOString();
+  }
+
+  function snapStartAtToWholeHour(iso) {
+    if (!iso) return iso;
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    var date = guildDateFromInstant(iso);
+    var parts = guildTimeParts(iso);
+    var h = parts.hours;
+    if (parts.minutes >= 30) {
+      h += 1;
+      if (h >= 24) {
+        h = 0;
+        date = guildAddDays(date, 1);
+      }
+    }
+    return guildInstantFromLocal(date, h, 0);
+  }
+
   function inferStart(endDate) {
     var end = new Date(endDate).getTime();
     if (Number.isNaN(end)) return new Date(0).toISOString();
-    return new Date(end - TRIAL_MS).toISOString();
+    return snapStartAtToWholeHour(new Date(end - TRIAL_MS).toISOString());
   }
 
   function resolveMemberSchedule(parsed) {
@@ -651,7 +698,6 @@
   }
 
   function guildWeekStartFromInstant(iso) {
-    var GUILD_OFFSET_MS = 2 * 60 * 60 * 1000;
     var t = new Date(iso).getTime() + GUILD_OFFSET_MS;
     var d = new Date(t);
     var y = d.getUTCFullYear();
@@ -1202,9 +1248,10 @@
       return { endDate: null, inferredStartAt: null };
     }
     var endMs = Date.now() + hoursLeft * 60 * 60 * 1000;
+    var endDate = new Date(endMs).toISOString();
     return {
-      endDate: new Date(endMs).toISOString(),
-      inferredStartAt: new Date(endMs - TRIAL_MS).toISOString(),
+      endDate: endDate,
+      inferredStartAt: inferStart(endDate),
     };
   }
 
