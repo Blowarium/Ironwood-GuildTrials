@@ -533,12 +533,18 @@ export function GuildTrialsApp() {
     setEditingSignup(null);
   }
 
-  async function applySuggestion(s: ScheduleSuggestion) {
+  function applySuggestion(s: ScheduleSuggestion) {
     if (!canEditSignup(s.member)) {
       setError("You can only apply your own suggestion.");
       return;
     }
-    await assignToCell(s.member, s.skill, s.plannedDate, s.plannedStartAt);
+    setEditingSignup(null);
+    setModalTarget({
+      skill: s.skill,
+      plannedDate: s.plannedDate,
+      plannedStartAt: s.plannedStartAt,
+      member: s.member,
+    });
   }
 
   async function applySuggestionsBatch(items: ScheduleSuggestion[]) {

@@ -30,6 +30,8 @@ export interface CellTarget {
   /** 0–1 position within the day column when clicked on timeline */
   dayFraction?: number;
   plannedStartAt?: string;
+  /** Prefill member when opening from a smart suggestion */
+  member?: Member;
 }
 
 function initialTimeValue(
@@ -80,7 +82,7 @@ function CellAssignmentForm({
 }) {
   const [skill, setSkill] = useState<Skill>(target.skill);
   const [member, setMember] = useState<Member | "">(
-    editingSignup?.member_name ?? currentUser ?? "",
+    editingSignup?.member_name ?? target.member ?? currentUser ?? "",
   );
   const [plannedDate, setPlannedDate] = useState(
     editingSignup?.planned_date ?? target.plannedDate,
@@ -310,7 +312,7 @@ export function CellAssignmentModal({
 }) {
   if (!open || !target) return null;
 
-  const formKey = `${target.skill}|${target.plannedDate}|${target.dayFraction ?? ""}|${editingSignup?.id ?? "new"}`;
+  const formKey = `${target.skill}|${target.plannedDate}|${target.plannedStartAt ?? ""}|${target.dayFraction ?? ""}|${target.member ?? ""}|${editingSignup?.id ?? "new"}`;
 
   return (
     <CellAssignmentForm

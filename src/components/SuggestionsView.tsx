@@ -122,7 +122,7 @@ function SuggestionCard({
 }: {
   suggestion: ScheduleSuggestion;
   saving: boolean;
-  onApply: (s: ScheduleSuggestion) => Promise<void>;
+  onApply: (s: ScheduleSuggestion) => void;
 }) {
   return (
     <div className="mobile-card rounded-lg border border-sky-500/40 bg-sky-950/30 sm:px-4 sm:py-3">
@@ -149,7 +149,8 @@ function SuggestionCard({
         </p>
       )}
       <p className="mt-2 text-[10px] text-slate-500 sm:text-xs">
-        Apply this to the planner, or schedule a different skill manually on the Planner tab.
+        Pick a day and start time in the schedule dialog, or choose a different skill on the Planner
+        tab.
       </p>
       <button
         type="button"
@@ -281,7 +282,7 @@ export function SuggestionsView({
   currentUser: Member;
   canUseStaffTools: boolean;
   saving: boolean;
-  onApplySuggestion: (s: ScheduleSuggestion) => Promise<void>;
+  onApplySuggestion: (s: ScheduleSuggestion) => void;
   onApplyAllUnassigned: (items: ScheduleSuggestion[]) => Promise<void>;
 }) {
   const [sourceEnabled, setSourceEnabled] = useState<Record<ScheduleSourceId, boolean>>({
