@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.7";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.8";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -711,15 +711,27 @@
   }
 
   function findSkillBlocksSorted() {
-    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
     var skillBlocks = [];
     var seenSkills = {};
+    var trialRows = findSkillTrialSummaryRows();
 
-    for (var i = 0; i < headers.length; i++) {
-      var skillName = headerSkillName(headers[i]);
+    for (var tr = 0; tr < trialRows.length; tr++) {
+      var btn = trialRows[tr];
+      var nameEl = btn.querySelector(".name");
+      var skillName = skillNameFromTrialRowName(nameEl && nameEl.textContent ? nameEl.textContent : "");
       if (!skillName || seenSkills[skillName]) continue;
       seenSkills[skillName] = true;
-      skillBlocks.push({ el: headers[i], skillName: skillName });
+      skillBlocks.push({ el: btn, skillName: skillName });
+    }
+
+    if (!skillBlocks.length) {
+      var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+      for (var i = 0; i < headers.length; i++) {
+        var headerSkill = headerSkillName(headers[i]);
+        if (!headerSkill || seenSkills[headerSkill]) continue;
+        seenSkills[headerSkill] = true;
+        skillBlocks.push({ el: headers[i], skillName: headerSkill });
+      }
     }
 
     skillBlocks.sort(function (a, b) {
@@ -836,17 +848,54 @@
     };
   }
 
-  function headerSkillName(el) {
-    var text = (el.textContent || "").trim();
-    if (text.length > 80) return null;
-    var firstLine = text.split("\n")[0].trim();
+  function skillNameFromTrialRowName(text) {
+    var name = String(text || "")
+      .split("\n")[0]
+      .trim();
+    if (!name || name.length > 80) return null;
     for (var si = 0; si < SKILL_ORDER.length; si++) {
       var skill = SKILL_ORDER[si];
-      if (new RegExp("^" + skill.replace(/-/g, "\\-") + "\\s+Trial\\b", "i").test(firstLine)) {
+      if (new RegExp("^" + skill.replace(/-/g, "\\-") + "\\s+Trial\\b", "i").test(name)) {
         return skill;
       }
     }
     return null;
+  }
+
+  function headerSkillName(el) {
+    if (!el) return null;
+    var fromName = el.querySelector && el.querySelector(".name");
+    if (fromName) {
+      var direct = skillNameFromTrialRowName(fromName.textContent || "");
+      if (direct) return direct;
+    }
+    var text = (el.textContent || "").trim();
+    if (text.length > 80) return null;
+    return skillNameFromTrialRowName(text);
+  }
+
+  /** Skill trial header row: button.row with div.name "Woodcutting Trial" and div.amount. */
+  function isSkillTrialSummaryRow(el) {
+    if (!el || el.tagName !== "BUTTON") return false;
+    if (elementHasClass(el, "row-dark")) return false;
+    if (!elementHasClass(el, "row")) return false;
+    var nameEl = el.querySelector(".name");
+    var amountEl = el.querySelector(".amount");
+    if (!nameEl || !amountEl) return false;
+    return !!skillNameFromTrialRowName(nameEl.textContent || "");
+  }
+
+  function findSkillTrialSummaryRows() {
+    var buttons = queryButtonsIncludingShadow(document.body, "button.row");
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      if (!isSkillTrialSummaryRow(btn) || seen[btn]) continue;
+      seen[btn] = true;
+      out.push(btn);
+    }
+    return out;
   }
 
   function parseCompactXpNumber(raw) {
@@ -888,21 +937,38 @@
   }
 
   function collectDomSkillProgress() {
-    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
     var bySkill = {};
-    for (var i = 0; i < headers.length; i++) {
-      var skillName = headerSkillName(headers[i]);
+    var trialRows = findSkillTrialSummaryRows();
+    for (var ri = 0; ri < trialRows.length; ri++) {
+      var btn = trialRows[ri];
+      var nameEl = btn.querySelector(".name");
+      var amountEl = btn.querySelector(".amount");
+      if (!nameEl || !amountEl) continue;
+      var skillName = skillNameFromTrialRowName(nameEl.textContent || "");
       if (!skillName || bySkill[skillName]) continue;
-      var text = headers[i].textContent || "";
-      var progress = parseSkillTrialProgressText(text);
-      if (!progress) {
+      var progress = parseSkillTrialProgressText(amountEl.textContent || "");
+      if (progress) bySkill[skillName] = progress;
+    }
+    if (Object.keys(bySkill).length) return bySkill;
+
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    for (var i = 0; i < headers.length; i++) {
+      var skillNameFallback = headerSkillName(headers[i]);
+      if (!skillNameFallback || bySkill[skillNameFallback]) continue;
+      var amountElFallback =
+        headers[i].querySelector && headers[i].querySelector(".amount");
+      var text = amountElFallback
+        ? amountElFallback.textContent || ""
+        : headers[i].textContent || "";
+      var progressFallback = parseSkillTrialProgressText(text);
+      if (!progressFallback) {
         var lines = text.split("\n");
         for (var li = 0; li < lines.length; li++) {
-          progress = parseSkillTrialProgressText(lines[li]);
-          if (progress) break;
+          progressFallback = parseSkillTrialProgressText(lines[li]);
+          if (progressFallback) break;
         }
       }
-      if (progress) bySkill[skillName] = progress;
+      if (progressFallback) bySkill[skillNameFallback] = progressFallback;
     }
     return bySkill;
   }
@@ -1120,8 +1186,14 @@
       var sib = node.previousElementSibling;
       while (sib) {
         if (sib.tagName === "BUTTON") {
-          sib = sib.previousElementSibling;
-          continue;
+          if (isSkillTrialSummaryRow(sib)) {
+            var nameEl = sib.querySelector(".name");
+            return skillNameFromTrialRowName(nameEl && nameEl.textContent ? nameEl.textContent : "");
+          }
+          if (elementHasClass(sib, "row-dark")) {
+            sib = sib.previousElementSibling;
+            continue;
+          }
         }
         var skill = headerSkillName(sib);
         if (skill) return skill;
