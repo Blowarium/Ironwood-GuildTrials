@@ -1,5 +1,8 @@
 import type { DiscordConfig, DiscordPingMode } from "./discord-env";
 
+/** Discord MessageFlags.SUPPRESS_EMBEDS — hide link preview cards. */
+const SUPPRESS_EMBEDS = 1 << 2;
+
 export type DiscordAllowedMentions = {
   parse?: ("roles" | "users" | "everyone")[];
   roles?: string[];
@@ -41,6 +44,7 @@ export async function postDiscordChannelMessage(
       body: JSON.stringify({
         content: content.slice(0, 2000),
         allowed_mentions: allowedMentions ?? { parse: [] },
+        flags: SUPPRESS_EMBEDS,
       }),
     },
   );
