@@ -3,6 +3,7 @@ import type { GuildConfig } from "./guild-config";
 import {
   collectActiveTrialAssignments,
   mapGameDisplayNameToMember,
+  planSkillCompletionSync,
   type IronwoodTrialSyncPayload,
   trialSyncStartTimesMatch,
   type TrialSyncApplyResult,
@@ -238,11 +239,12 @@ export async function deleteSignup(payload: {
 }
 
 
-/** Upsert planner signups from an in-game Ironwood trial snapshot. */
+/** Upsert planner signups and skill completion marks from an in-game Ironwood trial snapshot. */
 export async function syncTrialSignupsFromGame(
   payload: IronwoodTrialSyncPayload,
   actorMember: Member,
   existingSignups: TrialSignup[] = [],
+  existingCompletions: SkillWeekCompletion[] = [],
 ): Promise<TrialSyncApplyResult> {
   const weekStart = payload.trialWeekStart;
   const assignments = collectActiveTrialAssignments(payload);
@@ -257,6 +259,9 @@ export async function syncTrialSignupsFromGame(
     skipped: [],
     errors: [],
     payloadSource: payload.source,
+    completionsMarked: [],
+    completionsUnmarked: [],
+    completionErrors: [],
   };
 
   const skippedNames = new Set<string>();
@@ -315,6 +320,36 @@ export async function syncTrialSignupsFromGame(
       result.created.push(assignment.memberName);
     }
     byMember.set(assignment.memberName, signup);
+  }
+
+  const { markDone, unmark } = planSkillCompletionSync(payload, existingCompletions);
+
+  for (const skill of markDone) {
+    const { error } = await setSkillWeekComplete({
+      weekStart,
+      skill,
+      completed: true,
+      markedBy: actorMember,
+    });
+    if (error) {
+      result.completionErrors.push({ skill, error });
+      continue;
+    }
+    result.completionsMarked.push(skill);
+  }
+
+  for (const skill of unmark) {
+    const { error } = await setSkillWeekComplete({
+      weekStart,
+      skill,
+      completed: false,
+      markedBy: actorMember,
+    });
+    if (error) {
+      result.completionErrors.push({ skill, error });
+      continue;
+    }
+    result.completionsUnmarked.push(skill);
   }
 
   return result;

@@ -138,8 +138,10 @@ export function IronwoodTrialSyncPanel({
     <div className="rounded-lg border border-violet-500/25 bg-violet-950/20 p-3 text-sm text-slate-300">
       <p className="font-medium text-violet-100">Sync from Ironwood</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-        Opens ironwoodrpg.com/guild, selects the Trials tab, and adds or updates planner signups for
-        active in-game assignments. Enable the sync helper below first (same idea as XP/h import).
+        Opens ironwoodrpg.com/guild, selects the Trials tab, and syncs planner signups for active
+        in-game assignments. Also updates skill “mark done” flags when in-game trial XP meets (or
+        falls below) the weekly requirement. Enable the sync helper below first (same idea as XP/h
+        import).
       </p>
 
       {!helperReady ? (

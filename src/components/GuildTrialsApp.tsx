@@ -265,6 +265,7 @@ export function GuildTrialsApp() {
         payload,
         currentUser,
         weekData.signups,
+        weekData.completions,
       );
 
       setTrialSyncResult(result);

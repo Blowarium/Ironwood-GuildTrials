@@ -12,7 +12,13 @@ export function TrialSyncResultBanner({
   onDismiss: () => void;
 }) {
   const total =
-    result.created.length + result.updated.length + result.unchanged.length + result.errors.length;
+    result.created.length +
+    result.updated.length +
+    result.unchanged.length +
+    result.errors.length +
+    result.completionsMarked.length +
+    result.completionsUnmarked.length +
+    result.completionErrors.length;
 
   if (total === 0 && result.skipped.length === 0) return null;
 
@@ -42,7 +48,27 @@ export function TrialSyncResultBanner({
             )}
             {result.unchanged.length > 0 && (
               <li className="text-slate-500">
-                {result.unchanged.length} already matched
+                {result.unchanged.length} signup{result.unchanged.length === 1 ? "" : "s"} already matched
+              </li>
+            )}
+            {result.completionsMarked.length > 0 && (
+              <li>
+                <span className="text-emerald-300">
+                  {result.completionsMarked.length} skill
+                  {result.completionsMarked.length === 1 ? "" : "s"} marked done
+                </span>
+                {" — "}
+                {result.completionsMarked.join(", ")}
+              </li>
+            )}
+            {result.completionsUnmarked.length > 0 && (
+              <li>
+                <span className="text-amber-300">
+                  {result.completionsUnmarked.length} skill
+                  {result.completionsUnmarked.length === 1 ? "" : "s"} unmarked
+                </span>
+                {" — "}
+                {result.completionsUnmarked.join(", ")}
               </li>
             )}
             {result.skipped.map((s) => (
@@ -53,6 +79,11 @@ export function TrialSyncResultBanner({
             {result.errors.map((e) => (
               <li key={e.member} className="text-red-300">
                 {e.member}: {e.error}
+              </li>
+            ))}
+            {result.completionErrors.map((e) => (
+              <li key={e.skill} className="text-red-300">
+                {e.skill} completion: {e.error}
               </li>
             ))}
           </ul>

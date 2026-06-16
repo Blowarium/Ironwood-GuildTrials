@@ -9,7 +9,7 @@ import { guildDateFromInstant, guildWeekStart } from "./guild-timezone";
 import { IRONWOOD_ORIGIN, IRONWOOD_SKILL_NAME_MAP } from "./ironwood-xp-import";
 import { getWeekStart } from "./weeks";
 import { TRIAL_DURATION_MS, weekBoundsLocal } from "./trial-schedule";
-import type { TrialSignup } from "./types";
+import type { TrialSignup, SkillWeekCompletion } from "./types";
 
 let guildMemberNames: readonly string[] = [...MEMBERS];
 
@@ -150,6 +150,11 @@ export type TrialSyncApplyResult = {
   errors: Array<{ member: Member; error: string }>;
   /** Payload source used for sync (dom-rows, dom-text, api, etc.). */
   payloadSource?: string;
+  /** Skills marked done because in-game trial XP met the requirement. */
+  completionsMarked: Skill[];
+  /** Skills unmarked because in-game trial XP no longer meets the requirement. */
+  completionsUnmarked: Skill[];
+  completionErrors: Array<{ skill: Skill; error: string }>;
 };
 
 /** Treat planner and game start times as matching within this window. */
@@ -234,6 +239,31 @@ export function resolveIronwoodTrialWeekStart(trialStartDate: string): string {
 
 export function isIronwoodTrialSkillComplete(currentExp: number, requiredExp: number): boolean {
   return currentExp >= requiredExp;
+}
+
+/** Compare in-game skill completion flags with planner “mark done” state. */
+export function planSkillCompletionSync(
+  payload: IronwoodTrialSyncPayload,
+  existingCompletions: SkillWeekCompletion[],
+): { markDone: Skill[]; unmark: Skill[] } {
+  const markedInPlanner = new Set(
+    existingCompletions
+      .filter((c) => c.completed && c.week_start === payload.trialWeekStart)
+      .map((c) => c.skill as Skill),
+  );
+
+  const markDone: Skill[] = [];
+  const unmark: Skill[] = [];
+
+  for (const row of payload.skills) {
+    if (row.complete && !markedInPlanner.has(row.skill)) {
+      markDone.push(row.skill);
+    } else if (!row.complete && markedInPlanner.has(row.skill)) {
+      unmark.push(row.skill);
+    }
+  }
+
+  return { markDone, unmark };
 }
 
 export function countIronwoodTrialsCompleted(
