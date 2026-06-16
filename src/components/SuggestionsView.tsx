@@ -10,31 +10,17 @@ import { formatXp, soloCompletesTrial, trialXpContribution } from "@/lib/trial-x
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { formatTimeLabel } from "@/lib/trial-schedule";
+import { rankClass, rankLabel } from "@/lib/suggestion-labels";
 import { GuildTrialHallSettings } from "./GuildTrialHallSettings";
 import {
   ScheduleSourceFilterPills,
   type ScheduleSourceId,
 } from "./ScheduleSourceFilterPills";
 import { SkillIcon } from "./SkillIcon";
+import { DiscordSuggestionsPanel } from "./DiscordSuggestionsPanel";
 
 function memberFraction(count: number, total: number): string {
   return `${count}/${total}`;
-}
-
-function rankLabel(rank: number | null): string {
-  if (rank === 1) return "1st choice";
-  if (rank === 2) return "2nd choice";
-  if (rank === 3) return "3rd choice";
-  if (rank != null) return `Pref rank ${rank}`;
-  return "No pref match";
-}
-
-function rankClass(rank: number | null): string {
-  if (rank === 1) return "text-emerald-400";
-  if (rank === 2) return "text-sky-300";
-  if (rank === 3) return "text-slate-300";
-  if (rank != null && rank <= 8) return "text-slate-400";
-  return "text-amber-400/90";
 }
 
 function soloLabel(solo: boolean | null): string {
@@ -266,6 +252,7 @@ export function SuggestionsView({
   signups,
   profiles,
   weekDays,
+  weekStart,
   guildConfig,
   onGuildConfigSaved,
   currentUser,
@@ -273,10 +260,12 @@ export function SuggestionsView({
   saving,
   onApplySuggestion,
   onApplyAllUnassigned,
+  staffUnlocked,
 }: {
   signups: TrialSignup[];
   profiles: import("@/lib/member-profile").MemberProfile[];
   weekDays: string[];
+  weekStart: string;
   guildConfig: GuildConfig | null;
   onGuildConfigSaved: (config: GuildConfig) => void;
   currentUser: Member;
@@ -284,6 +273,7 @@ export function SuggestionsView({
   saving: boolean;
   onApplySuggestion: (s: ScheduleSuggestion) => void;
   onApplyAllUnassigned: (items: ScheduleSuggestion[]) => Promise<void>;
+  staffUnlocked: boolean;
 }) {
   const [sourceEnabled, setSourceEnabled] = useState<Record<ScheduleSourceId, boolean>>({
     scheduled: true,
@@ -349,6 +339,12 @@ export function SuggestionsView({
 
   return (
     <div className="space-y-2 sm:space-y-4">
+      <DiscordSuggestionsPanel
+        currentUser={currentUser}
+        weekStart={weekStart}
+        staffUnlocked={staffUnlocked}
+      />
+
       <GuildTrialHallSettings
         config={guildConfig}
         actorMember={currentUser}

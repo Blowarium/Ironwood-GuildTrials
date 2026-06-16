@@ -57,6 +57,14 @@ export function weekLabel(weekOffset: number): string {
   return `+${weekOffset} weeks`;
 }
 
+/** Planner week tab offset for a Monday week_start (guild TZ), or null if out of range. */
+export function findWeekOffsetForStart(weekStartIso: string, at = new Date()): number | null {
+  for (let offset = -4; offset <= 12; offset++) {
+    if (getWeekStart(at, offset) === weekStartIso) return offset;
+  }
+  return null;
+}
+
 /** Tab label e.g. "Week of Jun 2" (guild Monday, shown in local date). */
 export function formatWeekTabLabel(weekStart: string): string {
   return `Week of ${displayFormatLabel(guildMidnight(weekStart), {

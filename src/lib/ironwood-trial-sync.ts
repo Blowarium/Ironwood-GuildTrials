@@ -622,12 +622,7 @@ export function readTrialSyncFromLocation(search: string): IronwoodTrialSyncPayl
   return decodeTrialSyncPayload(encoded);
 }
 
-export function findWeekOffsetForStart(weekStartIso: string, at = new Date()): number | null {
-  for (let offset = -4; offset <= 12; offset++) {
-    if (getWeekStart(at, offset) === weekStartIso) return offset;
-  }
-  return null;
-}
+export { findWeekOffsetForStart } from "./weeks";
 
 function startTimesMatch(a: string, b: string): boolean {
   return trialSyncStartTimesMatch(a, b);

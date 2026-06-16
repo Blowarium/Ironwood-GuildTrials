@@ -357,3 +357,32 @@ export async function syncTrialSignupsFromGame(
 
   return result;
 }
+
+export type DiscordPostKind = "weekly" | "reminder";
+
+export async function fetchDiscordPostStatus(): Promise<{ configured: boolean }> {
+  const res = await fetch("/api/discord/post");
+  if (!res.ok) throw new Error("Failed to load Discord status");
+  return res.json();
+}
+
+export async function postDiscordSuggestions(payload: {
+  actorMember: Member;
+  staffAuthToken?: string;
+  weekStart?: string;
+  kind: DiscordPostKind;
+}): Promise<{
+  error?: string;
+  weekStart?: string;
+  suggestionCount?: number;
+  messageCount?: number;
+}> {
+  const res = await fetch("/api/discord/post", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(withStaffAuth(payload)),
+  });
+  const data = await res.json();
+  if (!res.ok) return { error: data.error ?? "Could not post to Discord." };
+  return data;
+}

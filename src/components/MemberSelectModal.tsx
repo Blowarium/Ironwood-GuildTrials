@@ -1,16 +1,24 @@
 "use client";
 
+import { useMemo } from "react";
 import type { Member } from "@/lib/constants";
 
 export function MemberSelectModal({
   open,
   members,
+  preferredMember,
   onSelect,
 }: {
   open: boolean;
   members: Member[];
+  preferredMember?: Member;
   onSelect: (member: Member) => void;
 }) {
+  const sortedMembers = useMemo(() => {
+    if (!preferredMember || !members.includes(preferredMember)) return members;
+    return [preferredMember, ...members.filter((m) => m !== preferredMember)];
+  }, [members, preferredMember]);
+
   if (!open) return null;
 
   return (
@@ -28,15 +36,27 @@ export function MemberSelectModal({
           Select your guild character. This is saved in your browser so the planner knows your
           profile and permissions.
         </p>
+        {preferredMember && members.includes(preferredMember) && (
+          <p className="mt-2 text-xs text-sky-300">
+            This link is for <strong>{preferredMember}</strong> — pick your name below.
+          </p>
+        )}
         <ul className="mt-4 max-h-[50vh] space-y-1 overflow-y-auto">
-          {members.map((m) => (
+          {sortedMembers.map((m) => (
             <li key={m}>
               <button
                 type="button"
                 onClick={() => onSelect(m)}
-                className="w-full rounded-lg border border-slate-700/60 bg-slate-900/50 px-3 py-2.5 text-left text-sm font-medium text-slate-200 hover:border-sky-500/50 hover:bg-sky-950/30"
+                className={`w-full rounded-lg border px-3 py-2.5 text-left text-sm font-medium hover:bg-sky-950/30 ${
+                  m === preferredMember
+                    ? "border-sky-500/70 bg-sky-950/40 text-white"
+                    : "border-slate-700/60 bg-slate-900/50 text-slate-200 hover:border-sky-500/50"
+                }`}
               >
                 {m}
+                {m === preferredMember ? (
+                  <span className="ml-2 text-xs font-normal text-sky-300">← for you</span>
+                ) : null}
               </button>
             </li>
           ))}

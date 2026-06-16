@@ -30,6 +30,7 @@ import {
 } from "@/lib/permissions";
 import { hasLocalStaffAuth } from "@/lib/staff-auth-client";
 import type { ScheduleSuggestion } from "@/lib/schedule-optimizer";
+import { buildOptimalSchedule } from "@/lib/schedule-optimizer";
 import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
 import { syncSignups, buildStartAtFromWeekFraction, dateFromStartAt } from "@/lib/trial-schedule";
@@ -41,7 +42,6 @@ import {
   type IronwoodXpImportPayload,
 } from "@/lib/ironwood-xp-import";
 import {
-  findWeekOffsetForStart,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
   buildPlannerTrialSyncReturnUrl,
@@ -52,6 +52,13 @@ import {
   type IronwoodTrialSyncPayload,
   type TrialSyncApplyResult,
 } from "@/lib/ironwood-trial-sync";
+import {
+  clearTrialApplyParamsFromUrl,
+  readTrialApplyDeepLink,
+  TRIAL_APPLY_MEMBER_PARAM,
+  type TrialApplyDeepLink,
+  findWeekOffsetForStart,
+} from "@/lib/trial-apply-link";
 import { useTrialSyncAutoRefresh } from "@/lib/use-trial-sync-auto-refresh";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
@@ -117,6 +124,11 @@ export function GuildTrialsApp() {
   const [trialSyncHelperReady, setTrialSyncHelperReady] = useState(false);
   const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
   const [membersLoaded, setMembersLoaded] = useState(false);
+  const [pendingTrialApplyLink, setPendingTrialApplyLink] = useState<TrialApplyDeepLink | null>(
+    null,
+  );
+  const [pickerPreferredMember, setPickerPreferredMember] = useState<Member | "">("");
+  const [skipWelcomeGuide, setSkipWelcomeGuide] = useState(false);
 
   const profilesMap = useMemo(() => buildProfilesMap(profiles), [profiles]);
   const dbRole = currentUser ? getMemberRole(rolesMap, currentUser) : null;
@@ -185,6 +197,31 @@ export function GuildTrialsApp() {
   }, []);
 
   useEffect(() => {
+    const link = readTrialApplyDeepLink(window.location.search);
+    const memberOnly = new URLSearchParams(window.location.search)
+      .get(TRIAL_APPLY_MEMBER_PARAM)
+      ?.trim();
+
+    if (link) {
+      setPendingTrialApplyLink(link);
+      setPickerPreferredMember(link.member);
+      setSkipWelcomeGuide(true);
+      const offset = findWeekOffsetForStart(link.weekStart);
+      if (offset != null) setWeekOffset(offset);
+    } else if (memberOnly) {
+      setPickerPreferredMember(memberOnly as Member);
+    }
+
+    if (link || memberOnly) {
+      window.history.replaceState(
+        {},
+        "",
+        clearTrialApplyParamsFromUrl(window.location.href),
+      );
+    }
+  }, []);
+
+  useEffect(() => {
     const report = readTrialProbeFromLocation(window.location.search);
     if (!report) return;
     setTrialProbeReport(report);
@@ -202,10 +239,10 @@ export function GuildTrialsApp() {
   }, [pendingXpImport, identityReady, currentUser, membersLoaded]);
 
   useEffect(() => {
-    if (identityReady && currentUser && !isGuideDismissed()) {
+    if (identityReady && currentUser && !isGuideDismissed() && !skipWelcomeGuide) {
       setGuideOpen(true);
     }
-  }, [identityReady, currentUser]);
+  }, [identityReady, currentUser, skipWelcomeGuide]);
 
   useEffect(() => {
     if (currentUser) localStorage.setItem(MEMBER_STORAGE_KEY, currentUser);
@@ -421,6 +458,83 @@ export function GuildTrialsApp() {
     if (view === "roster") loadRoster();
   }, [view, loadRoster]);
 
+  const applyPendingTrialApplyLink = useCallback(() => {
+    if (!pendingTrialApplyLink || !currentUser || !membersLoaded || loading) return;
+    if (weekStart !== pendingTrialApplyLink.weekStart) return;
+
+    const targetMember = pendingTrialApplyLink.member;
+    setPendingTrialApplyLink(null);
+    setView("planner");
+
+    if (!canEditSignup(targetMember)) {
+      setError(`This schedule link is for ${targetMember}. Select that character to continue.`);
+      return;
+    }
+
+    const hallLevel = guildConfig?.trial_hall_level ?? 0;
+    const plan = buildOptimalSchedule(
+      profilesMap,
+      signups,
+      weekDays,
+      hallLevel,
+      memberNames,
+    );
+    const suggestion = plan.suggestions.find((s) => s.member === targetMember);
+
+    if (suggestion) {
+      setEditingSignup(null);
+      setModalTarget({
+        skill: suggestion.skill,
+        plannedDate: suggestion.plannedDate,
+        plannedStartAt: suggestion.plannedStartAt,
+        member: suggestion.member,
+      });
+      return;
+    }
+
+    const existing = signups.find((s) => s.member_name === targetMember);
+    if (existing) {
+      setEditingSignup(existing);
+      setModalTarget({
+        skill: existing.skill as Skill,
+        plannedDate: existing.planned_date,
+        plannedStartAt: existing.planned_start_at,
+      });
+      return;
+    }
+
+    setError(
+      `No suggestion available for ${targetMember} — update your profile with top skills, or pick a slot on the planner.`,
+    );
+  }, [
+    pendingTrialApplyLink,
+    currentUser,
+    membersLoaded,
+    loading,
+    weekStart,
+    canEditSignup,
+    guildConfig,
+    profilesMap,
+    signups,
+    weekDays,
+    memberNames,
+  ]);
+
+  useEffect(() => {
+    if (!pendingTrialApplyLink || !identityReady || !currentUser || !membersLoaded || loading) {
+      return;
+    }
+    applyPendingTrialApplyLink();
+  }, [
+    pendingTrialApplyLink,
+    identityReady,
+    currentUser,
+    membersLoaded,
+    loading,
+    weekStart,
+    applyPendingTrialApplyLink,
+  ]);
+
   async function assignToCell(
     member: Member,
     skill: Skill,
@@ -585,6 +699,7 @@ export function GuildTrialsApp() {
         <MemberSelectModal
           open={memberSelectOpen}
           members={memberNames}
+          preferredMember={pickerPreferredMember || undefined}
           onSelect={handleMemberSelect}
         />
       </div>
@@ -744,6 +859,7 @@ export function GuildTrialsApp() {
             signups={signups}
             profiles={profiles}
             weekDays={weekDays}
+            weekStart={weekStart}
             guildConfig={guildConfig}
             onGuildConfigSaved={setGuildConfig}
             currentUser={currentUser}
@@ -751,6 +867,7 @@ export function GuildTrialsApp() {
             saving={saving}
             onApplySuggestion={applySuggestion}
             onApplyAllUnassigned={applySuggestionsBatch}
+            staffUnlocked={staffUnlocked}
           />
         ) : view === "buildings" ? (
           <GuildBuildingsView
