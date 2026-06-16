@@ -250,12 +250,13 @@ export function GuildTrialsApp() {
   }, []);
 
   const applyPendingTrialSync = useCallback(async () => {
-    if (!pendingTrialSync || !currentUser) return;
+    if (!pendingTrialSync || !currentUser || memberNames.length === 0) return;
     const payload = pendingTrialSync;
     setPendingTrialSync(null);
     setSaving(true);
     setError(null);
     try {
+      setGuildMemberNames(memberNames);
       const targetWeek = payload.trialWeekStart;
       const offset = findWeekOffsetForStart(targetWeek);
       if (offset != null) setWeekOffset(offset);
@@ -266,6 +267,7 @@ export function GuildTrialsApp() {
         currentUser,
         weekData.signups,
         weekData.completions,
+        memberNames,
       );
 
       setTrialSyncResult(result);
@@ -281,10 +283,10 @@ export function GuildTrialsApp() {
     } finally {
       setSaving(false);
     }
-  }, [pendingTrialSync, currentUser]);
+  }, [pendingTrialSync, currentUser, memberNames]);
 
   useEffect(() => {
-    if (!pendingTrialSync || !identityReady || !currentUser) return;
+    if (!pendingTrialSync || !identityReady || !currentUser || !membersLoaded) return;
     if (!isStaffRole(getMemberRole(rolesMap, currentUser))) {
       setError("Ironwood trial sync requires Guild Leader or Officer access.");
       setPendingTrialSync(null);
@@ -299,6 +301,7 @@ export function GuildTrialsApp() {
     pendingTrialSync,
     identityReady,
     currentUser,
+    membersLoaded,
     staffUnlocked,
     rolesMap,
     applyPendingTrialSync,

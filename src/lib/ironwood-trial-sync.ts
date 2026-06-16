@@ -32,7 +32,7 @@ export const TRIAL_SYNC_HELPER_WINDOW_NAME = "igt-ironwood-trial-sync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.8";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.9";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -112,6 +112,8 @@ export type IronwoodTrialSyncPayload = {
   skills: IronwoodTrialSyncSkillSource[];
   /** Where assignment data came from (dom-rows, dom-text, api, component, …). */
   source?: string;
+  /** Skills marked complete in Ironwood UI (div.amount shows "Complete"). */
+  skillCompletions?: Partial<Record<Skill, boolean>>;
   /** displayNames from in-game that did not match MEMBERS. */
   unmatchedNames?: string[];
   errors?: string[];
@@ -202,10 +204,12 @@ export function mapIronwoodSkillName(name: string): Skill | null {
   return IRONWOOD_SKILL_NAME_MAP[trimmed] ?? null;
 }
 
-export function mapGameDisplayNameToMember(displayName: string): Member | null {
-  const trimmed = displayName.trim();
+export function mapGameDisplayNameToMember(
+  displayName: string,
+  roster: readonly string[] = guildMemberNames,
+): Member | null {
+  const trimmed = displayName.replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
-  const roster = guildMemberNames;
   if (roster.includes(trimmed)) return trimmed;
 
   const lower = trimmed.toLowerCase();
@@ -280,6 +284,41 @@ export function planSkillCompletionSync(
   }
 
   return { markDone, unmark };
+}
+
+/** Merge explicit UI completion hints from the sync payload into skill rows. */
+export function applyTrialSyncSkillCompletionHints(
+  payload: IronwoodTrialSyncPayload,
+): IronwoodTrialSyncPayload {
+  const hints = payload.skillCompletions;
+  if (!hints || Object.keys(hints).length === 0) return payload;
+
+  const requiredExp = payload.requiredExp ?? 0;
+  const bySkill = new Map(payload.skills.map((row) => [row.skill, row]));
+  const skills = [...payload.skills];
+
+  for (const skill of IRONWOOD_TRIAL_SKILL_ORDER) {
+    if (!hints[skill]) continue;
+    const existing = bySkill.get(skill);
+    if (existing) {
+      existing.complete = true;
+      if (requiredExp > 0) {
+        existing.requiredExp = existing.requiredExp || requiredExp;
+        existing.currentExp = Math.max(existing.currentExp ?? 0, requiredExp);
+      }
+      continue;
+    }
+    skills.push({
+      skill,
+      skillId: skill,
+      currentExp: requiredExp > 0 ? requiredExp : 0,
+      requiredExp: requiredExp > 0 ? requiredExp : 0,
+      complete: true,
+      members: [],
+    });
+  }
+
+  return { ...payload, skills };
 }
 
 export function countIronwoodTrialsCompleted(
@@ -598,6 +637,7 @@ function startTimesMatch(a: string, b: string): boolean {
 export function collectActiveTrialAssignments(
   payload: IronwoodTrialSyncPayload,
   now = new Date(),
+  roster?: readonly string[],
 ): IronwoodTrialSyncAssignment[] {
   const nowMs = now.getTime();
   const byMember = new Map<Member, IronwoodTrialSyncAssignment>();
@@ -607,7 +647,7 @@ export function collectActiveTrialAssignments(
     if (!skill) continue;
 
     for (const member of skillRow.members) {
-      const memberName = mapGameDisplayNameToMember(member.displayName);
+      const memberName = mapGameDisplayNameToMember(member.displayName, roster);
       if (!memberName) continue;
 
       if (

@@ -1,6 +1,7 @@
 import type { Member, Skill, TrialStatus } from "./constants";
 import type { GuildConfig } from "./guild-config";
 import {
+  applyTrialSyncSkillCompletionHints,
   collectActiveTrialAssignments,
   mapGameDisplayNameToMember,
   planSkillCompletionSync,
@@ -245,9 +246,11 @@ export async function syncTrialSignupsFromGame(
   actorMember: Member,
   existingSignups: TrialSignup[] = [],
   existingCompletions: SkillWeekCompletion[] = [],
+  roster: readonly string[] = [],
 ): Promise<TrialSyncApplyResult> {
   const weekStart = payload.trialWeekStart;
-  const assignments = collectActiveTrialAssignments(payload);
+  const normalizedPayload = applyTrialSyncSkillCompletionHints(payload);
+  const assignments = collectActiveTrialAssignments(normalizedPayload, new Date(), roster);
   const byMember = new Map(
     existingSignups.filter((s) => s.week_start === weekStart).map((s) => [s.member_name, s]),
   );
@@ -277,9 +280,9 @@ export async function syncTrialSignupsFromGame(
     }
   }
 
-  for (const skillRow of payload.skills) {
+  for (const skillRow of normalizedPayload.skills) {
     for (const member of skillRow.members) {
-      if (!mapGameDisplayNameToMember(member.displayName)) {
+      if (!mapGameDisplayNameToMember(member.displayName, roster)) {
         skip(member.displayName, "Not in guild roster");
       }
     }
@@ -322,7 +325,7 @@ export async function syncTrialSignupsFromGame(
     byMember.set(assignment.memberName, signup);
   }
 
-  const { markDone, unmark } = planSkillCompletionSync(payload, existingCompletions);
+  const { markDone, unmark } = planSkillCompletionSync(normalizedPayload, existingCompletions);
 
   for (const skill of markDone) {
     const { error } = await setSkillWeekComplete({

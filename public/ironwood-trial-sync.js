@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.8";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.9";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -936,6 +936,62 @@
     return null;
   }
 
+  function parseSkillTrialProgressFromAmountEl(amountEl) {
+    if (!amountEl) return null;
+    var candidates = [];
+    var span = amountEl.querySelector("span");
+    if (span) candidates.push(span.textContent || "");
+    candidates.push(amountEl.textContent || "");
+    for (var ci = 0; ci < candidates.length; ci++) {
+      var text = candidates[ci];
+      var progress = parseSkillTrialProgressText(text);
+      if (progress) return progress;
+      if (/^\s*complete(?:d)?\s*$/i.test(String(text || "").trim())) {
+        return { complete: true, currentExp: null, requiredExp: null };
+      }
+    }
+    return null;
+  }
+
+  function mergeSkillProgressMaps(into, from) {
+    if (!from) return into;
+    for (var skill in from) {
+      if (!Object.prototype.hasOwnProperty.call(from, skill)) continue;
+      if (!into[skill]) into[skill] = from[skill];
+    }
+    return into;
+  }
+
+  function collectDomSkillProgressFromBodyText() {
+    var bodyText = document.body ? document.body.innerText || "" : "";
+    if (!/\bTrial\b/i.test(bodyText)) return {};
+
+    var bySkill = {};
+    for (var s = 0; s < SKILL_ORDER.length; s++) {
+      var skill = SKILL_ORDER[s];
+      var escaped = skill.replace(/-/g, "\\-");
+      var nextPattern = SKILL_ORDER.map(function (sk) {
+        return sk.replace(/-/g, "\\-");
+      }).join("|");
+      var re = new RegExp(
+        escaped + "\\s+Trial\\s*([\\s\\S]*?)(?=(?:" + nextPattern + ")\\s+Trial\\b|$)",
+        "i",
+      );
+      var match = bodyText.match(re);
+      if (!match) continue;
+
+      var section = match[1] || "";
+      var progress = null;
+      var lines = section.split("\n");
+      for (var li = 0; li < lines.length; li++) {
+        progress = parseSkillTrialProgressText(lines[li]);
+        if (progress) break;
+      }
+      if (progress) bySkill[skill] = progress;
+    }
+    return bySkill;
+  }
+
   function collectDomSkillProgress() {
     var bySkill = {};
     var trialRows = findSkillTrialSummaryRows();
@@ -945,11 +1001,12 @@
       var amountEl = btn.querySelector(".amount");
       if (!nameEl || !amountEl) continue;
       var skillName = skillNameFromTrialRowName(nameEl.textContent || "");
-      if (!skillName || bySkill[skillName]) continue;
-      var progress = parseSkillTrialProgressText(amountEl.textContent || "");
+      if (!skillName) continue;
+      var progress = parseSkillTrialProgressFromAmountEl(amountEl);
       if (progress) bySkill[skillName] = progress;
     }
-    if (Object.keys(bySkill).length) return bySkill;
+
+    mergeSkillProgressMaps(bySkill, collectDomSkillProgressFromBodyText());
 
     var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
     for (var i = 0; i < headers.length; i++) {
@@ -957,15 +1014,18 @@
       if (!skillNameFallback || bySkill[skillNameFallback]) continue;
       var amountElFallback =
         headers[i].querySelector && headers[i].querySelector(".amount");
-      var text = amountElFallback
-        ? amountElFallback.textContent || ""
-        : headers[i].textContent || "";
-      var progressFallback = parseSkillTrialProgressText(text);
+      var progressFallback = amountElFallback
+        ? parseSkillTrialProgressFromAmountEl(amountElFallback)
+        : null;
       if (!progressFallback) {
-        var lines = text.split("\n");
-        for (var li = 0; li < lines.length; li++) {
-          progressFallback = parseSkillTrialProgressText(lines[li]);
-          if (progressFallback) break;
+        var text = headers[i].textContent || "";
+        progressFallback = parseSkillTrialProgressText(text);
+        if (!progressFallback) {
+          var lines = text.split("\n");
+          for (var li = 0; li < lines.length; li++) {
+            progressFallback = parseSkillTrialProgressText(lines[li]);
+            if (progressFallback) break;
+          }
         }
       }
       if (progressFallback) bySkill[skillNameFallback] = progressFallback;
@@ -1101,6 +1161,15 @@
 
     if (payloadRequiredExp) payload.requiredExp = payloadRequiredExp;
 
+    var skillCompletions = {};
+    for (var ski = 0; ski < SKILL_ORDER.length; ski++) {
+      var skName = SKILL_ORDER[ski];
+      var rowRef = bySkill[skName];
+      if (rowRef && rowRef.complete) skillCompletions[skName] = true;
+      else if (domProgress[skName] && domProgress[skName].complete) skillCompletions[skName] = true;
+    }
+    if (Object.keys(skillCompletions).length) payload.skillCompletions = skillCompletions;
+
     var completed = 0;
     for (var ci = 0; ci < payload.skills.length; ci++) {
       if (payload.skills[ci].complete) completed++;
@@ -1115,8 +1184,11 @@
   }
 
   function elementHasClass(el, className) {
-    if (!el || !el.className) return false;
-    if (typeof el.className !== "string") return false;
+    if (!el) return false;
+    if (el.classList && el.classList.contains) {
+      return el.classList.contains(className);
+    }
+    if (!el.className || typeof el.className !== "string") return false;
     return (" " + el.className + " ").indexOf(" " + className + " ") >= 0;
   }
 
