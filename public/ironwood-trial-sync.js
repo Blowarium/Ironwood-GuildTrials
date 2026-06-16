@@ -82,7 +82,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.9.6";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.9.7";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -518,14 +518,15 @@
       var members = membersForSkillRow(trial, row).map(function (m) {
         return mapMemberRecord(m, skillName, source);
       });
-      if (!members.length) continue;
+      if (!members.length && !skillRowCompletion(row, requiredExp).complete) continue;
 
+      var completion = skillRowCompletion(row, requiredExp || row.requiredExp || 0);
       skills.push({
         skill: skillName,
         skillId: row.id,
-        currentExp: row.currentExp || 0,
-        requiredExp: requiredExp || row.requiredExp || 0,
-        complete: requiredExp ? (row.currentExp || 0) >= requiredExp : false,
+        currentExp: completion.currentExp,
+        requiredExp: completion.requiredExp,
+        complete: completion.complete,
         members: members,
       });
     }
@@ -576,12 +577,13 @@
         return mapMemberRecord(m, skillName, source);
       });
 
+      var completion = skillRowCompletion(row, trial.requiredExp);
       skills.push({
         skill: skillName,
         skillId: skillId,
-        currentExp: row.currentExp,
-        requiredExp: trial.requiredExp,
-        complete: row.currentExp >= trial.requiredExp,
+        currentExp: completion.currentExp,
+        requiredExp: completion.requiredExp || trial.requiredExp,
+        complete: completion.complete,
         members: members,
       });
     }
@@ -601,12 +603,13 @@
         var skillName = skillNameFromId(skillData, sid);
         if (!skillName) return;
         var meta = skillMeta[sid] || {};
+        var completion = skillRowCompletion(meta, trial.requiredExp);
         skills.push({
           skill: skillName,
           skillId: sid,
-          currentExp: meta.currentExp || 0,
-          requiredExp: trial.requiredExp,
-          complete: (meta.currentExp || 0) >= trial.requiredExp,
+          currentExp: completion.currentExp,
+          requiredExp: completion.requiredExp || trial.requiredExp,
+          complete: completion.complete,
           members: grouped[sid].map(function (m) {
             return mapMemberRecord(m, skillName, source);
           }),
@@ -844,6 +847,205 @@
       }
     }
     return null;
+  }
+
+  function parseCompactXpNumber(raw) {
+    if (raw == null || raw === "") return null;
+    var s = String(raw).replace(/,/g, "").trim();
+    var m = s.match(/^([\d.]+)\s*([kKmM])?$/);
+    if (!m) {
+      var n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    }
+    var num = parseFloat(m[1]);
+    if (Number.isNaN(num)) return null;
+    var suffix = (m[2] || "").toLowerCase();
+    if (suffix === "k") return Math.round(num * 1000);
+    if (suffix === "m") return Math.round(num * 1000000);
+    return Math.round(num);
+  }
+
+  /** Ironwood shows "Complete" instead of "X / Y XP" on finished skill trial rows. */
+  function parseSkillTrialProgressText(text) {
+    if (!text) return null;
+    var flat = String(text).replace(/\s+/g, " ").trim();
+    if (/^\s*complete(?:d)?\s*$/i.test(flat)) {
+      return { complete: true, currentExp: null, requiredExp: null };
+    }
+    var slash = flat.match(/([\d.,]+[kKmM]?)\s*\/\s*([\d.,]+[kKmM]?)(?:\s*XP)?/i);
+    if (slash) {
+      var current = parseCompactXpNumber(slash[1]);
+      var required = parseCompactXpNumber(slash[2]);
+      if (current != null && required != null) {
+        return {
+          complete: current >= required,
+          currentExp: current,
+          requiredExp: required,
+        };
+      }
+    }
+    return null;
+  }
+
+  function collectDomSkillProgress() {
+    var headers = document.querySelectorAll("div, span, button, h1, h2, h3, h4, p");
+    var bySkill = {};
+    for (var i = 0; i < headers.length; i++) {
+      var skillName = headerSkillName(headers[i]);
+      if (!skillName || bySkill[skillName]) continue;
+      var text = headers[i].textContent || "";
+      var progress = parseSkillTrialProgressText(text);
+      if (!progress) {
+        var lines = text.split("\n");
+        for (var li = 0; li < lines.length; li++) {
+          progress = parseSkillTrialProgressText(lines[li]);
+          if (progress) break;
+        }
+      }
+      if (progress) bySkill[skillName] = progress;
+    }
+    return bySkill;
+  }
+
+  function trialSkillMetaByName(guild, skillData, cmp) {
+    var trial = guild && guild.trial;
+    if (!trial) return {};
+    var meta = {};
+    var rows = [];
+    if (cmp && cmp.trialSkills$) {
+      var ts = readObservableValue(cmp.trialSkills$);
+      if (Array.isArray(ts)) rows = ts;
+    }
+    if (!rows.length && trial.skills) rows = Object.values(trial.skills);
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var name = skillNameForRow(skillData, row);
+      if (name) meta[name] = row;
+    }
+    return meta;
+  }
+
+  function resolveSkillProgress(skillName, payloadRequiredExp, metaRow, domProgress) {
+    var requiredExp =
+      payloadRequiredExp ||
+      (metaRow && metaRow.requiredExp) ||
+      (domProgress && domProgress.requiredExp) ||
+      0;
+
+    var explicitComplete =
+      (metaRow && (metaRow.complete === true || metaRow.completed === true)) ||
+      (domProgress && domProgress.complete === true);
+
+    var currentExp =
+      metaRow && metaRow.currentExp != null
+        ? metaRow.currentExp
+        : domProgress && domProgress.currentExp != null
+          ? domProgress.currentExp
+          : 0;
+
+    if (explicitComplete && requiredExp && (!currentExp || currentExp < requiredExp)) {
+      currentExp = requiredExp;
+    }
+
+    var complete =
+      explicitComplete || (requiredExp > 0 && currentExp >= requiredExp);
+
+    return {
+      currentExp: currentExp || 0,
+      requiredExp: requiredExp || 0,
+      complete: complete,
+    };
+  }
+
+  function skillRowCompletion(row, requiredExp) {
+    if (!row) {
+      return { currentExp: 0, requiredExp: requiredExp || 0, complete: false };
+    }
+    if (row.complete === true || row.completed === true) {
+      var req = requiredExp || row.requiredExp || 0;
+      var cur = row.currentExp != null ? row.currentExp : req;
+      if (req && cur < req) cur = req;
+      return { currentExp: cur || 0, requiredExp: req, complete: true };
+    }
+    var req2 = requiredExp || row.requiredExp || 0;
+    var cur2 = row.currentExp || 0;
+    return {
+      currentExp: cur2,
+      requiredExp: req2,
+      complete: req2 > 0 && cur2 >= req2,
+    };
+  }
+
+  function enrichPayloadSkillCompletions(payload) {
+    if (!payload || !payload.skills) return payload;
+
+    var guild = readGuildFromAnySource() || {};
+    var skillData = findSkillDataMap();
+    var cmp = findGuildTrialsComponent();
+    var domProgress = collectDomSkillProgress();
+    var metaBySkill = trialSkillMetaByName(guild, skillData, cmp);
+
+    var payloadRequiredExp =
+      payload.requiredExp || (guild.trial && guild.trial.requiredExp) || null;
+
+    if (!payloadRequiredExp) {
+      var bodyMatch = (document.body.innerText || "").match(
+        /required\s*exp\s*([\d.,]+[kKmM]?)/i,
+      );
+      if (bodyMatch) payloadRequiredExp = parseCompactXpNumber(bodyMatch[1]);
+    }
+
+    var bySkill = {};
+    for (var i = 0; i < payload.skills.length; i++) {
+      bySkill[payload.skills[i].skill] = payload.skills[i];
+    }
+
+    for (var si = 0; si < payload.skills.length; si++) {
+      var skillRow = payload.skills[si];
+      var resolved = resolveSkillProgress(
+        skillRow.skill,
+        payloadRequiredExp || skillRow.requiredExp,
+        metaBySkill[skillRow.skill],
+        domProgress[skillRow.skill],
+      );
+      skillRow.currentExp = resolved.currentExp;
+      skillRow.requiredExp =
+        resolved.requiredExp || skillRow.requiredExp || payloadRequiredExp || 0;
+      skillRow.complete = resolved.complete;
+    }
+
+    for (var sk = 0; sk < SKILL_ORDER.length; sk++) {
+      var skill = SKILL_ORDER[sk];
+      if (bySkill[skill]) continue;
+      var meta = metaBySkill[skill];
+      var dom = domProgress[skill];
+      if (!meta && !dom) continue;
+      var resolved2 = resolveSkillProgress(skill, payloadRequiredExp, meta, dom);
+      if (!resolved2.complete && !(meta && meta.currentExp > 0)) continue;
+      payload.skills.push({
+        skill: skill,
+        skillId: (meta && meta.id) || skill,
+        currentExp: resolved2.currentExp,
+        requiredExp: resolved2.requiredExp || payloadRequiredExp || 0,
+        complete: resolved2.complete,
+        members: [],
+      });
+      bySkill[skill] = true;
+    }
+
+    if (payloadRequiredExp) payload.requiredExp = payloadRequiredExp;
+
+    var completed = 0;
+    for (var ci = 0; ci < payload.skills.length; ci++) {
+      if (payload.skills[ci].complete) completed++;
+    }
+    payload.trialsCompleted = completed;
+
+    payload.skills.sort(function (a, b) {
+      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
+    });
+
+    return payload;
   }
 
   function elementHasClass(el, className) {
@@ -1526,6 +1728,8 @@
     try {
       var payload = await ensureGuildTrialsReady();
       if (!payload) return;
+
+      payload = enrichPayloadSkillCompletions(payload);
 
       var activeCount = countActiveAssignments(payload);
 

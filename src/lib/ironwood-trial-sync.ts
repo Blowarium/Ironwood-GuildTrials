@@ -32,7 +32,7 @@ export const TRIAL_SYNC_HELPER_WINDOW_NAME = "igt-ironwood-trial-sync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.6";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.9.7";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -238,7 +238,21 @@ export function resolveIronwoodTrialWeekStart(trialStartDate: string): string {
 }
 
 export function isIronwoodTrialSkillComplete(currentExp: number, requiredExp: number): boolean {
-  return currentExp >= requiredExp;
+  return requiredExp > 0 && currentExp >= requiredExp;
+}
+
+/** Resolve in-game completion from explicit flag or XP progress. */
+export function resolveIronwoodTrialSkillComplete(
+  row: Pick<IronwoodTrialSyncSkillSource, "complete" | "currentExp" | "requiredExp">,
+  payloadRequiredExp: number,
+): boolean {
+  if (row.complete === true) return true;
+  if (row.complete === false) return false;
+  const required = row.requiredExp || payloadRequiredExp;
+  if (required > 0 && row.currentExp != null) {
+    return isIronwoodTrialSkillComplete(row.currentExp, required);
+  }
+  return false;
 }
 
 /** Compare in-game skill completion flags with planner “mark done” state. */
@@ -254,11 +268,13 @@ export function planSkillCompletionSync(
 
   const markDone: Skill[] = [];
   const unmark: Skill[] = [];
+  const payloadRequiredExp = payload.requiredExp ?? 0;
 
   for (const row of payload.skills) {
-    if (row.complete && !markedInPlanner.has(row.skill)) {
+    const inGameComplete = resolveIronwoodTrialSkillComplete(row, payloadRequiredExp);
+    if (inGameComplete && !markedInPlanner.has(row.skill)) {
       markDone.push(row.skill);
-    } else if (!row.complete && markedInPlanner.has(row.skill)) {
+    } else if (!inGameComplete && markedInPlanner.has(row.skill)) {
       unmark.push(row.skill);
     }
   }
