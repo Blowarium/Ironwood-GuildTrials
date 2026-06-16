@@ -32,6 +32,16 @@ export interface ScheduleSuggestion {
   soloCompletes: boolean | null;
 }
 
+export interface PreferenceAssignmentStats {
+  count: number;
+  gotFirstChoice: number;
+  gotSecondChoice: number;
+  gotThirdChoice: number;
+  gotTopEightChoice: number;
+  noPreferenceMatch: number;
+  soloCompletesCount: number;
+}
+
 export interface SchedulePlan {
   suggestions: ScheduleSuggestion[];
   alreadyScheduled: TrialSignup[];
@@ -40,17 +50,13 @@ export interface SchedulePlan {
   skillProgress: SkillXpProgress[];
   /** XP progress from planner signups only (no suggestions). */
   scheduledSkillProgress: SkillXpProgress[];
+  totalMembers: number;
   stats: {
-    totalSuggestions: number;
-    gotFirstChoice: number;
-    gotSecondChoice: number;
-    gotThirdChoice: number;
-    gotTopEightChoice: number;
-    noPreferenceMatch: number;
+    suggested: PreferenceAssignmentStats;
+    scheduled: PreferenceAssignmentStats;
     skillsCoveredAfterPlan: number;
     skillsXpCompleteAfterPlan: number;
     membersWithPreferences: number;
-    soloCompletesCount: number;
   };
 }
 
@@ -193,6 +199,42 @@ function scoreAssignment(
   return needTier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
 }
 
+function computeAssignmentPrefStats(
+  assignments: { member: Member; skill: Skill }[],
+  profiles: ProfilesMap,
+  required: number,
+): PreferenceAssignmentStats {
+  let gotFirstChoice = 0;
+  let gotSecondChoice = 0;
+  let gotThirdChoice = 0;
+  let gotTopEightChoice = 0;
+  let noPreferenceMatch = 0;
+  let soloCompletesCount = 0;
+
+  for (const { member, skill } of assignments) {
+    const profile = profiles.get(member);
+    const rank = getPreferenceRankFromProfile(profile, skill);
+    if (rank === 1) gotFirstChoice++;
+    if (rank === 2) gotSecondChoice++;
+    if (rank === 3) gotThirdChoice++;
+    if (rank != null && rank <= 8) gotTopEightChoice++;
+    if (rank == null) noPreferenceMatch++;
+
+    const xpPerHour = getXpPerHourForSkill(profile, skill);
+    if (soloCompletesTrial(xpPerHour, required)) soloCompletesCount++;
+  }
+
+  return {
+    count: assignments.length,
+    gotFirstChoice,
+    gotSecondChoice,
+    gotThirdChoice,
+    gotTopEightChoice,
+    noPreferenceMatch,
+    soloCompletesCount,
+  };
+}
+
 function pushSuggestion(
   suggestions: ScheduleSuggestion[],
   member: Member,
@@ -307,6 +349,17 @@ export function buildOptimalSchedule(
   const skillsCoveredAfterPlan = skillProgress.filter((s) => s.memberCount > 0).length;
   const skillsXpCompleteAfterPlan = skillProgress.filter((s) => s.remaining <= 0).length;
 
+  const suggestedStats = computeAssignmentPrefStats(
+    suggestions.map((s) => ({ member: s.member, skill: s.skill })),
+    profiles,
+    required,
+  );
+  const scheduledStats = computeAssignmentPrefStats(
+    alreadyScheduled.map((s) => ({ member: s.member_name, skill: s.skill as Skill })),
+    profiles,
+    required,
+  );
+
   return {
     suggestions: suggestions.sort((a, b) => a.member.localeCompare(b.member)),
     alreadyScheduled,
@@ -314,19 +367,13 @@ export function buildOptimalSchedule(
     hallLevel,
     skillProgress,
     scheduledSkillProgress: buildSkillProgress(initSkillState(existingSignups, profiles), required),
+    totalMembers: members.length,
     stats: {
-      totalSuggestions: suggestions.length,
-      gotFirstChoice: suggestions.filter((s) => s.preferenceRank === 1).length,
-      gotSecondChoice: suggestions.filter((s) => s.preferenceRank === 2).length,
-      gotThirdChoice: suggestions.filter((s) => s.preferenceRank === 3).length,
-      gotTopEightChoice: suggestions.filter(
-        (s) => s.preferenceRank != null && s.preferenceRank <= 8,
-      ).length,
-      noPreferenceMatch: suggestions.filter((s) => s.preferenceRank == null).length,
+      suggested: suggestedStats,
+      scheduled: scheduledStats,
       skillsCoveredAfterPlan,
       skillsXpCompleteAfterPlan,
       membersWithPreferences,
-      soloCompletesCount: suggestions.filter((s) => s.soloCompletes === true).length,
     },
   };
 }

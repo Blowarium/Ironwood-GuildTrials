@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Member, Skill } from "@/lib/constants";
 import type { GuildConfig } from "@/lib/guild-config";
-import { buildProfilesMap, membersWithRankedProfiles, type ProfilesMap } from "@/lib/member-profile";
+import { buildProfilesMap, getPreferenceRankFromProfile, membersWithRankedProfiles, type ProfilesMap } from "@/lib/member-profile";
 import { buildOptimalSchedule, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import type { SkillXpProgress } from "@/lib/trial-xp";
 import { formatXp } from "@/lib/trial-xp";
@@ -16,6 +16,10 @@ import {
   type ScheduleSourceId,
 } from "./ScheduleSourceFilterPills";
 import { SkillIcon } from "./SkillIcon";
+
+function memberFraction(count: number, total: number): string {
+  return `${count}/${total}`;
+}
 
 function rankLabel(rank: number | null): string {
   if (rank === 1) return "1st choice";
@@ -305,16 +309,36 @@ export function SuggestionsView({
           All 16 trials get coverage, then trial XP at hall level {plan.hallLevel} is filled before
           anyone is placed on a lower-ranked skill.
         </p>
-        <div className="mt-2 grid grid-cols-3 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-6">
-          <Stat label="Suggested" value={String(plan.stats.totalSuggestions)} />
-          <Stat label="Scheduled" value={String(plan.alreadyScheduled.length)} />
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
+          <Stat
+            label="Suggested"
+            value={memberFraction(plan.stats.suggested.count, plan.totalMembers)}
+          />
+          <Stat
+            label="Scheduled"
+            value={memberFraction(plan.stats.scheduled.count, plan.totalMembers)}
+          />
           <Stat label="Skills covered" value={`${plan.stats.skillsCoveredAfterPlan}/16`} />
           <Stat
             label="XP complete (plan)"
             value={`${plan.stats.skillsXpCompleteAfterPlan}/16`}
           />
-          <Stat label="Top 8 pref" value={String(plan.stats.gotTopEightChoice)} />
-          <Stat label="Got 1st choice" value={String(plan.stats.gotFirstChoice)} />
+          <Stat
+            label="Top 8 pref · suggested"
+            value={memberFraction(plan.stats.suggested.gotTopEightChoice, plan.totalMembers)}
+          />
+          <Stat
+            label="Top 8 pref · scheduled"
+            value={memberFraction(plan.stats.scheduled.gotTopEightChoice, plan.totalMembers)}
+          />
+          <Stat
+            label="1st choice · suggested"
+            value={memberFraction(plan.stats.suggested.gotFirstChoice, plan.totalMembers)}
+          />
+          <Stat
+            label="1st choice · scheduled"
+            value={memberFraction(plan.stats.scheduled.gotFirstChoice, plan.totalMembers)}
+          />
         </div>
         {plan.suggestions.length > 0 && (
           <button
@@ -386,7 +410,12 @@ export function SuggestionsView({
             Scheduled on planner ({plan.alreadyScheduled.length})
           </h3>
           <div className="space-y-1 md:hidden">
-            {plan.alreadyScheduled.map((s) => (
+            {plan.alreadyScheduled.map((s) => {
+              const preferenceRank = getPreferenceRankFromProfile(
+                profilesMap.get(s.member_name),
+                s.skill as Skill,
+              );
+              return (
               <div
                 key={s.id}
                 className="mobile-card rounded-lg border border-slate-700/50 bg-slate-900/40"
@@ -401,20 +430,30 @@ export function SuggestionsView({
                   {formatDayLabel(s.planned_date, true)}{" "}
                   {s.planned_start_at ? formatTimeLabel(s.planned_start_at, true) : ""}
                 </p>
+                <p className={`text-[10px] ${rankClass(preferenceRank)}`}>
+                  {rankLabel(preferenceRank)}
+                </p>
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="mobile-scroll-x hidden overflow-x-auto rounded-xl border border-slate-700/50 md:block">
-            <table className="w-full min-w-[480px] text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-slate-700/60 bg-slate-900/50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2">Member</th>
                   <th className="px-3 py-2">Skill</th>
                   <th className="px-3 py-2">When</th>
+                  <th className="px-3 py-2">Pref</th>
                 </tr>
               </thead>
               <tbody>
-                {plan.alreadyScheduled.map((s) => (
+                {plan.alreadyScheduled.map((s) => {
+                  const preferenceRank = getPreferenceRankFromProfile(
+                    profilesMap.get(s.member_name),
+                    s.skill as Skill,
+                  );
+                  return (
                   <tr key={s.id} className="border-b border-slate-800/50">
                     <td className="px-3 py-2 text-slate-200">{s.member_name}</td>
                     <td className="px-3 py-2">
@@ -427,8 +466,12 @@ export function SuggestionsView({
                       {formatDayLabel(s.planned_date, true)}{" "}
                       {s.planned_start_at ? formatTimeLabel(s.planned_start_at, true) : ""}
                     </td>
+                    <td className={`px-3 py-2 text-xs ${rankClass(preferenceRank)}`}>
+                      {rankLabel(preferenceRank)}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
