@@ -2,6 +2,7 @@ import type { GuildStats } from "@/lib/stats";
 import type { Skill } from "@/lib/constants";
 import {
   adequacyLabel,
+  skillsNeedingSignupAttention,
   type SkillXpAdequacy,
   type SkillXpCoverage,
 } from "@/lib/skill-xp-coverage";
@@ -26,7 +27,11 @@ const TRIAL_STATUS_LABEL: Record<TrialChipTone, string> = {
 };
 
 function xpBorderClass(tone: TrialChipTone, adequacy: SkillXpAdequacy | undefined): string {
-  if (tone === "marked" || tone === "needs_signup") {
+  if (tone === "marked") {
+    return "border border-transparent";
+  }
+  if (tone === "needs_signup") {
+    if (adequacy === "needs_more") return "border border-amber-300";
     return "border border-transparent";
   }
   if (adequacy === "enough") return "border border-emerald-400";
@@ -48,6 +53,8 @@ function SkillStatusChip({
   const titleParts = [TRIAL_STATUS_LABEL[tone], skill];
   if (tone === "active" || tone === "scheduled" || tone === "completed") {
     titleParts.push(adequacyLabel(xpAdequacy ?? "unknown"));
+  } else if (tone === "needs_signup" && xpAdequacy === "needs_more") {
+    titleParts.push(adequacyLabel("needs_more"));
   }
 
   return (
@@ -115,6 +122,10 @@ export function GuildSummary({
   xpCoverage?: SkillXpCoverage[];
 }) {
   const xpBySkill = new Map(xpCoverage?.map((x) => [x.skill, x.adequacy]) ?? []);
+  const needsSignupSkills = skillsNeedingSignupAttention(
+    stats.skillCoverage,
+    xpCoverage ?? [],
+  );
 
   const inProgress = new Set(stats.skillsInProgress);
   const inProgressXp = xpCoverage?.filter((x) => inProgress.has(x.skill)) ?? [];
@@ -235,13 +246,14 @@ export function GuildSummary({
             Needs signup
           </p>
           <p className="mt-0.5 text-lg font-bold text-amber-300 sm:mt-1 sm:text-2xl">
-            {stats.skillsNeedingSignup.length}
+            {needsSignupSkills.length}
           </p>
-          {stats.skillsNeedingSignup.length > 0 ? (
+          {needsSignupSkills.length > 0 ? (
             <SkillChipRow
-              items={stats.skillsNeedingSignup.map((skill) => ({
+              items={needsSignupSkills.map((skill) => ({
                 skill,
                 tone: "needs_signup" as const,
+                xpAdequacy: xpBySkill.get(skill),
                 showLabel: true,
               }))}
             />

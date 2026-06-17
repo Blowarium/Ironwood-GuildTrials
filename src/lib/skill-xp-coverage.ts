@@ -1,5 +1,6 @@
 import { SKILLS, type Skill } from "./constants";
 import type { ProfilesMap } from "./member-profile";
+import type { SkillCoverageRow } from "./stats";
 import { memberContributionForSkill, trialXpRequired } from "./trial-xp";
 import type { TrialSignup } from "./types";
 
@@ -62,6 +63,25 @@ export function computeSkillXpCoverage(
       hasUnknownXp,
     };
   });
+}
+
+/** Skills with no signups, or in progress but XP still short of the trial target. */
+export function skillsNeedingSignupAttention(
+  skillCoverage: SkillCoverageRow[],
+  xpCoverage: SkillXpCoverage[],
+): Skill[] {
+  const adequacyBySkill = new Map(xpCoverage.map((x) => [x.skill, x.adequacy]));
+
+  return skillCoverage
+    .filter((row) => {
+      if (row.weekState === "complete") return false;
+      if (row.weekState === "needs_signup") return true;
+      return (
+        row.weekState === "in_progress" &&
+        adequacyBySkill.get(row.skill) === "needs_more"
+      );
+    })
+    .map((row) => row.skill);
 }
 
 export function adequacyLabel(adequacy: SkillXpAdequacy): string {

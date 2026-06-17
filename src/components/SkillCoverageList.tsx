@@ -5,6 +5,7 @@ import type { GuildStats } from "@/lib/stats";
 import {
   adequacyClass,
   adequacyLabel,
+  skillsNeedingSignupAttention,
   type SkillXpCoverage,
 } from "@/lib/skill-xp-coverage";
 import { formatXp } from "@/lib/trial-xp";
@@ -69,7 +70,17 @@ export function SkillCoverageList({
 }) {
   const xpBySkill = new Map(xpCoverage.map((x) => [x.skill, x]));
   const done = stats.skillCoverage.filter((s) => s.weekState === "complete");
-  const needsSignup = stats.skillCoverage.filter((s) => s.weekState === "needs_signup");
+  const needsSignupSkills = skillsNeedingSignupAttention(stats.skillCoverage, xpCoverage);
+  const needsSignupTitles = Object.fromEntries(
+    needsSignupSkills.map((skill) => {
+      const row = stats.skillCoverage.find((s) => s.skill === skill);
+      const xp = xpBySkill.get(skill);
+      if (row?.weekState === "in_progress" && xp?.adequacy === "needs_more") {
+        return [skill, `${skill} — ${row.contributorCount} signed up · may need more members`];
+      }
+      return [skill, skill];
+    }),
+  );
   const inProgress = stats.skillCoverage.filter((s) => s.weekState === "in_progress");
 
   return (
@@ -79,9 +90,10 @@ export function SkillCoverageList({
 
       <div className="mt-1.5 space-y-1 sm:mt-2 sm:space-y-2">
         <RecapBox
-          title={`Needs signup (${needsSignup.length})`}
+          title={`Needs signup (${needsSignupSkills.length})`}
           tone="amber"
-          skills={needsSignup.map((s) => s.skill)}
+          skills={needsSignupSkills}
+          skillTitles={needsSignupTitles}
         />
         <RecapBox
           title={`In progress (${inProgress.length})`}
