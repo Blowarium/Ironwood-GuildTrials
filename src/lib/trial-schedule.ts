@@ -89,15 +89,22 @@ export function dateFromStartAt(iso: string): string {
 }
 
 export function formatTimeLabel(iso: string, short = false): string {
+  if (short) return formatGuildHourLabel(iso);
   const d = new Date(iso);
   if (!Number.isNaN(d.getTime()) && d.getMinutes() === 0 && d.getSeconds() === 0) {
-    return displayFormatLabel(iso, { hour: "numeric", hour12: !short });
+    return displayFormatLabel(iso, { hour: "numeric", hour12: false });
   }
   return displayFormatLabel(iso, {
     hour: "numeric",
     minute: "2-digit",
-    hour12: !short,
+    hour12: false,
   });
+}
+
+/** Guild-clock hour label, always `HH:00`. */
+export function formatGuildHourLabel(iso: string): string {
+  const { hours } = guildTimeParts(iso);
+  return `${String(hours).padStart(2, "0")}:00`;
 }
 
 export function formatDateTimeLabel(iso: string): string {

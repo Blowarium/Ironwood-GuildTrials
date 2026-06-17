@@ -11,10 +11,9 @@ import {
   applyTimeToDate,
   buildStartAt,
   defaultStartAtForDate,
-  formatDateTimeLabel,
+  formatGuildHourLabel,
   formatTimeLabel,
   getEffectiveStatus,
-  snapDisplayTimeValue,
   snapStartAtToWholeHour,
   timeInputValue,
 } from "@/lib/trial-schedule";
@@ -25,6 +24,11 @@ import { SkillIcon } from "./SkillIcon";
 import { StatusBadge } from "./StatusBadge";
 import { LastEditedNote } from "./LastEditedNote";
 import { AutoSaveIndicator } from "./AutoSaveIndicator";
+
+const GUILD_HOUR_OPTIONS = Array.from({ length: 24 }, (_, hour) => {
+  const value = `${String(hour).padStart(2, "0")}:00`;
+  return { value, label: value };
+});
 
 export interface CellTarget {
   skill: Skill;
@@ -154,7 +158,7 @@ function CellAssignmentForm({
           {editingSignup ? "Edit trial assignment" : "Schedule trial"}
         </h2>
         <p className="text-sm text-slate-400">
-          {formatDayLabel(plannedDate)} · {formatDateTimeLabel(plannedStartAt)}
+          {formatDayLabel(plannedDate)} · {formatGuildHourLabel(plannedStartAt)} guild
         </p>
 
         <div className="mt-4">
@@ -223,15 +227,19 @@ function CellAssignmentForm({
               />
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Start time (guild UTC+2, whole hours)</span>
-              <input
-                type="time"
-                step={3600}
+              <span className="text-xs text-slate-400">Start hour (guild UTC+2)</span>
+              <select
                 value={timeValue}
-                onChange={(e) => setTimeValue(snapDisplayTimeValue(e.target.value))}
+                onChange={(e) => setTimeValue(e.target.value)}
                 disabled={!member || !canEditThis}
                 className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
-              />
+              >
+                {GUILD_HOUR_OPTIONS.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
 

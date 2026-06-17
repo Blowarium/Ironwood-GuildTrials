@@ -10,7 +10,7 @@ import {
 import {
   buildStartAtFromWeekFraction,
   dateFromStartAt,
-  formatTimeLabel,
+  formatGuildHourLabel,
   formatTrialWindowLabel,
   getEffectiveStatus,
   stackTrialWeekSegments,
@@ -139,8 +139,8 @@ function MobileSkillWeekTrack({
               </span>
               {!narrow && (
                 <span className="block truncate text-[7px] leading-tight text-slate-300">
-                  {formatTimeLabel(plannedStartAt, true)} →{" "}
-                  {formatTimeLabel(plannedEndAt.toISOString(), true)}
+                  {formatGuildHourLabel(plannedStartAt)} →{" "}
+                  {formatGuildHourLabel(plannedEndAt.toISOString())}
                 </span>
               )}
             </button>
@@ -575,8 +575,8 @@ export function WeeklyTimeline({
                               {signup.member_name}
                             </span>
                             <span className="block truncate text-[8px] leading-tight text-slate-300">
-                              {formatTimeLabel(plannedStartAt, true)} →{" "}
-                              {formatTimeLabel(plannedEndAt.toISOString(), true)}
+                              {formatGuildHourLabel(plannedStartAt)} →{" "}
+                              {formatGuildHourLabel(plannedEndAt.toISOString())}
                             </span>
                             <StatusBadge status={effective} small />
                           </button>
