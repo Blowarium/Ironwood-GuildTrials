@@ -247,9 +247,9 @@ export function GuildUpgradePathPanel({
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
               <th className="py-2 pr-4">#</th>
-              <th className="py-2 pr-4">Target date</th>
-              <th className="py-2 pr-4">Building</th>
-              <th className="py-2 pr-4">Upgrade</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Target date</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Building</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Upgrade</th>
               <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Credits</th>
               <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Coins</th>
               <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Materials</th>
@@ -260,9 +260,11 @@ export function GuildUpgradePathPanel({
             {detailSchedule.upgrades.map((step, idx) => (
               <tr key={`${step.buildingId}-${step.toLevel}-${idx}`} className="border-b border-slate-800/60">
                 <td className="py-2 pr-4 text-slate-500">{idx + 1}</td>
-                <td className="py-2 pr-4 text-sky-300">{step.date}</td>
-                <td className="py-2 pr-4 text-white">{GUILD_BUILDINGS[step.buildingId].name}</td>
-                <td className="py-2 pr-4 text-slate-300">
+                <td className="border-l border-slate-800/50 py-2 pl-4 pr-4 text-sky-300">{step.date}</td>
+                <td className="border-l border-slate-800/50 py-2 pl-4 pr-4 text-white">
+                  {GUILD_BUILDINGS[step.buildingId].name}
+                </td>
+                <td className="border-l border-slate-800/50 py-2 pl-4 pr-4 text-slate-300">
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
                 </td>
                 <td className="w-[1%] border-l border-slate-800/50 py-2 pl-4 pr-4 align-top whitespace-nowrap">
