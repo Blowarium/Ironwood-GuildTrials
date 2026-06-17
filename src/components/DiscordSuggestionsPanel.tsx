@@ -13,10 +13,13 @@ import { formatWeekTabLabel, getWeekStart } from "@/lib/weeks";
 export function DiscordSuggestionsPanel({
   currentUser,
   weekStart,
+  canManageDiscord,
   staffUnlocked,
 }: {
   currentUser: Member;
   weekStart: string;
+  /** Guild Leader or Guild Officer (database role). */
+  canManageDiscord: boolean;
   staffUnlocked: boolean;
 }) {
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -59,7 +62,7 @@ export function DiscordSuggestionsPanel({
     [currentUser, staffUnlocked, weekStart],
   );
 
-  if (!staffUnlocked) return null;
+  if (!canManageDiscord) return null;
 
   return (
     <div className="mobile-panel rounded-xl border border-indigo-500/30 bg-indigo-950/20 sm:p-4">
@@ -80,7 +83,7 @@ export function DiscordSuggestionsPanel({
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={posting !== null || configured === false}
+          disabled={posting !== null || configured === false || !staffUnlocked}
           onClick={() => post("weekly")}
           className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
         >
@@ -88,13 +91,19 @@ export function DiscordSuggestionsPanel({
         </button>
         <button
           type="button"
-          disabled={posting !== null || configured === false}
+          disabled={posting !== null || configured === false || !staffUnlocked}
           onClick={() => post("reminder")}
           className="rounded-lg border border-indigo-500/50 px-3 py-1.5 text-xs font-medium text-indigo-200 hover:bg-indigo-950/40 disabled:opacity-50"
         >
           {posting === "reminder" ? "Posting…" : "Mid-week reminder"}
         </button>
       </div>
+
+      {!staffUnlocked && (
+        <p className="mt-2 text-xs text-amber-300">
+          Unlock officer access to post to Discord.
+        </p>
+      )}
 
       <p className="mt-2 text-[10px] text-slate-500">
         Cron (UTC): weekly Sun 22:00 · reminder Wed 10:00 (Mon 00:00 / Wed 12:00 guild time). Set{" "}

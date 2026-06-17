@@ -261,6 +261,7 @@ export function SuggestionsView({
   onApplySuggestion,
   onApplyAllUnassigned,
   staffUnlocked,
+  canManageDiscord,
 }: {
   signups: TrialSignup[];
   profiles: import("@/lib/member-profile").MemberProfile[];
@@ -274,6 +275,7 @@ export function SuggestionsView({
   onApplySuggestion: (s: ScheduleSuggestion) => void;
   onApplyAllUnassigned: (items: ScheduleSuggestion[]) => Promise<void>;
   staffUnlocked: boolean;
+  canManageDiscord: boolean;
 }) {
   const [sourceEnabled, setSourceEnabled] = useState<Record<ScheduleSourceId, boolean>>({
     scheduled: true,
@@ -339,11 +341,14 @@ export function SuggestionsView({
 
   return (
     <div className="space-y-2 sm:space-y-4">
-      <DiscordSuggestionsPanel
-        currentUser={currentUser}
-        weekStart={weekStart}
-        staffUnlocked={staffUnlocked}
-      />
+      {canManageDiscord && (
+        <DiscordSuggestionsPanel
+          currentUser={currentUser}
+          weekStart={weekStart}
+          canManageDiscord={canManageDiscord}
+          staffUnlocked={staffUnlocked}
+        />
+      )}
 
       <GuildTrialHallSettings
         config={guildConfig}

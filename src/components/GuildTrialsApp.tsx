@@ -868,6 +868,7 @@ export function GuildTrialsApp() {
             onApplySuggestion={applySuggestion}
             onApplyAllUnassigned={applySuggestionsBatch}
             staffUnlocked={staffUnlocked}
+            canManageDiscord={isStaffRole(dbRole)}
           />
         ) : view === "buildings" ? (
           <GuildBuildingsView
