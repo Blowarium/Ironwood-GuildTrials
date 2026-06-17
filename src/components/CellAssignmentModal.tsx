@@ -110,6 +110,7 @@ function CellAssignmentForm({
     updated_at: "",
   });
 
+  const isNew = !editingSignup;
   const canEditThis = !!member && canEditSignup(member as Member);
   const memberSelectDisabled = !!editingSignup || (!canAssignOthers && !!currentUser);
 
@@ -118,28 +119,45 @@ function CellAssignmentForm({
     : undefined;
   const isMove =
     existingForMember &&
-    !editingSignup &&
+    isNew &&
     (existingForMember.skill !== skill ||
       existingForMember.planned_date !== plannedDate ||
       existingForMember.planned_start_at !== plannedStartAt);
 
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function persistAssignment(): Promise<string | null> {
+    if (!member || !canEditThis) return "Select a member you can schedule for.";
+    if (
+      isMove &&
+      member === currentUser &&
+      !confirm(
+        `Move your assignment from ${existingForMember!.skill} (${formatDayLabel(existingForMember!.planned_date, true)} ${formatTimeLabel(existingForMember!.planned_start_at)})?`,
+      )
+    ) {
+      return null;
+    }
+    return onSave(member as Member, skill, plannedDate, plannedStartAt);
+  }
+
   const autoSave = useDebouncedAutoSave({
-    enabled: !!member && canEditThis,
+    enabled: !isNew && !!member && canEditThis,
     deps: [member, skill, plannedDate, timeValue],
-    save: async () => {
-      if (!member || !canEditThis) return null;
-      if (
-        isMove &&
-        member === currentUser &&
-        !confirm(
-          `Move your assignment from ${existingForMember!.skill} (${formatDayLabel(existingForMember!.planned_date, true)} ${formatTimeLabel(existingForMember!.planned_start_at)})?`,
-        )
-      ) {
-        return null;
-      }
-      return onSave(member as Member, skill, plannedDate, plannedStartAt);
-    },
+    save: persistAssignment,
   });
+
+  async function handleConfirm() {
+    setConfirmError(null);
+    setConfirming(true);
+    const err = await persistAssignment();
+    setConfirming(false);
+    if (err) {
+      setConfirmError(err);
+      return;
+    }
+    onClose();
+  }
 
   return (
     <div
@@ -160,6 +178,11 @@ function CellAssignmentForm({
         <p className="text-sm text-slate-400">
           {formatDayLabel(plannedDate)} · {formatGuildHourLabel(plannedStartAt)} guild
         </p>
+        {isNew && (
+          <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2 text-sm text-amber-100">
+            Not on the planner yet. Review the details below, then add to the planner to confirm.
+          </p>
+        )}
 
         <div className="mt-4">
           <span className="text-xs text-slate-400">Skill</span>
@@ -244,12 +267,21 @@ function CellAssignmentForm({
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2">
-            <span className="text-xs text-slate-400">Status (from schedule)</span>
-            <StatusBadge status={previewStatus} />
+            <span className="text-xs text-slate-400">
+              {isNew ? "After you confirm" : "Status (from schedule)"}
+            </span>
+            {isNew ? (
+              <span className="inline-block rounded bg-slate-700/80 px-2 py-0.5 text-xs font-medium text-slate-300">
+                Not scheduled
+              </span>
+            ) : (
+              <StatusBadge status={previewStatus} />
+            )}
           </div>
           <p className="text-[10px] text-slate-500">
-            Trials run 24h from start time on the hour (:00). Status becomes Active at start and
-            Completed when the window ends. Week grid and game sync use guild time (UTC+2).
+            {isNew
+              ? "Trials run 24h from start on the hour (:00). Nothing is saved until you add to the planner."
+              : "Trials run 24h from start time on the hour (:00). Status becomes Active at start and Completed when the window ends. Week grid and game sync use guild time (UTC+2)."}
           </p>
         </div>
 
@@ -260,27 +292,52 @@ function CellAssignmentForm({
         )}
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
-          <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />
-          {editingSignup && canEditThis && (
-            <button
-              type="button"
-              onClick={async () => {
-                const err = await onDelete(editingSignup);
-                if (!err) onClose();
-              }}
-              disabled={saving}
-              className="rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-300 hover:bg-red-950/40"
-            >
-              Remove
-            </button>
+          {isNew ? (
+            <>
+              {confirmError && (
+                <span className="w-full text-xs text-red-300">{confirmError}</span>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={!member || !canEditThis || saving || confirming}
+                className="ml-auto rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {confirming || saving ? "Adding…" : "Add to planner"}
+              </button>
+            </>
+          ) : (
+            <>
+              <AutoSaveIndicator status={autoSave.status} error={autoSave.error} />
+              {canEditThis && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const err = await onDelete(editingSignup!);
+                    if (!err) onClose();
+                  }}
+                  disabled={saving}
+                  className="rounded-lg border border-red-500/40 px-4 py-2 text-sm text-red-300 hover:bg-red-950/40"
+                >
+                  Remove
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-auto rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
+              >
+                Close
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-auto rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-400"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

@@ -135,8 +135,7 @@ function SuggestionCard({
         </p>
       )}
       <p className="mt-2 text-[10px] text-slate-500 sm:text-xs">
-        Pick a day and start time in the schedule dialog, or choose a different skill on the Planner
-        tab.
+        Opens the schedule dialog to review — nothing is saved until you add to the planner.
       </p>
       <button
         type="button"
@@ -144,7 +143,7 @@ function SuggestionCard({
         onClick={() => onApply(suggestion)}
         className="mt-2 w-full rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 sm:mt-3 sm:w-auto sm:py-1.5 sm:text-xs"
       >
-        Apply my suggestion
+        Review &amp; schedule
       </button>
     </div>
   );

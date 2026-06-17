@@ -16,7 +16,12 @@ import {
   trialXpRequired,
   type SkillXpProgress,
 } from "./trial-xp";
-import { buildStartAt } from "./trial-schedule";
+import { guildEventActiveStartForSkillInWeek } from "./guild-events";
+import {
+  buildStartAt,
+  dateFromStartAt,
+  snapStartAtToWholeHour,
+} from "./trial-schedule";
 import type { TrialSignup } from "./types";
 
 export interface ScheduleSuggestion {
@@ -87,6 +92,28 @@ function pickStartAt(day: string, dayLoad: Map<string, number>): string {
   const count = dayLoad.get(day) ?? 0;
   const hour = Math.min(22, 6 + (count % 9) * 2);
   return buildStartAt(day, hour, 0);
+}
+
+/** Align suggestion timing with the matching guild event active window that week. */
+function pickSuggestionTiming(
+  weekStart: string,
+  weekDays: string[],
+  skill: Skill,
+  dayLoad: Map<string, number>,
+): { plannedDate: string; plannedStartAt: string } {
+  const eventStart = guildEventActiveStartForSkillInWeek(weekStart, skill);
+  if (eventStart) {
+    const plannedStartAt = snapStartAtToWholeHour(eventStart.toISOString());
+    const plannedDate = dateFromStartAt(plannedStartAt);
+    if (weekDays.includes(plannedDate)) {
+      dayLoad.set(plannedDate, (dayLoad.get(plannedDate) ?? 0) + 1);
+      return { plannedDate, plannedStartAt };
+    }
+  }
+
+  const plannedDate = pickDay(weekDays, dayLoad);
+  const plannedStartAt = pickStartAt(plannedDate, dayLoad);
+  return { plannedDate, plannedStartAt };
 }
 
 function initSkillState(
@@ -304,8 +331,13 @@ export function buildOptimalSchedule(
   const suggestions: ScheduleSuggestion[] = [];
 
   function assign(member: Member, skill: Skill) {
-    const plannedDate = pickDay(weekDays, dayLoad);
-    const plannedStartAt = pickStartAt(plannedDate, dayLoad);
+    const weekStart = weekDays[0];
+    const { plannedDate, plannedStartAt } = pickSuggestionTiming(
+      weekStart,
+      weekDays,
+      skill,
+      dayLoad,
+    );
     pushSuggestion(suggestions, member, skill, plannedDate, plannedStartAt, profiles, required);
     applyAssignment(member, skill, skillState, profiles);
     pool = pool.filter((m) => m !== member);

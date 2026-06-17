@@ -155,6 +155,34 @@ export function guildEventSegmentsInWeek(weekStartIso: string): GuildEventWeekSe
   return segments;
 }
 
+export function guildEventActiveStartForTypeInWeek(
+  weekStartIso: string,
+  eventType: GuildEventType,
+): Date | null {
+  const { start: weekStart, end: weekEnd } = weekBoundsLocal(weekStartIso);
+  const segments = guildEventSegmentsInWeek(weekStartIso).filter(
+    (seg) => seg.phase === "active" && seg.type === eventType,
+  );
+
+  let best: Date | null = null;
+  for (const seg of segments) {
+    const effectiveStart =
+      seg.startAt.getTime() < weekStart.getTime() ? weekStart : seg.startAt;
+    if (effectiveStart.getTime() >= weekEnd.getTime()) continue;
+    if (!best || effectiveStart.getTime() < best.getTime()) {
+      best = effectiveStart;
+    }
+  }
+  return best;
+}
+
+export function guildEventActiveStartForSkillInWeek(
+  weekStartIso: string,
+  skill: Skill,
+): Date | null {
+  return guildEventActiveStartForTypeInWeek(weekStartIso, guildEventForSkill(skill));
+}
+
 export function formatGuildEventSegmentLabel(segment: GuildEventInterval): string {
   if (segment.phase === "cooldown") {
     return `Cooldown · ${formatDateTimeLabel(segment.startAt.toISOString())} → ${formatDateTimeLabel(segment.endAt.toISOString())}`;
