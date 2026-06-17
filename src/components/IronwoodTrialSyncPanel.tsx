@@ -16,6 +16,7 @@ import {
   buildUserscriptTrialSyncInstallUrl,
   TRIAL_SYNC_AUTO_INTERVAL_MS,
   TRIAL_SYNC_HELPER_WINDOW_NAME,
+  TRIAL_SYNC_SCRIPT_VERSION,
   isIronwoodOrigin,
   isIronwoodTrialSyncHelperMessage,
   isTrialSyncHelperInstalled,
@@ -225,7 +226,7 @@ export function IronwoodTrialSyncPanel({
             onClick={handleInstallClick}
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-400 hover:border-slate-500"
           >
-            Reinstall helper
+            Reinstall helper (v{TRIAL_SYNC_SCRIPT_VERSION})
           </a>
         )}
       </div>

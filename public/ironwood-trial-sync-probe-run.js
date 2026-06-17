@@ -7,7 +7,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_PATH = "/guild";
-  var SCRIPT_VERSION = "1.9.9";
+  var SCRIPT_VERSION = "1.10.0";
 
   var SKILL_ORDER = [
     "Woodcutting",
