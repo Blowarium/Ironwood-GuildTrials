@@ -29,7 +29,7 @@ export function UpgradeStepMaterialsCell({
   }
 
   return (
-    <div className="min-w-0 space-y-1 sm:min-w-[180px]">
+    <div className="w-max max-w-[14rem] space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
@@ -65,14 +65,17 @@ export function UpgradeStepMaterialsCell({
       </div>
       <ul className="space-y-0.5">
         {progress.items.map((item) => (
-          <li key={item.id} className="flex items-center gap-1.5 text-[11px]">
+          <li
+            key={item.id}
+            className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]"
+          >
             <span
               className={`shrink-0 ${item.complete ? "text-emerald-400" : "text-slate-600"}`}
               title={item.complete ? "Filled" : "Not filled"}
             >
               {item.complete ? "✓" : "○"}
             </span>
-            <span className="min-w-0 flex-1 truncate text-slate-300" title={item.name}>
+            <span className="shrink-0 text-slate-300" title={item.name}>
               {item.name}
             </span>
             {canEdit && onDepositChange ? (

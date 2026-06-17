@@ -243,29 +243,29 @@ export function GuildUpgradePathPanel({
       </div>
 
       <div className="mt-3 hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[980px] text-left text-sm">
+        <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-700/50 text-xs uppercase tracking-wide text-slate-500">
-              <th className="py-2 pr-3">#</th>
-              <th className="py-2 pr-3">Target date</th>
-              <th className="py-2 pr-3">Building</th>
-              <th className="py-2 pr-3">Upgrade</th>
-              <th className="py-2 pr-3">Credits</th>
-              <th className="py-2 pr-3">Coins</th>
-              <th className="py-2 pr-3">Materials</th>
-              <th className="py-2">Day</th>
+              <th className="py-2 pr-4">#</th>
+              <th className="py-2 pr-4">Target date</th>
+              <th className="py-2 pr-4">Building</th>
+              <th className="py-2 pr-4">Upgrade</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Credits</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Coins</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4 pr-4">Materials</th>
+              <th className="border-l border-slate-700/40 py-2 pl-4">Day</th>
             </tr>
           </thead>
           <tbody>
             {detailSchedule.upgrades.map((step, idx) => (
               <tr key={`${step.buildingId}-${step.toLevel}-${idx}`} className="border-b border-slate-800/60">
-                <td className="py-2 pr-3 text-slate-500">{idx + 1}</td>
-                <td className="py-2 pr-3 text-sky-300">{step.date}</td>
-                <td className="py-2 pr-3 text-white">{GUILD_BUILDINGS[step.buildingId].name}</td>
-                <td className="py-2 pr-3 text-slate-300">
+                <td className="py-2 pr-4 text-slate-500">{idx + 1}</td>
+                <td className="py-2 pr-4 text-sky-300">{step.date}</td>
+                <td className="py-2 pr-4 text-white">{GUILD_BUILDINGS[step.buildingId].name}</td>
+                <td className="py-2 pr-4 text-slate-300">
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
                 </td>
-                <td className="py-2 pr-3 align-top">
+                <td className="w-[1%] border-l border-slate-800/50 py-2 pl-4 pr-4 align-top whitespace-nowrap">
                   <UpgradeStepCreditsCell
                     allocation={
                       creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel)) ?? {
@@ -278,7 +278,7 @@ export function GuildUpgradePathPanel({
                     }
                   />
                 </td>
-                <td className="py-2 pr-3 align-top">
+                <td className="w-[1%] border-l border-slate-800/50 py-2 pl-4 pr-4 align-top whitespace-nowrap">
                   <UpgradeStepCoinsCell
                     step={step}
                     deposits={coinDeposits ?? {}}
@@ -288,7 +288,7 @@ export function GuildUpgradePathPanel({
                     onClear={onClearStepCoins}
                   />
                 </td>
-                <td className="py-2 pr-3 align-top">
+                <td className="w-[1%] border-l border-slate-800/50 py-2 pl-4 pr-4 align-top">
                   <UpgradeStepMaterialsCell
                     step={step}
                     deposits={materialDeposits ?? {}}
@@ -298,7 +298,9 @@ export function GuildUpgradePathPanel({
                     onClear={onClearStepMaterials}
                   />
                 </td>
-                <td className="py-2 text-slate-500">+{Math.round(step.dayOffset)}d</td>
+                <td className="w-[1%] border-l border-slate-800/50 py-2 pl-4 text-slate-500 whitespace-nowrap">
+                  +{Math.round(step.dayOffset)}d
+                </td>
               </tr>
             ))}
           </tbody>

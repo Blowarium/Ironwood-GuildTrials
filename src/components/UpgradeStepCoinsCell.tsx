@@ -29,7 +29,7 @@ export function UpgradeStepCoinsCell({
   }
 
   return (
-    <div className="min-w-0 space-y-1 sm:min-w-[140px]">
+    <div className="w-max space-y-1">
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
@@ -61,15 +61,15 @@ export function UpgradeStepCoinsCell({
           </button>
         )}
       </div>
-      <div className="flex items-center gap-1.5 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]">
         <span
           className={`shrink-0 ${progress.isComplete ? "text-emerald-400" : "text-slate-600"}`}
         >
           {progress.isComplete ? "✓" : "○"}
         </span>
-        <span className="text-slate-300">Guild coins</span>
+        <span className="shrink-0 text-slate-300">Guild coins</span>
         {canEdit && onDepositChange ? (
-          <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-0.5">
             <input
               type="number"
               min={0}
@@ -85,7 +85,7 @@ export function UpgradeStepCoinsCell({
           </div>
         ) : (
           <span
-            className={`ml-auto shrink-0 tabular-nums ${
+            className={`shrink-0 tabular-nums ${
               progress.isComplete ? "text-emerald-300" : "text-yellow-200/90"
             }`}
           >

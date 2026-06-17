@@ -82,7 +82,8 @@ import { SuggestionsView } from "./SuggestionsView";
 import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
-import { GameDataSyncPanel, useGameSyncHelperListener } from "./GameDataSyncPanel";
+import { GameDataSyncModal } from "./GameDataSyncModal";
+import { useGameSyncHelperListener } from "./GameDataSyncPanel";
 import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
 import { GameSyncResultBanner } from "./GameSyncResultBanner";
 
@@ -122,6 +123,7 @@ export function GuildTrialsApp() {
   const [gameSyncResult, setGameSyncResult] = useState<GameSyncApplyResult | null>(null);
   const [gameSyncWeekStart, setGameSyncWeekStart] = useState<string | null>(null);
   const [gameSyncHelperReady, setGameSyncHelperReady] = useState(false);
+  const [gameSyncModalOpen, setGameSyncModalOpen] = useState(false);
   const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [pendingTrialApplyLink, setPendingTrialApplyLink] = useState<TrialApplyDeepLink | null>(
@@ -753,6 +755,10 @@ export function GuildTrialsApp() {
               onSwitchUser={() => setMemberSelectOpen(true)}
               onUnlockStaff={() => setStaffPasswordOpen(true)}
               onSignOutStaff={handleStaffSignOut}
+              onOpenGameSync={
+                dbRole && isStaffRole(dbRole) ? () => setGameSyncModalOpen(true) : undefined
+              }
+              gameSyncHelperReady={gameSyncHelperReady}
             />
           </div>
         </div>
@@ -815,17 +821,6 @@ export function GuildTrialsApp() {
               setGameSyncResult(null);
               setGameSyncWeekStart(null);
             }}
-          />
-        )}
-
-        {dbRole && isStaffRole(dbRole) && (
-          <GameDataSyncPanel
-            returnUrl={gameSyncReturnUrl}
-            staffUnlocked={staffUnlocked}
-            helperReady={gameSyncHelperReady}
-            onHelperReadyChange={setGameSyncHelperReady}
-            autoSyncActive={gameSyncAutoEnabled}
-            lastAutoSyncAt={lastGameAutoSyncAt}
           />
         )}
 
@@ -1027,6 +1022,19 @@ export function GuildTrialsApp() {
           role={dbRole}
           onUnlock={handleStaffUnlock}
           onContinueWithoutStaff={() => setStaffPasswordOpen(false)}
+        />
+      )}
+
+      {dbRole && isStaffRole(dbRole) && (
+        <GameDataSyncModal
+          open={gameSyncModalOpen}
+          onClose={() => setGameSyncModalOpen(false)}
+          returnUrl={gameSyncReturnUrl}
+          staffUnlocked={staffUnlocked}
+          helperReady={gameSyncHelperReady}
+          onHelperReadyChange={setGameSyncHelperReady}
+          autoSyncActive={gameSyncAutoEnabled}
+          lastAutoSyncAt={lastGameAutoSyncAt}
         />
       )}
     </div>

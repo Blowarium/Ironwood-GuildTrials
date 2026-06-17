@@ -29,6 +29,8 @@ export function ProfileHeaderBar({
   onSwitchUser,
   onUnlockStaff,
   onSignOutStaff,
+  onOpenGameSync,
+  gameSyncHelperReady,
 }: {
   currentUser: Member;
   dbRole: GuildRole;
@@ -38,6 +40,8 @@ export function ProfileHeaderBar({
   onSwitchUser: () => void;
   onUnlockStaff: () => void;
   onSignOutStaff: () => void;
+  onOpenGameSync?: () => void;
+  gameSyncHelperReady?: boolean;
 }) {
   const staffLocked = isStaffRole(dbRole) && !staffUnlocked;
 
@@ -73,6 +77,16 @@ export function ProfileHeaderBar({
             title="Clear staff session on this device"
           >
             Sign out
+          </button>
+        )}
+        {onOpenGameSync && isStaffRole(dbRole) && (
+          <button
+            type="button"
+            onClick={onOpenGameSync}
+            className="rounded border border-violet-500/35 bg-violet-950/30 px-1.5 py-1 text-[10px] text-violet-200 hover:border-violet-400/50 hover:bg-violet-900/30 sm:px-2 sm:py-2 sm:text-xs"
+            title="Sync trials, skill marks, and building deposits from Ironwood"
+          >
+            Sync{gameSyncHelperReady ? "" : "…"}
           </button>
         )}
         <button

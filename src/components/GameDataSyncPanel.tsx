@@ -40,6 +40,7 @@ export function GameDataSyncPanel({
   onHelperReadyChange,
   autoSyncActive,
   lastAutoSyncAt,
+  embedded = false,
 }: {
   returnUrl: string;
   staffUnlocked: boolean;
@@ -47,6 +48,8 @@ export function GameDataSyncPanel({
   onHelperReadyChange?: (ready: boolean) => void;
   autoSyncActive?: boolean;
   lastAutoSyncAt?: Date | null;
+  /** When true, omit outer card chrome (used inside GameDataSyncModal). */
+  embedded?: boolean;
 }) {
   const [helperReadyLocal, setHelperReadyLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -138,8 +141,14 @@ export function GameDataSyncPanel({
   }
 
   return (
-    <div className="rounded-lg border border-violet-500/25 bg-violet-950/20 p-3 text-sm text-slate-300">
-      <p className="font-medium text-violet-100">Sync game data</p>
+    <div
+      className={
+        embedded
+          ? "text-sm text-slate-300"
+          : "rounded-lg border border-violet-500/25 bg-violet-950/20 p-3 text-sm text-slate-300"
+      }
+    >
+      {!embedded && <p className="font-medium text-violet-100">Sync game data</p>}
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Pulls from ironwoodrpg.com/guild while you are logged in: trial assignments and planner
         signups for active in-game trials, skill “mark done” flags when weekly XP meets (or falls
