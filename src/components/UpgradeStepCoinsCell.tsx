@@ -6,6 +6,7 @@ import {
   type PlannerCoinDeposits,
 } from "@/lib/guild-buildings-coins";
 import type { ScheduledUpgrade } from "@/lib/guild-buildings-schedule";
+import { ItemIcon } from "./ItemIcon";
 
 export function UpgradeStepCoinsCell({
   step,
@@ -67,6 +68,7 @@ export function UpgradeStepCoinsCell({
         >
           {progress.isComplete ? "✓" : "○"}
         </span>
+        <ItemIcon itemId="Coin" size="xs" />
         <span className="shrink-0 text-slate-300">Coins</span>
         {canEdit && onDepositChange ? (
           <div className="flex shrink-0 items-center gap-0.5">

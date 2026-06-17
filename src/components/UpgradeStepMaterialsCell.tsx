@@ -6,6 +6,7 @@ import {
   getUpgradeMaterialsProgress,
   type PlannerMaterialDeposits,
 } from "@/lib/guild-buildings-materials";
+import { ItemIcon } from "./ItemIcon";
 
 export function UpgradeStepMaterialsCell({
   step,
@@ -75,6 +76,7 @@ export function UpgradeStepMaterialsCell({
             >
               {item.complete ? "✓" : "○"}
             </span>
+            <ItemIcon itemId={item.id} size="xs" title={item.name} />
             <span className="shrink-0 text-slate-300" title={item.name}>
               {item.name}
             </span>

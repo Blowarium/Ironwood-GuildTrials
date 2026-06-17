@@ -2,6 +2,7 @@
 
 import { formatCredits } from "@/lib/guild-buildings-data";
 import type { SequentialCreditAllocation } from "@/lib/guild-buildings-credits";
+import { ItemIcon } from "./ItemIcon";
 
 export function UpgradeStepCreditsCell({
   allocation,
@@ -16,9 +17,10 @@ export function UpgradeStepCreditsCell({
         <span className="inline-block rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
           Queued
         </span>
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11px]">
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]">
           <span className="shrink-0 text-slate-600">○</span>
-          <span className="text-slate-500">Guild credits</span>
+          <ItemIcon itemId="GuildCredits" size="xs" />
+          <span className="text-slate-500">Credits</span>
           <span className="shrink-0 tabular-nums text-slate-600">0/{formatCredits(required)}</span>
         </div>
       </div>
@@ -34,11 +36,12 @@ export function UpgradeStepCreditsCell({
       >
         {ready ? "Ready" : "Saving up"}
       </span>
-      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px]">
         <span className={`shrink-0 ${ready ? "text-emerald-400" : "text-slate-600"}`}>
           {ready ? "✓" : "○"}
         </span>
-        <span className="text-slate-300">Guild credits</span>
+        <ItemIcon itemId="GuildCredits" size="xs" />
+        <span className="text-slate-300">Credits</span>
         <span
           className={`shrink-0 tabular-nums ${ready ? "text-emerald-300" : "text-amber-200/90"}`}
           title={`Current bank applied to this upgrade: ${formatCredits(deposited)} / ${formatCredits(required)}`}
