@@ -63,7 +63,8 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
               #{idx + 1} {GUILD_BUILDINGS[step.buildingId].name}
             </p>
             <p className="text-[10px] text-slate-400">
-              Lv.{step.fromLevel} → {step.toLevel} · {formatCredits(step.creditCost)} · +
+              Lv.{step.fromLevel} → {step.toLevel} ·{" "}
+              {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)} · +
               {Math.round(step.dayOffset)}d
             </p>
           </div>
@@ -76,7 +77,7 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
               <th className="py-1 pr-2">#</th>
               <th className="py-1 pr-2">Building</th>
               <th className="py-1 pr-2">Upgrade</th>
-              <th className="py-1 pr-2">Cost</th>
+              <th className="py-1 pr-2">Credits</th>
               <th className="py-1">Day</th>
             </tr>
           </thead>
@@ -88,7 +89,9 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
                 <td className="py-1 pr-2 text-slate-400">
                   Lv.{step.fromLevel} → {step.toLevel}
                 </td>
-                <td className="py-1 pr-2 text-amber-200">{formatCredits(step.creditCost)}</td>
+                <td className="py-1 pr-2 tabular-nums text-amber-200">
+                  {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)}
+                </td>
                 <td className="py-1 text-slate-500">+{Math.round(step.dayOffset)}d</td>
               </tr>
             ))}

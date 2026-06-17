@@ -10,6 +10,7 @@ import { AutoSaveIndicator } from "./AutoSaveIndicator";
 import { LastEditedNote } from "./LastEditedNote";
 import { UpgradeStepMaterialsCell } from "./UpgradeStepMaterialsCell";
 import { UpgradeStepCoinsCell } from "./UpgradeStepCoinsCell";
+import { UpgradeStepCreditsCell } from "./UpgradeStepCreditsCell";
 import type { Member } from "@/lib/constants";
 import type { PlannerMaterialDeposits } from "@/lib/guild-buildings-materials";
 import type { PlannerCoinDeposits } from "@/lib/guild-buildings-coins";
@@ -17,6 +18,7 @@ import type { PlannerCoinDeposits } from "@/lib/guild-buildings-coins";
 export function GuildUpgradePathPanel({
   detailScenario,
   remainingCredits,
+  guildCredits,
   selectedStrategy,
   preferredStrategy,
   onSelectStrategy,
@@ -42,6 +44,7 @@ export function GuildUpgradePathPanel({
 }: {
   detailScenario: ScenarioComparisonRow;
   remainingCredits: number;
+  guildCredits?: number;
   selectedStrategy: UpgradeStrategyId;
   preferredStrategy: UpgradeStrategyId;
   onSelectStrategy?: (id: UpgradeStrategyId) => void;
@@ -126,10 +129,20 @@ export function GuildUpgradePathPanel({
       )}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
-          <p className="text-[11px] uppercase tracking-wide text-slate-500">Credits still needed</p>
-          <p className="mt-1 text-sm font-semibold text-amber-200">{formatCredits(remainingCredits)}</p>
-        </div>
+        {guildCredits != null && (
+          <div className="rounded-lg border border-amber-800/30 bg-amber-950/20 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-slate-500">Guild credits</p>
+            <p className="mt-1 text-sm font-semibold tabular-nums text-amber-200">
+              {formatCredits(guildCredits)}
+              {remainingCredits > 0 ? (
+                <span className="text-slate-500"> / {formatCredits(remainingCredits)}</span>
+              ) : (
+                <span className="text-emerald-400"> · maxed</span>
+              )}
+            </p>
+            <p className="text-[11px] text-slate-500">In bank / still needed</p>
+          </div>
+        )}
         <div className="rounded-lg border border-sky-800/30 bg-sky-950/30 px-3 py-2.5">
           <p className="text-[11px] uppercase tracking-wide text-slate-500">Weeks to max all</p>
           <p className="mt-1 text-sm font-semibold text-white">
@@ -184,10 +197,12 @@ export function GuildUpgradePathPanel({
               <span className="shrink-0 text-[10px] text-sky-300">{step.date}</span>
             </div>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              Lv.{step.fromLevel} → Lv.{step.toLevel} · {formatCredits(step.creditCost)} credits ·
-              +{Math.round(step.dayOffset)}d
+              Lv.{step.fromLevel} → Lv.{step.toLevel} ·{" "}
+              {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)} credits · +
+              {Math.round(step.dayOffset)}d
             </p>
             <div className="mt-2 space-y-2 border-t border-slate-800/50 pt-2">
+              <UpgradeStepCreditsCell step={step} />
               <UpgradeStepCoinsCell
                 step={step}
                 deposits={coinDeposits ?? {}}
@@ -232,7 +247,9 @@ export function GuildUpgradePathPanel({
                 <td className="py-2 pr-3 text-slate-300">
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
                 </td>
-                <td className="py-2 pr-3 text-amber-200">{formatCredits(step.creditCost)}</td>
+                <td className="py-2 pr-3 align-top">
+                  <UpgradeStepCreditsCell step={step} />
+                </td>
                 <td className="py-2 pr-3 align-top">
                   <UpgradeStepCoinsCell
                     step={step}

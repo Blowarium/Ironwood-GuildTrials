@@ -481,6 +481,7 @@ export function GuildBuildingsView({
         <GuildUpgradePathPanel
           detailScenario={detailScenario}
           remainingCredits={remainingCredits}
+          guildCredits={effectiveCredits}
           selectedStrategy={preferredStrategy}
           preferredStrategy={preferredStrategy}
           canSelectStrategy={false}
@@ -529,22 +530,29 @@ export function GuildBuildingsView({
           </div>
 
           <div className="mb-4">
-            <label className="text-xs text-slate-400">
-              Guild credits in bank
-              <span className="text-slate-500"> — auto from daily quests, events & trials</span>
-            </label>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                min={0}
-                value={creditInput ?? String(projectedCredits)}
-                onFocus={() => setCreditInput(String(projectedCredits))}
-                onChange={(e) => handleCreditInputChange(e.target.value)}
-                onBlur={() => setCreditInput(null)}
-                className="w-32 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-white"
-              />
-              <AutoSaveIndicator status={creditAutoSave.status} error={creditAutoSave.error} />
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-700/35 bg-amber-950/15 px-3 py-2">
+              <div>
+                <p className="text-sm text-slate-200">Guild Credits</p>
+                <p className="text-[11px] text-slate-500">
+                  Auto from daily quests, events & trials — correct if in-game bank differs
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  min={0}
+                  value={creditInput ?? String(projectedCredits)}
+                  onFocus={() => setCreditInput(String(projectedCredits))}
+                  onChange={(e) => handleCreditInputChange(e.target.value)}
+                  onBlur={() => setCreditInput(null)}
+                  className="w-28 rounded-lg border border-slate-600 bg-slate-900 px-2 py-1.5 text-right text-sm tabular-nums text-white"
+                />
+                <span className="text-sm tabular-nums text-slate-500">
+                  / {remainingCredits > 0 ? formatCredits(remainingCredits) : "maxed"}
+                </span>
+                <AutoSaveIndicator status={creditAutoSave.status} error={creditAutoSave.error} />
+              </div>
             </div>
             {projectedCredits > creditAnchor && creditAsOfDate && (
               <p className="mt-1 text-[11px] text-emerald-300">
@@ -596,6 +604,7 @@ export function GuildBuildingsView({
       <GuildUpgradePathPanel
         detailScenario={detailScenario}
         remainingCredits={remainingCredits}
+        guildCredits={effectiveCredits}
         selectedStrategy={detailStrategy}
         preferredStrategy={preferredStrategy}
         onSelectStrategy={setDetailStrategy}
