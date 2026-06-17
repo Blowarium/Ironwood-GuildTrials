@@ -67,7 +67,7 @@ export function UpgradeStepCoinsCell({
         >
           {progress.isComplete ? "✓" : "○"}
         </span>
-        <span className="shrink-0 text-slate-300">Guild coins</span>
+        <span className="shrink-0 text-slate-300">Coins</span>
         {canEdit && onDepositChange ? (
           <div className="flex shrink-0 items-center gap-0.5">
             <input
