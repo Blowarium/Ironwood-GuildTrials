@@ -12,7 +12,7 @@ import {
   logoutStaff,
   saveSignup,
   setSkillWeekComplete,
-  syncTrialSignupsFromGame,
+  applyIronwoodGameSync,
 } from "@/lib/api-client";
 import type { GuildConfig } from "@/lib/guild-config";
 import { isGuideDismissed, setGuideDismissed } from "@/lib/guide-storage";
@@ -44,14 +44,14 @@ import {
 import {
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
-  buildPlannerTrialSyncReturnUrl,
+  buildPlannerGameSyncReturnUrl,
   readTrialProbeFromLocation,
-  readTrialSyncFromLocation,
+  readGameSyncFromLocation,
   setGuildMemberNames,
+  type IronwoodGameSyncPayload,
   type IronwoodTrialProbeReport,
-  type IronwoodTrialSyncPayload,
-  type TrialSyncApplyResult,
-} from "@/lib/ironwood-trial-sync";
+  type GameSyncApplyResult,
+} from "@/lib/ironwood-game-sync";
 import {
   clearTrialApplyParamsFromUrl,
   readTrialApplyDeepLink,
@@ -59,7 +59,7 @@ import {
   type TrialApplyDeepLink,
   findWeekOffsetForStart,
 } from "@/lib/trial-apply-link";
-import { useTrialSyncAutoRefresh } from "@/lib/use-trial-sync-auto-refresh";
+import { useGameSyncAutoRefresh } from "@/lib/use-game-sync-auto-refresh";
 import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import {
   formatWeekRange,
@@ -82,9 +82,9 @@ import { SuggestionsView } from "./SuggestionsView";
 import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
-import { IronwoodTrialSyncPanel, useTrialSyncHelperListener } from "./IronwoodTrialSyncPanel";
+import { GameDataSyncPanel, useGameSyncHelperListener } from "./GameDataSyncPanel";
 import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
-import { TrialSyncResultBanner } from "./TrialSyncResultBanner";
+import { GameSyncResultBanner } from "./GameSyncResultBanner";
 
 type ViewTab = "planner" | "members" | "suggestions" | "buildings" | "roster";
 
@@ -118,10 +118,10 @@ export function GuildTrialsApp() {
   const [staffAuthTick, setStaffAuthTick] = useState(0);
   const [staffPasswordOpen, setStaffPasswordOpen] = useState(false);
   const [pendingXpImport, setPendingXpImport] = useState<IronwoodXpImportPayload | null>(null);
-  const [pendingTrialSync, setPendingTrialSync] = useState<IronwoodTrialSyncPayload | null>(null);
-  const [trialSyncResult, setTrialSyncResult] = useState<TrialSyncApplyResult | null>(null);
-  const [trialSyncWeekStart, setTrialSyncWeekStart] = useState<string | null>(null);
-  const [trialSyncHelperReady, setTrialSyncHelperReady] = useState(false);
+  const [pendingGameSync, setPendingGameSync] = useState<IronwoodGameSyncPayload | null>(null);
+  const [gameSyncResult, setGameSyncResult] = useState<GameSyncApplyResult | null>(null);
+  const [gameSyncWeekStart, setGameSyncWeekStart] = useState<string | null>(null);
+  const [gameSyncHelperReady, setGameSyncHelperReady] = useState(false);
   const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
   const [membersLoaded, setMembersLoaded] = useState(false);
   const [pendingTrialApplyLink, setPendingTrialApplyLink] = useState<TrialApplyDeepLink | null>(
@@ -176,22 +176,23 @@ export function GuildTrialsApp() {
   }, []);
 
   useEffect(() => {
-    setTrialSyncHelperReady(isTrialSyncHelperInstalled());
+    setGameSyncHelperReady(isTrialSyncHelperInstalled());
   }, []);
 
-  useTrialSyncHelperListener(
+  useGameSyncHelperListener(
     useCallback(() => {
-      setTrialSyncHelperReady(true);
+      setGameSyncHelperReady(true);
     }, []),
   );
 
   useEffect(() => {
-    const payload = readTrialSyncFromLocation(window.location.search);
+    const payload = readGameSyncFromLocation(window.location.search);
     if (!payload) return;
-    setPendingTrialSync(payload);
+    setPendingGameSync(payload);
     markTrialSyncHelperInstalled();
-    setTrialSyncHelperReady(true);
+    setGameSyncHelperReady(true);
     const url = new URL(window.location.href);
+    url.searchParams.delete("gameSync");
     url.searchParams.delete("trialSync");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   }, []);
@@ -226,7 +227,7 @@ export function GuildTrialsApp() {
     if (!report) return;
     setTrialProbeReport(report);
     markTrialSyncHelperInstalled();
-    setTrialSyncHelperReady(true);
+    setGameSyncHelperReady(true);
     const url = new URL(window.location.href);
     url.searchParams.delete("trialProbe");
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
@@ -286,10 +287,10 @@ export function GuildTrialsApp() {
     setPendingXpImport(null);
   }, []);
 
-  const applyPendingTrialSync = useCallback(async () => {
-    if (!pendingTrialSync || !currentUser || memberNames.length === 0) return;
-    const payload = pendingTrialSync;
-    setPendingTrialSync(null);
+  const applyPendingGameSync = useCallback(async () => {
+    if (!pendingGameSync || !currentUser || memberNames.length === 0) return;
+    const payload = pendingGameSync;
+    setPendingGameSync(null);
     setSaving(true);
     setError(null);
     try {
@@ -299,54 +300,58 @@ export function GuildTrialsApp() {
       if (offset != null) setWeekOffset(offset);
 
       const weekData = await fetchWeekData(targetWeek);
-      const result = await syncTrialSignupsFromGame(
+      const result = await applyIronwoodGameSync(
         payload,
         currentUser,
         weekData.signups,
         weekData.completions,
         memberNames,
+        guildConfig?.planner_material_deposits ?? null,
+        guildConfig?.planner_coin_deposits ?? null,
       );
 
-      setTrialSyncResult(result);
-      setTrialSyncWeekStart(targetWeek);
+      setGameSyncResult(result);
+      setGameSyncWeekStart(targetWeek);
       setView("planner");
 
       const refreshed = await fetchWeekData(targetWeek);
       setSignups(refreshed.signups);
       setCompletions(refreshed.completions);
       setMode(refreshed.mode);
+      const configData = await fetchGuildConfig();
+      if (configData.config) setGuildConfig(configData.config);
     } catch {
-      setError("Could not apply Ironwood trial sync.");
+      setError("Could not apply game data sync.");
     } finally {
       setSaving(false);
     }
-  }, [pendingTrialSync, currentUser, memberNames]);
+  }, [pendingGameSync, currentUser, memberNames, guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits]);
 
   useEffect(() => {
-    if (!pendingTrialSync || !identityReady || !currentUser || !membersLoaded) return;
+    if (!pendingGameSync || !identityReady || !currentUser || !membersLoaded) return;
     if (!isStaffRole(getMemberRole(rolesMap, currentUser))) {
-      setError("Ironwood trial sync requires Guild Leader or Officer access.");
-      setPendingTrialSync(null);
+      setError("Game data sync requires Guild Leader or Officer access.");
+      setPendingGameSync(null);
       return;
     }
     if (!staffUnlocked) {
       setStaffPasswordOpen(true);
       return;
     }
-    void applyPendingTrialSync();
+    void applyPendingGameSync();
   }, [
-    pendingTrialSync,
+    pendingGameSync,
     identityReady,
     currentUser,
     membersLoaded,
     staffUnlocked,
     rolesMap,
-    applyPendingTrialSync,
+    applyPendingGameSync,
   ]);
 
-  const trialSyncReturnUrl = useMemo(() => {
+  const gameSyncReturnUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
-    return buildPlannerTrialSyncReturnUrl(window.location.href.split("#")[0]);
+    return buildPlannerGameSyncReturnUrl(window.location.href.split("#")[0]);
   }, []);
 
   const plannerPageHref = useMemo(() => {
@@ -354,17 +359,17 @@ export function GuildTrialsApp() {
     return window.location.href.split("#")[0];
   }, []);
 
-  const trialSyncAutoEnabled =
+  const gameSyncAutoEnabled =
     isStaff &&
     staffUnlocked &&
-    trialSyncHelperReady &&
+    gameSyncHelperReady &&
     Boolean(currentUser) &&
     Boolean(plannerPageHref);
 
-  const { lastAutoSyncAt: lastTrialAutoSyncAt } = useTrialSyncAutoRefresh({
-    enabled: trialSyncAutoEnabled,
+  const { lastAutoSyncAt: lastGameAutoSyncAt } = useGameSyncAutoRefresh({
+    enabled: gameSyncAutoEnabled,
     plannerHref: plannerPageHref,
-    syncBusy: saving || pendingTrialSync !== null,
+    syncBusy: saving || pendingGameSync !== null,
   });
 
   const canEditSignup = useCallback(
@@ -802,14 +807,25 @@ export function GuildTrialsApp() {
             onDismiss={() => setTrialProbeReport(null)}
           />
         )}
-        {trialSyncResult && trialSyncWeekStart && (
-          <TrialSyncResultBanner
-            result={trialSyncResult}
-            weekStart={trialSyncWeekStart}
+        {gameSyncResult && gameSyncWeekStart && (
+          <GameSyncResultBanner
+            result={gameSyncResult}
+            weekStart={gameSyncWeekStart}
             onDismiss={() => {
-              setTrialSyncResult(null);
-              setTrialSyncWeekStart(null);
+              setGameSyncResult(null);
+              setGameSyncWeekStart(null);
             }}
+          />
+        )}
+
+        {dbRole && isStaffRole(dbRole) && (
+          <GameDataSyncPanel
+            returnUrl={gameSyncReturnUrl}
+            staffUnlocked={staffUnlocked}
+            helperReady={gameSyncHelperReady}
+            onHelperReadyChange={setGameSyncHelperReady}
+            autoSyncActive={gameSyncAutoEnabled}
+            lastAutoSyncAt={lastGameAutoSyncAt}
           />
         )}
 
@@ -935,15 +951,6 @@ export function GuildTrialsApp() {
                   togglingSkill={togglingSkill}
                   onToggleComplete={handleToggleSkillComplete}
                 />
-                {isStaff && staffUnlocked && (
-                  <IronwoodTrialSyncPanel
-                    returnUrl={trialSyncReturnUrl}
-                    helperReady={trialSyncHelperReady}
-                    onHelperReadyChange={setTrialSyncHelperReady}
-                    autoSyncActive={trialSyncAutoEnabled}
-                    lastAutoSyncAt={lastTrialAutoSyncAt}
-                  />
-                )}
               </div>
             )}
           </div>

@@ -1,10 +1,31 @@
 "use client";
 
 import { formatCredits } from "@/lib/guild-buildings-data";
-import type { ScheduledUpgrade } from "@/lib/guild-buildings-schedule";
+import type { SequentialCreditAllocation } from "@/lib/guild-buildings-credits";
 
-export function UpgradeStepCreditsCell({ step }: { step: ScheduledUpgrade }) {
-  const ready = step.creditsBefore >= step.creditCost;
+export function UpgradeStepCreditsCell({
+  allocation,
+}: {
+  allocation: SequentialCreditAllocation;
+}) {
+  const { deposited, required, ready, isActive } = allocation;
+
+  if (!isActive && deposited <= 0) {
+    return (
+      <div className="min-w-0 space-y-1 sm:min-w-[120px]">
+        <span className="inline-block rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+          Queued
+        </span>
+        <div className="flex items-center gap-1.5 text-[11px]">
+          <span className="shrink-0 text-slate-600">○</span>
+          <span className="text-slate-500">Guild credits</span>
+          <span className="ml-auto shrink-0 tabular-nums text-slate-600">
+            0/{formatCredits(required)}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-0 space-y-1 sm:min-w-[120px]">
@@ -24,9 +45,9 @@ export function UpgradeStepCreditsCell({ step }: { step: ScheduledUpgrade }) {
           className={`ml-auto shrink-0 tabular-nums ${
             ready ? "text-emerald-300" : "text-amber-200/90"
           }`}
-          title={`Projected bank at upgrade date: ${formatCredits(step.creditsBefore)} · cost ${formatCredits(step.creditCost)}`}
+          title={`Current bank applied to this upgrade: ${formatCredits(deposited)} / ${formatCredits(required)}`}
         >
-          {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)}
+          {formatCredits(deposited)}/{formatCredits(required)}
         </span>
       </div>
     </div>

@@ -599,7 +599,7 @@ export function GuildBuildingsView({
         <BuildingIncomeStats incomeNow={incomeNow} bankCoinsNow={bankCoinsNow} />
       </div>
 
-      <GuildBuildingsScenarioCompare levels={levels} scenarios={scenarios} />
+      <GuildBuildingsScenarioCompare levels={levels} scenarios={scenarios} guildCredits={effectiveCredits} />
 
       <GuildUpgradePathPanel
         detailScenario={detailScenario}

@@ -9,6 +9,9 @@ import {
   trialSyncStartTimesMatch,
   type TrialSyncApplyResult,
 } from "./ironwood-trial-sync";
+import { planAllBuildingMaterialsApply } from "./ironwood-building-sync";
+import type { PlannerMaterialDeposits } from "./guild-buildings-materials";
+import type { PlannerCoinDeposits } from "./guild-buildings-coins";
 import type {
   MemberProfile,
   MemberRosterEntry,
@@ -240,13 +243,15 @@ export async function deleteSignup(payload: {
 }
 
 
-/** Upsert planner signups and skill completion marks from an in-game Ironwood trial snapshot. */
-export async function syncTrialSignupsFromGame(
+/** Apply Ironwood in-game guild snapshot to planner signups, completions, and building deposits. */
+export async function applyIronwoodGameSync(
   payload: IronwoodTrialSyncPayload,
   actorMember: Member,
   existingSignups: TrialSignup[] = [],
   existingCompletions: SkillWeekCompletion[] = [],
   roster: readonly string[] = [],
+  existingMaterialDeposits: PlannerMaterialDeposits | null = null,
+  existingCoinDeposits: PlannerCoinDeposits | null = null,
 ): Promise<TrialSyncApplyResult> {
   const weekStart = payload.trialWeekStart;
   const normalizedPayload = applyTrialSyncSkillCompletionHints(payload);
@@ -355,7 +360,58 @@ export async function syncTrialSignupsFromGame(
     result.completionsUnmarked.push(skill);
   }
 
+  if (payload.buildingMaterials) {
+    const { nextMaterials, nextCoins, result: materialsResult } = planAllBuildingMaterialsApply(
+      payload.buildingMaterials,
+      existingMaterialDeposits,
+      existingCoinDeposits,
+    );
+    if (materialsResult.errors.length > 0) {
+      result.buildingMaterialsError = materialsResult.errors.join(" ");
+    }
+    if (materialsResult.applied) {
+      const { config, error } = await saveGuildConfig(
+        {
+          plannerMaterialDeposits: nextMaterials,
+          plannerCoinDeposits: nextCoins,
+        },
+        actorMember,
+      );
+      if (error) {
+        result.buildingMaterialsError = error;
+      } else if (config) {
+        result.buildingMaterialsApplied = materialsResult.steps.map((step) => ({
+          buildingId: step.buildingId,
+          fromLevel: step.fromLevel,
+          materialCount: step.materialCount,
+          coinsDeposited: step.coinsDeposited,
+        }));
+      }
+    }
+  }
+
   return result;
+}
+
+/** @deprecated Use {@link applyIronwoodGameSync}. */
+export async function syncTrialSignupsFromGame(
+  payload: IronwoodTrialSyncPayload,
+  actorMember: Member,
+  existingSignups: TrialSignup[] = [],
+  existingCompletions: SkillWeekCompletion[] = [],
+  roster: readonly string[] = [],
+  existingMaterialDeposits: PlannerMaterialDeposits | null = null,
+  existingCoinDeposits: PlannerCoinDeposits | null = null,
+): Promise<TrialSyncApplyResult> {
+  return applyIronwoodGameSync(
+    payload,
+    actorMember,
+    existingSignups,
+    existingCompletions,
+    roster,
+    existingMaterialDeposits,
+    existingCoinDeposits,
+  );
 }
 
 export type DiscordPostKind = "weekly" | "reminder";

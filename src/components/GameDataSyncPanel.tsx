@@ -11,7 +11,7 @@ import {
   buildIronwoodTrialSyncConsoleSnippet,
   buildIronwoodTrialSyncHelperProbeUrl,
   buildIronwoodTrialSyncLaunchUrl,
-  buildPlannerTrialSyncReturnUrl,
+  buildPlannerGameSyncReturnUrl,
   buildStaticIronwoodTrialSyncBookmarklet,
   buildUserscriptTrialSyncInstallUrl,
   TRIAL_SYNC_AUTO_INTERVAL_MS,
@@ -21,7 +21,7 @@ import {
   isIronwoodTrialSyncHelperMessage,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
-} from "@/lib/ironwood-trial-sync";
+} from "@/lib/ironwood-game-sync";
 import { formatDateTimeLabel } from "@/lib/trial-schedule";
 
 function markHelperReady(
@@ -33,14 +33,16 @@ function markHelperReady(
   onParent?.(true);
 }
 
-export function IronwoodTrialSyncPanel({
+export function GameDataSyncPanel({
   returnUrl,
+  staffUnlocked,
   helperReady: helperReadyProp,
   onHelperReadyChange,
   autoSyncActive,
   lastAutoSyncAt,
 }: {
   returnUrl: string;
+  staffUnlocked: boolean;
   helperReady?: boolean;
   onHelperReadyChange?: (ready: boolean) => void;
   autoSyncActive?: boolean;
@@ -92,24 +94,24 @@ export function IronwoodTrialSyncPanel({
 
   const staticBookmarklet = useMemo(() => buildStaticIronwoodTrialSyncBookmarklet(), []);
 
-  const probeReturnUrl = useMemo(() => {
+  const syncReturnUrl = useMemo(() => {
     if (!returnUrl) return "";
-    return buildPlannerTrialSyncReturnUrl(returnUrl);
+    return buildPlannerGameSyncReturnUrl(returnUrl);
   }, [returnUrl]);
 
   const launchSync = useCallback(() => {
-    if (!probeReturnUrl) return;
+    if (!syncReturnUrl || !staffUnlocked) return;
     setSyncing(true);
-    window.open(buildIronwoodTrialSyncLaunchUrl(probeReturnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);
+    window.open(buildIronwoodTrialSyncLaunchUrl(syncReturnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);
     window.setTimeout(() => setSyncing(false), 3000);
-  }, [probeReturnUrl]);
+  }, [syncReturnUrl, staffUnlocked]);
 
   const launchProbe = useCallback(() => {
-    if (!probeReturnUrl) return;
+    if (!syncReturnUrl || !staffUnlocked) return;
     setProbing(true);
-    window.open(buildIronwoodTrialProbeLaunchUrl(probeReturnUrl), "igt-ironwood-trial-probe");
+    window.open(buildIronwoodTrialProbeLaunchUrl(syncReturnUrl), "igt-ironwood-trial-probe");
     window.setTimeout(() => setProbing(false), 3000);
-  }, [probeReturnUrl]);
+  }, [syncReturnUrl, staffUnlocked]);
 
   function handleInstallClick() {
     window.setTimeout(probeHelper, 2500);
@@ -137,13 +139,19 @@ export function IronwoodTrialSyncPanel({
 
   return (
     <div className="rounded-lg border border-violet-500/25 bg-violet-950/20 p-3 text-sm text-slate-300">
-      <p className="font-medium text-violet-100">Sync from Ironwood</p>
+      <p className="font-medium text-violet-100">Sync game data</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
-        Opens ironwoodrpg.com/guild, selects the Trials tab, and syncs planner signups for active
-        in-game assignments. Also updates skill “mark done” flags when in-game trial XP meets (or
-        falls below) the weekly requirement. Enable the sync helper below first (same idea as XP/h
-        import).
+        Pulls from ironwoodrpg.com/guild while you are logged in: trial assignments and planner
+        signups for active in-game trials, skill “mark done” flags when weekly XP meets (or falls
+        below) requirements, and material and coin deposits for every building upgrade step (guild
+        credits are not synced — those stay on the planner’s sequential credit bank).
       </p>
+
+      {!staffUnlocked && (
+        <p className="mt-2 text-xs text-amber-300/90">
+          Unlock officer access from the header to run sync and apply changes to the planner.
+        </p>
+      )}
 
       {!helperReady ? (
         <div className="mt-3 space-y-2">
@@ -176,7 +184,7 @@ export function IronwoodTrialSyncPanel({
             className="inline-block rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500 aria-disabled:pointer-events-none aria-disabled:opacity-50"
             aria-disabled={!userscriptInstallUrl}
           >
-            Add trial sync helper to Tampermonkey
+            Add game sync helper to Tampermonkey
           </a>
           <p className="text-[11px] text-slate-500">
             If you only see a page of code, Tampermonkey is not installed or not enabled on this
@@ -185,7 +193,7 @@ export function IronwoodTrialSyncPanel({
         </div>
       ) : (
         <p className="mt-2 text-xs text-emerald-400/90">
-          Trial sync helper installed — use the button below whenever you want to sync from
+          Game sync helper installed — use the button below whenever you want fresh data from
           Ironwood.
           {autoSyncActive ? (
             <>
@@ -205,16 +213,18 @@ export function IronwoodTrialSyncPanel({
         <button
           type="button"
           onClick={launchSync}
-          disabled={!probeReturnUrl || syncing}
+          disabled={!syncReturnUrl || syncing || !staffUnlocked}
           className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-50"
+          title={staffUnlocked ? undefined : "Unlock officer access first"}
         >
-          {syncing ? "Opening Ironwood…" : "Sync from Ironwood now"}
+          {syncing ? "Opening Ironwood…" : "Sync game data now"}
         </button>
         <button
           type="button"
           onClick={launchProbe}
-          disabled={!probeReturnUrl || probing}
+          disabled={!syncReturnUrl || probing || !staffUnlocked}
           className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:border-amber-400/60 disabled:opacity-50"
+          title={staffUnlocked ? undefined : "Unlock officer access first"}
         >
           {probing ? "Probing…" : "Run data probe"}
         </button>
@@ -238,7 +248,7 @@ export function IronwoodTrialSyncPanel({
 
       <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
         Use <strong className="text-slate-400">Run data probe</strong> to see what Ironwood
-        exposes (component, API, endDate) without changing planner signups.
+        exposes (component, API, endDate) without changing planner data.
       </p>
 
       <details className="mt-3 text-xs text-slate-500">
@@ -247,7 +257,7 @@ export function IronwoodTrialSyncPanel({
         </summary>
         <div className="mt-3 max-w-full space-y-3 leading-relaxed text-slate-400">
           <p>
-            Use the same <strong className="text-slate-300">Sync from Ironwood now</strong> button
+            Use the same <strong className="text-slate-300">Sync game data now</strong> button
             after setup. Keep Guild Trials and Ironwood in the{" "}
             <strong className="text-slate-300">same browser</strong>.
           </p>
@@ -307,7 +317,7 @@ export function IronwoodTrialSyncPanel({
   );
 }
 
-export function useTrialSyncHelperListener(onReady: () => void) {
+export function useGameSyncHelperListener(onReady: () => void) {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (!isIronwoodOrigin(event.origin)) return;

@@ -84,7 +84,7 @@
       origin = "https://ironwood-guild-trials.vercel.app";
     }
     var script = document.createElement("script");
-    script.src = origin + "/ironwood-guild-capture.js?v=1.10.0";
+    script.src = origin + "/ironwood-guild-capture.js?v=1.11.0";
     (document.head || document.documentElement).appendChild(script);
   }
 
@@ -339,6 +339,211 @@
       }
     }
     return false;
+  }
+
+  function clickBuildingsTabDom() {
+    var scopes = [
+      document.querySelector("guild-component"),
+      document.querySelector("guild-page"),
+      document.body,
+    ];
+    for (var s = 0; s < scopes.length; s++) {
+      var scope = scopes[s];
+      if (!scope) continue;
+      var buttons = scope.querySelectorAll("button");
+      for (var i = 0; i < buttons.length; i++) {
+        var btn = buttons[i];
+        var text = (btn.textContent || "").replace(/\s+/g, " ").trim();
+        if (text === "Buildings" || /^Buildings(\s|\(|$)/i.test(text)) {
+          btn.click();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function navigateToBuildingsTab(host) {
+    if (host && host.changeTab && host.GuildTabEnum && host.GuildTabEnum.Buildings != null) {
+      try {
+        host.changeTab(host.GuildTabEnum.Buildings);
+        return true;
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    return clickBuildingsTabDom();
+  }
+
+  var BUILDING_NAME_TO_ID = {
+    "Guild Hall": "GuildHall",
+    "Guild Library": "GuildLibrary",
+    "Guild Bank": "GuildBank",
+    "Guild Storehouse": "GuildStorehouse",
+    "Guild Workshop": "GuildWorkshop",
+    "Guild Armoury": "GuildArmoury",
+    "Guild Event Hall": "GuildEventHall",
+    "Guild Trial Hall": "GuildTrialHall",
+  };
+
+  var MATERIAL_IDS =
+    "Amethyst,AmethystCrystal,AncientLog,Apple,AstralBar,AstralOre,Banana,BirchLog,Blackcurrant,Blueberry,Bone,Cherry,Citrine,CitrineCrystal,CobaltBar,CobaltOre,CopperBar,CopperOre,Daisy,Diamond,DiamondCrystal,Emerald,EmeraldCrystal,Fang,GiantBone,GiantFang,GoldBar,GoldOre,Grapes,GreenApple,Hyacinth,InfernalBar,InfernalOre,IronBar,IronOre,IronbarkLog,LargeBone,LargeFang,Lilac,Logbook1,Logbook10,Logbook100,Logbook25,Logbook40,Logbook55,Logbook70,Logbook85,MahoganyLog,MediumBone,MediumFang,Moonstone,MoonstoneCrystal,Nemesia,ObsidianBar,ObsidianOre,Onyx,OnyxCrystal,Peony,PineLog,Raspberry,RawBass,RawCod,RawKingCrab,RawLobster,RawSalmon,RawShark,RawShrimp,RawSwordfish,RedwoodLog,Rose,Ruby,RubyCrystal,SilverBar,SilverOre,Snapdragon,SpruceLog,TeakLog,Topaz,TopazCrystal,Tulip".split(
+      ",",
+    );
+
+  function formatMaterialId(id) {
+    return id.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/(\D)(\d+)/g, "$1 $2");
+  }
+
+  function materialNameToId(name) {
+    var trimmed = String(name || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!trimmed) return null;
+    var compact = trimmed.replace(/\s+/g, "");
+    for (var i = 0; i < MATERIAL_IDS.length; i++) {
+      var id = MATERIAL_IDS[i];
+      if (id === compact) return id;
+      if (formatMaterialId(id).toLowerCase() === trimmed.toLowerCase()) return id;
+    }
+    return null;
+  }
+
+  function parseCompactNumber(text) {
+    return Math.max(0, Math.floor(Number(String(text).replace(/[^\d]/g, "")) || 0));
+  }
+
+  function parseLevelFromAmount(text) {
+    var match = String(text || "").match(/Lv\.?\s*(\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  function parseAmountFraction(text) {
+    var parts = String(text || "").split("/");
+    if (parts.length < 2) return null;
+    return {
+      deposited: parseCompactNumber(parts[0]),
+      required: parseCompactNumber(parts[1]),
+    };
+  }
+
+  function findBuildingsCard() {
+    var cards = document.querySelectorAll(".card");
+    for (var i = 0; i < cards.length; i++) {
+      var header = cards[i].querySelector(".header .name");
+      if (header && (header.textContent || "").trim() === "Buildings") {
+        return cards[i];
+      }
+    }
+    return null;
+  }
+
+  function findRequirementsCard() {
+    var cards = document.querySelectorAll(".card");
+    for (var c = 0; c < cards.length; c++) {
+      var reqHeader = cards[c].querySelector(".header .name");
+      if (reqHeader && (reqHeader.textContent || "").trim() === "Requirements") {
+        return cards[c];
+      }
+    }
+    return null;
+  }
+
+  function scrapeRequirements(reqCard) {
+    if (!reqCard) return null;
+
+    var materials = {};
+    var coins = null;
+    var rows = reqCard.querySelectorAll(".row, button.row");
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      var nameEl = row.querySelector(".name");
+      var amountEl = row.querySelector(".amount");
+      if (!nameEl || !amountEl) continue;
+      var itemName = (nameEl.textContent || "").trim();
+      if (!itemName || itemName === "Guild" || itemName === "Credits") {
+        continue;
+      }
+      var frac = parseAmountFraction(amountEl.textContent || "");
+      if (!frac || frac.required <= 0) continue;
+      if (itemName === "Coins") {
+        coins = frac.deposited;
+        continue;
+      }
+      var materialId = materialNameToId(itemName);
+      if (!materialId) continue;
+      materials[materialId] = frac.deposited;
+    }
+
+    if (Object.keys(materials).length === 0 && coins == null) return null;
+
+    return { materials: materials, coins: coins };
+  }
+
+  function scrapeActiveBuildingMaterials() {
+    var buildingsCard = findBuildingsCard();
+    if (!buildingsCard) return null;
+
+    var activeRow =
+      buildingsCard.querySelector("button.row.row-active") ||
+      buildingsCard.querySelector("button.row");
+    if (!activeRow) return null;
+
+    var buildingName = ((activeRow.querySelector(".name") || {}).textContent || "").trim();
+    var level = parseLevelFromAmount((activeRow.querySelector(".amount") || {}).textContent || "");
+    var buildingId = BUILDING_NAME_TO_ID[buildingName];
+    if (!buildingId || level == null) return null;
+
+    var req = scrapeRequirements(findRequirementsCard());
+    if (!req) return null;
+
+    var entry = {
+      buildingId: buildingId,
+      fromLevel: level,
+      materials: req.materials,
+      source: "dom",
+    };
+    if (req.coins != null) entry.coins = req.coins;
+    return entry;
+  }
+
+  function scrapeBuildingMaterialsFromDom() {
+    return scrapeActiveBuildingMaterials();
+  }
+
+  async function readBuildingMaterialsPayload(host) {
+    navigateToBuildingsTab(host);
+
+    var buildingsCard = null;
+    for (var attempt = 0; attempt < 20; attempt++) {
+      buildingsCard = findBuildingsCard();
+      if (buildingsCard) break;
+      await sleep(400);
+    }
+    if (!buildingsCard) return null;
+
+    var rows = buildingsCard.querySelectorAll("button.row");
+    if (!rows.length) return null;
+
+    var results = [];
+    var seen = {};
+
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].click();
+      var entry = null;
+      for (var wait = 0; wait < 12; wait++) {
+        await sleep(300);
+        entry = scrapeActiveBuildingMaterials();
+        if (entry) break;
+      }
+      if (!entry) continue;
+      var key = entry.buildingId + ":" + entry.fromLevel;
+      if (seen[key]) continue;
+      seen[key] = true;
+      results.push(entry);
+    }
+
+    return results.length ? results : null;
   }
 
   function navigateToTrialsTab(host) {
@@ -1922,6 +2127,16 @@
 
       payload = enrichPayloadSkillCompletions(payload);
 
+      var host = findGuildHost();
+      try {
+        var buildingMaterials = await readBuildingMaterialsPayload(host);
+        if (buildingMaterials) {
+          payload.buildingMaterials = buildingMaterials;
+        }
+      } catch (buildingErr) {
+        /* building materials are optional */
+      }
+
       var activeCount = countActiveAssignments(payload);
 
       if (activeCount === 0) {
@@ -1936,7 +2151,7 @@
       }
 
       var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
-      var destination = returnUrl + sep + "trialSync=" + encodeURIComponent(toBase64Url(payload));
+      var destination = returnUrl + sep + "gameSync=" + encodeURIComponent(toBase64Url(payload));
 
       setStatus(
         "Done! Returning to Guild Trials…",

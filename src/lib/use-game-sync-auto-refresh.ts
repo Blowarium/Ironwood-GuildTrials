@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   buildIronwoodTrialSyncLaunchUrl,
-  buildPlannerTrialSyncReturnUrl,
+  buildPlannerGameSyncReturnUrl,
   TRIAL_SYNC_AUTO_INTERVAL_MS,
   TRIAL_SYNC_HELPER_WINDOW_NAME,
-} from "./ironwood-trial-sync";
+} from "./ironwood-game-sync";
 
 function helperWindowBusy(): boolean {
   try {
@@ -15,7 +15,6 @@ function helperWindowBusy(): boolean {
     try {
       return /ironwoodrpg\.com/i.test(existing.location.hostname);
     } catch {
-      // Cross-origin while Ironwood sync is running.
       return true;
     }
   } catch {
@@ -23,7 +22,7 @@ function helperWindowBusy(): boolean {
   }
 }
 
-export function useTrialSyncAutoRefresh(options: {
+export function useGameSyncAutoRefresh(options: {
   enabled: boolean;
   plannerHref: string;
   syncBusy: boolean;
@@ -36,7 +35,7 @@ export function useTrialSyncAutoRefresh(options: {
     if (!enabled || !plannerHref || syncBusy || launchCooldownRef.current) return false;
     if (helperWindowBusy()) return false;
 
-    const returnUrl = buildPlannerTrialSyncReturnUrl(plannerHref);
+    const returnUrl = buildPlannerGameSyncReturnUrl(plannerHref);
     window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);
     setLastAutoSyncAt(new Date());
     launchCooldownRef.current = true;
@@ -58,3 +57,6 @@ export function useTrialSyncAutoRefresh(options: {
 
   return { lastAutoSyncAt, launchAutoSync };
 }
+
+/** @deprecated Use {@link useGameSyncAutoRefresh}. */
+export const useTrialSyncAutoRefresh = useGameSyncAutoRefresh;

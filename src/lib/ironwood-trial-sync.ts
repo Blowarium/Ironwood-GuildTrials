@@ -7,7 +7,10 @@
 import { MEMBERS, SKILLS, type Member, type Skill } from "./constants";
 import { guildDateFromInstant, guildWeekStart } from "./guild-timezone";
 import { IRONWOOD_ORIGIN, IRONWOOD_SKILL_NAME_MAP } from "./ironwood-xp-import";
-import { getWeekStart } from "./weeks";
+import type {
+  IronwoodBuildingMaterialsSync,
+  IronwoodBuildingMaterialsSyncInput,
+} from "./ironwood-building-sync";
 import { TRIAL_DURATION_MS, snapStartAtToWholeHour, weekBoundsLocal } from "./trial-schedule";
 import type { TrialSignup, SkillWeekCompletion } from "./types";
 
@@ -27,12 +30,15 @@ export const TRIAL_SYNC_USERSCRIPT_PATH = "/ironwood-trial-sync.user.js";
 export const TRIAL_SYNC_HELPER_STORAGE_KEY = "igt-trial-sync-helper-installed";
 export const TRIAL_SYNC_HELPER_PROBE_PARAM = "igtHelperProbe";
 export const TRIAL_SYNC_HELPER_PROBE_VALUE = "trialSync";
+export const GAME_SYNC_URL_PARAM = "gameSync";
+/** @deprecated Use {@link GAME_SYNC_URL_PARAM} — kept for older return links. */
+export const TRIAL_SYNC_URL_PARAM = "trialSync";
 export const TRIAL_SYNC_AUTO_INTERVAL_MS = 30 * 60 * 1000;
 export const TRIAL_SYNC_HELPER_WINDOW_NAME = "igt-ironwood-trial-sync";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.10.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.14.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -114,6 +120,8 @@ export type IronwoodTrialSyncPayload = {
   source?: string;
   /** Skills marked complete in Ironwood UI (div.amount shows "Complete"). */
   skillCompletions?: Partial<Record<Skill, boolean>>;
+  /** In-game building upgrade material deposits (Buildings tab), one entry per building. */
+  buildingMaterials?: IronwoodBuildingMaterialsSyncInput;
   /** displayNames from in-game that did not match MEMBERS. */
   unmatchedNames?: string[];
   errors?: string[];
@@ -157,6 +165,14 @@ export type TrialSyncApplyResult = {
   /** Skills unmarked because in-game trial XP no longer meets the requirement. */
   completionsUnmarked: Skill[];
   completionErrors: Array<{ skill: Skill; error: string }>;
+  /** Building material and coin deposits synced from in-game Buildings tab. */
+  buildingMaterialsApplied?: Array<{
+    buildingId: string;
+    fromLevel: number;
+    materialCount: number;
+    coinsDeposited: number;
+  }>;
+  buildingMaterialsError?: string;
 };
 
 /** @deprecated Whole-hour scheduling compares snapped instants exactly. */
@@ -533,12 +549,21 @@ export type IronwoodTrialProbeReport = {
   };
 };
 
-export function buildPlannerTrialSyncReturnUrl(href: string): string {
+export type IronwoodGameSyncPayload = IronwoodTrialSyncPayload;
+export type GameSyncApplyResult = TrialSyncApplyResult;
+
+export function buildPlannerGameSyncReturnUrl(href: string): string {
   const url = new URL(href);
-  url.searchParams.delete("trialSync");
+  url.searchParams.delete(GAME_SYNC_URL_PARAM);
+  url.searchParams.delete(TRIAL_SYNC_URL_PARAM);
   url.searchParams.delete("trialProbe");
   url.hash = "";
   return url.toString();
+}
+
+/** @deprecated Use {@link buildPlannerGameSyncReturnUrl}. */
+export function buildPlannerTrialSyncReturnUrl(href: string): string {
+  return buildPlannerGameSyncReturnUrl(href);
 }
 
 export function buildIronwoodTrialProbeLaunchUrl(returnUrl: string): string {
@@ -615,11 +640,17 @@ export function markTrialSyncHelperInstalled(): void {
   localStorage.setItem(TRIAL_SYNC_HELPER_STORAGE_KEY, "1");
 }
 
-export function readTrialSyncFromLocation(search: string): IronwoodTrialSyncPayload | null {
+export function readGameSyncFromLocation(search: string): IronwoodGameSyncPayload | null {
   const params = new URLSearchParams(search);
-  const encoded = params.get("trialSync");
+  const encoded =
+    params.get(GAME_SYNC_URL_PARAM) ?? params.get(TRIAL_SYNC_URL_PARAM);
   if (!encoded) return null;
   return decodeTrialSyncPayload(encoded);
+}
+
+/** @deprecated Use {@link readGameSyncFromLocation}. */
+export function readTrialSyncFromLocation(search: string): IronwoodTrialSyncPayload | null {
+  return readGameSyncFromLocation(search);
 }
 
 export { findWeekOffsetForStart } from "./weeks";

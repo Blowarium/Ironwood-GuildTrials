@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { GUILD_BUILDING_ORDER, GUILD_BUILDINGS, formatCoins, formatCredits } from "@/lib/guild-buildings-data";
+import { buildSequentialCreditAllocations } from "@/lib/guild-buildings-credits";
+import { upgradeStepKey } from "@/lib/guild-buildings-materials";
 import {
   UPGRADE_STRATEGIES,
   type GuildBuildingLevels,
@@ -47,7 +49,14 @@ function MilestoneCell({
   return <td className={`py-1.5 pr-2 text-xs ${className}`}>{formatMilestone(day)}</td>;
 }
 
-function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
+function ScenarioUpgradePath({
+  row,
+  guildCredits,
+}: {
+  row: ScenarioComparisonRow;
+  guildCredits: number;
+}) {
+  const creditAllocations = buildSequentialCreditAllocations(row.schedule.upgrades, guildCredits);
   return (
     <details className="rounded-lg border border-slate-700/40 bg-slate-900/30">
       <summary className="cursor-pointer px-3 py-2 text-sm text-slate-200 hover:bg-slate-800/40">
@@ -64,8 +73,11 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
             </p>
             <p className="text-[10px] text-slate-400">
               Lv.{step.fromLevel} → {step.toLevel} ·{" "}
-              {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)} · +
-              {Math.round(step.dayOffset)}d
+              {formatCredits(
+                creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel))?.deposited ??
+                  0,
+              )}
+              /{formatCredits(step.creditCost)} · +{Math.round(step.dayOffset)}d
             </p>
           </div>
         ))}
@@ -90,7 +102,11 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
                   Lv.{step.fromLevel} → {step.toLevel}
                 </td>
                 <td className="py-1 pr-2 tabular-nums text-amber-200">
-                  {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)}
+                  {formatCredits(
+                    creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel))
+                      ?.deposited ?? 0,
+                  )}
+                  /{formatCredits(step.creditCost)}
                 </td>
                 <td className="py-1 text-slate-500">+{Math.round(step.dayOffset)}d</td>
               </tr>
@@ -105,9 +121,11 @@ function ScenarioUpgradePath({ row }: { row: ScenarioComparisonRow }) {
 export function GuildBuildingsScenarioCompare({
   levels,
   scenarios,
+  guildCredits = 0,
 }: {
   levels: GuildBuildingLevels;
   scenarios: ScenarioComparisonRow[];
+  guildCredits?: number;
 }) {
   const [enabled, setEnabled] = useState<Record<UpgradeStrategyId, boolean>>(() =>
     Object.fromEntries(UPGRADE_STRATEGIES.map((s) => [s.id, true])) as Record<
@@ -381,7 +399,7 @@ export function GuildBuildingsScenarioCompare({
             {expandedPaths && (
               <div className="mt-2 space-y-2">
                 {visible.map((row) => (
-                  <ScenarioUpgradePath key={row.strategy} row={row} />
+                  <ScenarioUpgradePath key={row.strategy} row={row} guildCredits={guildCredits} />
                 ))}
               </div>
             )}

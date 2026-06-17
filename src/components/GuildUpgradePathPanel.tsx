@@ -1,6 +1,7 @@
 "use client";
 
 import { GUILD_BUILDINGS, formatCoins, formatCredits } from "@/lib/guild-buildings-data";
+import { buildSequentialCreditAllocations } from "@/lib/guild-buildings-credits";
 import type { ScenarioComparisonRow } from "@/lib/guild-buildings-schedule";
 import { strategyDef, type UpgradeStrategyId } from "@/lib/guild-buildings-strategies";
 import { DEFAULT_GUILD_MEMBER_COUNT } from "@/lib/guild-buildings-data";
@@ -12,7 +13,7 @@ import { UpgradeStepMaterialsCell } from "./UpgradeStepMaterialsCell";
 import { UpgradeStepCoinsCell } from "./UpgradeStepCoinsCell";
 import { UpgradeStepCreditsCell } from "./UpgradeStepCreditsCell";
 import type { Member } from "@/lib/constants";
-import type { PlannerMaterialDeposits } from "@/lib/guild-buildings-materials";
+import { upgradeStepKey, type PlannerMaterialDeposits } from "@/lib/guild-buildings-materials";
 import type { PlannerCoinDeposits } from "@/lib/guild-buildings-coins";
 
 export function GuildUpgradePathPanel({
@@ -70,6 +71,10 @@ export function GuildUpgradePathPanel({
 }) {
   const detailSchedule = detailScenario.schedule;
   const isPreferred = selectedStrategy === preferredStrategy;
+  const creditAllocations = buildSequentialCreditAllocations(
+    detailSchedule.upgrades,
+    guildCredits ?? 0,
+  );
 
   return (
     <div className="mobile-panel rounded-xl border border-sky-800/40 bg-sky-950/20 sm:p-4">
@@ -198,11 +203,24 @@ export function GuildUpgradePathPanel({
             </div>
             <p className="mt-0.5 text-[11px] text-slate-400">
               Lv.{step.fromLevel} → Lv.{step.toLevel} ·{" "}
-              {formatCredits(step.creditsBefore)}/{formatCredits(step.creditCost)} credits · +
-              {Math.round(step.dayOffset)}d
+              {formatCredits(
+                creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel))?.deposited ??
+                  0,
+              )}
+              /{formatCredits(step.creditCost)} credits · +{Math.round(step.dayOffset)}d
             </p>
             <div className="mt-2 space-y-2 border-t border-slate-800/50 pt-2">
-              <UpgradeStepCreditsCell step={step} />
+              <UpgradeStepCreditsCell
+                allocation={
+                  creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel)) ?? {
+                    stepKey: upgradeStepKey(step.buildingId, step.fromLevel),
+                    deposited: 0,
+                    required: step.creditCost,
+                    ready: false,
+                    isActive: false,
+                  }
+                }
+              />
               <UpgradeStepCoinsCell
                 step={step}
                 deposits={coinDeposits ?? {}}
@@ -248,7 +266,17 @@ export function GuildUpgradePathPanel({
                   Lv.{step.fromLevel} → Lv.{step.toLevel}
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <UpgradeStepCreditsCell step={step} />
+                  <UpgradeStepCreditsCell
+                    allocation={
+                      creditAllocations.get(upgradeStepKey(step.buildingId, step.fromLevel)) ?? {
+                        stepKey: upgradeStepKey(step.buildingId, step.fromLevel),
+                        deposited: 0,
+                        required: step.creditCost,
+                        ready: false,
+                        isActive: false,
+                      }
+                    }
+                  />
                 </td>
                 <td className="py-2 pr-3 align-top">
                   <UpgradeStepCoinsCell

@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Ironwood Guild Trials — Trial Sync
+// @name         Ironwood Guild Trials — Game Data Sync
 // @namespace    ironwood-guild-trials
-// @version      1.10.0
-// @description  Auto-runs guild trial sync when opened from the trials planner (one-time install).
+// @version      1.14.0
+// @description  Auto-runs guild game data sync (trials, completions, building materials) when opened from the planner.
 // @match        https://ironwoodrpg.com/*
 // @match        https://www.ironwoodrpg.com/*
 // @grant        none
@@ -15,7 +15,7 @@
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
   var PROBE_RUN_KEY = "igt-trial-probe-run";
-  var SCRIPT_VERSION = "1.10.0";
+  var SCRIPT_VERSION = "1.14.0";
   var DEFAULT_APP_ORIGIN = "https://ironwood-guild-trials.vercel.app";
 
   function resolveReturnUrl(raw) {

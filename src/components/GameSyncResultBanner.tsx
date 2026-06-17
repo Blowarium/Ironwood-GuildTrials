@@ -1,13 +1,13 @@
 "use client";
 
-import type { TrialSyncApplyResult } from "@/lib/ironwood-trial-sync";
+import type { GameSyncApplyResult } from "@/lib/ironwood-game-sync";
 
-export function TrialSyncResultBanner({
+export function GameSyncResultBanner({
   result,
   weekStart,
   onDismiss,
 }: {
-  result: TrialSyncApplyResult;
+  result: GameSyncApplyResult;
   weekStart: string;
   onDismiss: () => void;
 }) {
@@ -26,7 +26,7 @@ export function TrialSyncResultBanner({
     <div className="rounded-lg border border-violet-500/30 bg-violet-950/30 px-3 py-2 text-sm text-slate-200 sm:px-4 sm:py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-medium text-violet-100">Ironwood trial sync applied</p>
+          <p className="font-medium text-violet-100">Game data sync applied</p>
           <p className="mt-1 text-xs text-slate-400">
             Week of {weekStart}
             {result.payloadSource ? ` · source ${result.payloadSource}` : ""}
@@ -81,6 +81,35 @@ export function TrialSyncResultBanner({
                 {e.member}: {e.error}
               </li>
             ))}
+            {result.buildingMaterialsApplied?.map((step) => (
+              <li key={`${step.buildingId}:${step.fromLevel}`}>
+                <span className="text-emerald-300">Building deposits synced</span>
+                {" — "}
+                {step.buildingId} Lv.{step.fromLevel} → {step.fromLevel + 1}
+                {step.materialCount > 0 || step.coinsDeposited > 0 ? (
+                  <>
+                    {" "}
+                    (
+                    {[
+                      step.materialCount > 0
+                        ? `${step.materialCount} material${step.materialCount === 1 ? "" : "s"}`
+                        : null,
+                      step.coinsDeposited > 0
+                        ? `${step.coinsDeposited.toLocaleString()} coins`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                    )
+                  </>
+                ) : (
+                  <span className="text-slate-500"> (none deposited)</span>
+                )}
+              </li>
+            ))}
+            {result.buildingMaterialsError && (
+              <li className="text-amber-300">{result.buildingMaterialsError}</li>
+            )}
             {result.completionErrors.map((e) => (
               <li key={e.skill} className="text-red-300">
                 {e.skill} completion: {e.error}
