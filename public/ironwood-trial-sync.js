@@ -126,6 +126,133 @@
     location.href = destination;
   }
 
+  function collectPlannerDeliveryTargets(plannerName) {
+    var targets = [];
+    var seen = [];
+
+    function add(win) {
+      if (!win) return;
+      try {
+        if (win.closed) return;
+        for (var i = 0; i < seen.length; i++) {
+          if (seen[i] === win) return;
+        }
+        seen.push(win);
+        targets.push(win);
+      } catch (e) {
+        /* ignore cross-origin access errors */
+      }
+    }
+
+    try {
+      add(window.opener);
+    } catch (e) {
+      /* ignore */
+    }
+
+    try {
+      add(window.open("", plannerName));
+    } catch (e) {
+      /* ignore */
+    }
+
+    return targets;
+  }
+
+  function deliverGameSyncToPlanner(payload) {
+    var plannerName = "igt-guild-trials-planner";
+    var encoded = toBase64Url(payload);
+    var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
+    var destination = returnUrl + sep + "gameSync=" + encodeURIComponent(encoded);
+    var targetOrigin = new URL(returnUrl).origin;
+    var message = { type: "igt-game-sync-payload", v: 1, payload: payload };
+
+    var targets = collectPlannerDeliveryTargets(plannerName);
+    var delivered = false;
+    for (var ti = 0; ti < targets.length; ti++) {
+      try {
+        targets[ti].postMessage(message, targetOrigin);
+        delivered = true;
+        try {
+          targets[ti].focus();
+        } catch (focusErr) {
+          /* ignore */
+        }
+      } catch (postErr) {
+        /* try next target */
+      }
+    }
+
+    if (delivered) {
+      try {
+        window.close();
+      } catch (closeErr) {
+        /* ignore */
+      }
+      return;
+    }
+
+    try {
+      var plannerWin = window.open(destination, plannerName);
+      if (plannerWin) {
+        try {
+          plannerWin.focus();
+        } catch (focusErr2) {
+          /* ignore */
+        }
+        try {
+          window.close();
+        } catch (closeErr2) {
+          /* ignore */
+        }
+        return;
+      }
+    } catch (openErr) {
+      /* fall through */
+    }
+
+    returnToPlanner(destination);
+  }
+
+  function applyPayloadTrialWeekFromGuild(payload) {
+    if (!payload) return payload;
+    var guild = readGuildFromAnySource() || {};
+    var trial = (guild && guild.trial) || findTrialRecordInPage() || {};
+    if (trial.startDate) {
+      payload.trialWeekStart = guildWeekStartFromInstant(trial.startDate);
+      payload.trialStartDate = trial.startDate;
+    }
+    if (trial.endDate) payload.trialEndDate = trial.endDate;
+    if (trial.requiredExp != null && trial.requiredExp !== "") {
+      payload.requiredExp = trial.requiredExp;
+    }
+    if (guild.name) payload.guildName = guild.name;
+    if (guild.id) payload.guildId = guild.id;
+    return payload;
+  }
+
+  async function refreshTrialCompletionsAfterBuildings(payload, host) {
+    setStatus("Reading skill completions…", "Returning to Trials tab.");
+    host = host || findGuildHost();
+    navigateToTrialsTab(host);
+    await triggerTrialLoad(host);
+    await sleep(2200);
+
+    var fresh = readTrialPayloadFromPage();
+    if (fresh) {
+      if (fresh.trialWeekStart) payload.trialWeekStart = fresh.trialWeekStart;
+      if (fresh.trialStartDate) payload.trialStartDate = fresh.trialStartDate;
+      if (fresh.trialEndDate) payload.trialEndDate = fresh.trialEndDate;
+      if (fresh.requiredExp != null) payload.requiredExp = fresh.requiredExp;
+      if ((!payload.skills || !payload.skills.length) && fresh.skills && fresh.skills.length) {
+        payload.skills = fresh.skills;
+      }
+    }
+
+    applyPayloadTrialWeekFromGuild(payload);
+    return enrichPayloadSkillCompletions(payload);
+  }
+
   function readObservableValue(subject) {
     if (!subject) return null;
     if (typeof subject === "object" && !subject.getValue && Array.isArray(subject)) return subject;
@@ -649,10 +776,77 @@
     return count;
   }
 
+  function payloadHasUsableTrialData(payload) {
+    if (!payload || !payload.skills) return false;
+    if (countMembersInPayload(payload) > 0) return true;
+    for (var i = 0; i < payload.skills.length; i++) {
+      var row = payload.skills[i];
+      if (row.complete || (row.currentExp && row.currentExp > 0)) return true;
+    }
+    return false;
+  }
+
+  function buildMinimalGameSyncPayload() {
+    var guild = readGuildFromAnySource() || guildFromCaptureRaw() || {};
+    var trial = (guild && guild.trial) || findTrialRecordInPage() || {};
+    var startDate = trial.startDate || new Date().toISOString();
+    var payload = {
+      v: 1,
+      importedAt: new Date().toISOString(),
+      source: "minimal",
+      guildName: guild.name || null,
+      guildId: guild.id || null,
+      trialWeekStart: guildWeekStartFromInstant(startDate),
+      trialStartDate: trial.startDate || null,
+      trialEndDate: trial.endDate || null,
+      requiredExp: trial.requiredExp || null,
+      trialsCompleted: 0,
+      trialsTotal: 16,
+      guildCreditsEarned: 0,
+      guildCreditsMax: 0,
+      skills: [],
+    };
+    return applyPayloadTrialWeekFromGuild(payload);
+  }
+
+  function buildingMaterialsCount(payload) {
+    if (!payload || !payload.buildingMaterials) return 0;
+    var bm = payload.buildingMaterials;
+    return Array.isArray(bm) ? bm.length : 1;
+  }
+
+  function hasSyncableGameData(payload, activeCount) {
+    if (activeCount > 0) return true;
+    if (payload.skillCompletions && Object.keys(payload.skillCompletions).length > 0) return true;
+    if (buildingMaterialsCount(payload) > 0) return true;
+    return false;
+  }
+
+  function syncResultSummary(payload, activeCount) {
+    var parts = [];
+    if (activeCount > 0) parts.push(activeCount + " active assignment(s)");
+    if (payload.skillCompletions) {
+      var completionCount = Object.keys(payload.skillCompletions).length;
+      if (completionCount > 0) parts.push(completionCount + " completed skill(s)");
+    }
+    var buildingCount = buildingMaterialsCount(payload);
+    if (buildingCount > 0) parts.push(buildingCount + " building deposit snapshot(s)");
+    if (parts.length) return parts.join(", ");
+    return "Week " + (payload.trialWeekStart || "unknown");
+  }
+
   function payloadScore(payload) {
     if (!payload || !payload.skills) return -1;
     var members = countMembersInPayload(payload);
-    if (!members) return -1;
+    if (!members) {
+      var progressScore = 0;
+      for (var pi = 0; pi < payload.skills.length; pi++) {
+        var skillRow = payload.skills[pi];
+        if (skillRow.complete) progressScore += 3;
+        else if (skillRow.currentExp > 0) progressScore += 1;
+      }
+      return progressScore > 0 ? progressScore : -1;
+    }
     var timed = countMembersWithTimedEndDate(payload);
     var sourceBonus =
       payload.source === "component"
@@ -1431,6 +1625,7 @@
       return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
     });
 
+    applyPayloadTrialWeekFromGuild(payload);
     return payload;
   }
 
@@ -2067,13 +2262,13 @@
           }
         }
       }
-      if (payload && countMembersInPayload(payload) > 0) {
+      if (payload && payloadHasUsableTrialData(payload)) {
+        var memberCount = countMembersInPayload(payload);
         setStatus(
           "Trial data ready",
-          countMembersInPayload(payload) +
-            " assignment(s) via " +
-            (payload.source || "unknown") +
-            ".",
+          memberCount > 0
+            ? memberCount + " assignment(s) via " + (payload.source || "unknown") + "."
+            : "Skill progress via " + (payload.source || "unknown") + " (no active assignments).",
         );
         return payload;
       }
@@ -2102,9 +2297,20 @@
       await sleep(600);
     }
 
-    throw new Error(
-      "Could not read trial assignments from Ironwood. Open Guild → Trials, wait for assignments to load, then sync again.",
+    var fallbackPayload = readTrialPayloadFromPage();
+    if (fallbackPayload && payloadHasUsableTrialData(fallbackPayload)) {
+      setStatus(
+        "Trial data ready (partial)",
+        "Using last readable trial snapshot.",
+      );
+      return fallbackPayload;
+    }
+
+    setStatus(
+      "Continuing without trial assignments",
+      "Building deposits and skill completions will still sync if available.",
     );
+    return buildMinimalGameSyncPayload();
   }
 
   function countActiveAssignments(payload) {
@@ -2137,29 +2343,28 @@
         /* building materials are optional */
       }
 
+      payload = await refreshTrialCompletionsAfterBuildings(payload, host);
+
       var activeCount = countActiveAssignments(payload);
 
-      if (activeCount === 0) {
+      if (!hasSyncableGameData(payload, activeCount)) {
         setStatus(
-          "No active trial assignments found.",
-          "Members must be on a trial slot (timer running) to sync.",
+          "Nothing new to sync.",
+          "No active trials, building deposits, or skill completions found.",
         );
-        await sleep(4000);
+        await sleep(3000);
         overlay.remove();
         sessionStorage.removeItem(SYNC_RUN_KEY);
         return;
       }
 
-      var sep = returnUrl.indexOf("?") >= 0 ? "&" : "?";
-      var destination = returnUrl + sep + "gameSync=" + encodeURIComponent(toBase64Url(payload));
-
       setStatus(
         "Done! Returning to Guild Trials…",
-        activeCount + " active assignment(s) for week " + payload.trialWeekStart,
+        syncResultSummary(payload, activeCount) + " for week " + payload.trialWeekStart,
       );
       sessionStorage.removeItem(SYNC_RUN_KEY);
       await sleep(600);
-      returnToPlanner(destination);
+      deliverGameSyncToPlanner(payload);
     } catch (err) {
       setStatus("Sync failed", err && err.message ? err.message : String(err));
     }

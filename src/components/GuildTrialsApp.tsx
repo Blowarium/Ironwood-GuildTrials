@@ -46,7 +46,6 @@ import {
   markTrialSyncHelperInstalled,
   buildPlannerGameSyncReturnUrl,
   readTrialProbeFromLocation,
-  readGameSyncFromLocation,
   setGuildMemberNames,
   type IronwoodGameSyncPayload,
   type IronwoodTrialProbeReport,
@@ -83,7 +82,7 @@ import { WeeklyTimeline } from "./WeeklyTimeline";
 import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
 import { GameDataSyncModal } from "./GameDataSyncModal";
-import { useGameSyncHelperListener } from "./GameDataSyncPanel";
+import { useGameSyncInbound } from "@/lib/use-game-sync-inbound";
 import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
 import { GameSyncResultBanner } from "./GameSyncResultBanner";
 
@@ -181,23 +180,14 @@ export function GuildTrialsApp() {
     setGameSyncHelperReady(isTrialSyncHelperInstalled());
   }, []);
 
-  useGameSyncHelperListener(
-    useCallback(() => {
+  useGameSyncInbound({
+    onReady: useCallback(() => {
       setGameSyncHelperReady(true);
     }, []),
-  );
-
-  useEffect(() => {
-    const payload = readGameSyncFromLocation(window.location.search);
-    if (!payload) return;
-    setPendingGameSync(payload);
-    markTrialSyncHelperInstalled();
-    setGameSyncHelperReady(true);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("gameSync");
-    url.searchParams.delete("trialSync");
-    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-  }, []);
+    onPayload: useCallback((payload: IronwoodGameSyncPayload) => {
+      setPendingGameSync(payload);
+    }, []),
+  });
 
   useEffect(() => {
     const link = readTrialApplyDeepLink(window.location.search);

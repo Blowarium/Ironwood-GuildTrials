@@ -8,20 +8,6 @@ import {
   TRIAL_SYNC_HELPER_WINDOW_NAME,
 } from "./ironwood-game-sync";
 
-function helperWindowBusy(): boolean {
-  try {
-    const existing = window.open("", TRIAL_SYNC_HELPER_WINDOW_NAME);
-    if (!existing || existing.closed) return false;
-    try {
-      return /ironwoodrpg\.com/i.test(existing.location.hostname);
-    } catch {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-}
-
 export function useGameSyncAutoRefresh(options: {
   enabled: boolean;
   plannerHref: string;
@@ -33,7 +19,6 @@ export function useGameSyncAutoRefresh(options: {
 
   const launchAutoSync = useCallback(() => {
     if (!enabled || !plannerHref || syncBusy || launchCooldownRef.current) return false;
-    if (helperWindowBusy()) return false;
 
     const returnUrl = buildPlannerGameSyncReturnUrl(plannerHref);
     window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);

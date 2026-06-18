@@ -35,10 +35,12 @@ export const GAME_SYNC_URL_PARAM = "gameSync";
 export const TRIAL_SYNC_URL_PARAM = "trialSync";
 export const TRIAL_SYNC_AUTO_INTERVAL_MS = 30 * 60 * 1000;
 export const TRIAL_SYNC_HELPER_WINDOW_NAME = "igt-ironwood-trial-sync";
+/** Named window for the planner tab so the Ironwood helper can deliver sync results reliably. */
+export const TRIAL_SYNC_PLANNER_WINDOW_NAME = "igt-guild-trials-planner";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.14.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.17.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -289,16 +291,29 @@ export function planSkillCompletionSync(
   const markDone: Skill[] = [];
   const unmark: Skill[] = [];
   const payloadRequiredExp = payload.requiredExp ?? 0;
+  const markDoneSet = new Set<Skill>();
 
   for (const row of payload.skills) {
     const inGameComplete = resolveIronwoodTrialSkillComplete(row, payloadRequiredExp);
     if (inGameComplete && !markedInPlanner.has(row.skill)) {
-      markDone.push(row.skill);
+      markDoneSet.add(row.skill);
     } else if (!inGameComplete && markedInPlanner.has(row.skill)) {
       unmark.push(row.skill);
     }
   }
 
+  if (payload.skillCompletions) {
+    for (const skill of IRONWOOD_TRIAL_SKILL_ORDER) {
+      if (!payload.skillCompletions[skill] || markedInPlanner.has(skill)) continue;
+      const row = payload.skills.find((entry) => entry.skill === skill);
+      const inGameComplete = row
+        ? resolveIronwoodTrialSkillComplete(row, payloadRequiredExp)
+        : true;
+      if (inGameComplete) markDoneSet.add(skill);
+    }
+  }
+
+  markDone.push(...markDoneSet);
   return { markDone, unmark };
 }
 
@@ -491,6 +506,16 @@ export function isIronwoodTrialSyncHelperMessage(data: unknown): boolean {
   if (!data || typeof data !== "object") return false;
   const msg = data as { type?: string; v?: number };
   return msg.type === "igt-trial-sync-helper-active" && msg.v === 1;
+}
+
+export function isIronwoodGameSyncPayloadMessage(
+  data: unknown,
+): data is { type: "igt-game-sync-payload"; v: 1; payload: IronwoodTrialSyncPayload } {
+  if (!data || typeof data !== "object") return false;
+  const msg = data as { type?: string; v?: number; payload?: unknown };
+  if (msg.type !== "igt-game-sync-payload" || msg.v !== 1) return false;
+  const payload = msg.payload as IronwoodTrialSyncPayload | undefined;
+  return payload?.v === 1 && Array.isArray(payload.skills);
 }
 
 export function isIronwoodOrigin(origin: string): boolean {

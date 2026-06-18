@@ -17,10 +17,12 @@ import {
   TRIAL_SYNC_AUTO_INTERVAL_MS,
   TRIAL_SYNC_HELPER_WINDOW_NAME,
   TRIAL_SYNC_SCRIPT_VERSION,
+  isIronwoodGameSyncPayloadMessage,
   isIronwoodOrigin,
   isIronwoodTrialSyncHelperMessage,
   isTrialSyncHelperInstalled,
   markTrialSyncHelperInstalled,
+  type IronwoodGameSyncPayload,
 } from "@/lib/ironwood-game-sync";
 import { formatDateTimeLabel } from "@/lib/trial-schedule";
 
@@ -326,15 +328,26 @@ export function GameDataSyncPanel({
   );
 }
 
-export function useGameSyncHelperListener(onReady: () => void) {
+export function useGameSyncHelperListener(options: {
+  onReady?: () => void;
+  onPayload?: (payload: IronwoodGameSyncPayload) => void;
+}) {
+  const { onReady, onPayload } = options;
+
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (!isIronwoodOrigin(event.origin)) return;
+      if (isIronwoodGameSyncPayloadMessage(event.data)) {
+        markTrialSyncHelperInstalled();
+        onReady?.();
+        onPayload?.(event.data.payload);
+        return;
+      }
       if (!isIronwoodTrialSyncHelperMessage(event.data)) return;
       markTrialSyncHelperInstalled();
-      onReady();
+      onReady?.();
     }
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onReady]);
+  }, [onReady, onPayload]);
 }
