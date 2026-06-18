@@ -8,6 +8,20 @@ const GUILD_UTC_OFFSET_MS = 2 * 60 * 60 * 1000;
 
 export const GUILD_DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Ironwood guild daily / weekly reset — 02:00 on the guild clock (UTC+2). */
+export const IRONWOOD_DAILY_RESET_HOUR = 2;
+
+/** Most recent daily reset at or before `at` (guild clock). */
+export function snapToLastDailyReset(at: Date): Date {
+  const date = guildDateFromInstant(at);
+  const { hours, minutes } = guildTimeParts(at);
+  const pastResetToday =
+    hours > IRONWOOD_DAILY_RESET_HOUR ||
+    (hours === IRONWOOD_DAILY_RESET_HOUR && minutes >= 0);
+  const resetDate = pastResetToday ? date : guildAddDays(date, -1);
+  return new Date(guildInstantFromLocal(resetDate, IRONWOOD_DAILY_RESET_HOUR, 0));
+}
+
 /** YYYY-MM-DD on the guild clock for an instant. */
 export function guildDateFromInstant(iso: string | Date): string {
   const t = new Date(iso).getTime() + GUILD_UTC_OFFSET_MS;
@@ -56,12 +70,20 @@ export function guildAddDays(dateIso: string, days: number): string {
   return guildDateFromInstant(new Date(anchor));
 }
 
-/** Monday YYYY-MM-DD of the guild week containing `at`, plus `weekOffset` weeks. */
+/**
+ * Monday YYYY-MM-DD of the guild trial week containing `at`, plus `weekOffset` weeks.
+ * Week boundary is Monday 02:00 guild time (Ironwood weekly reset).
+ */
 export function guildWeekStart(at: Date = new Date(), weekOffset = 0): string {
-  const today = guildDateFromInstant(at);
-  const day = guildDayOfWeek(at);
-  const mondayDelta = day === 0 ? -6 : 1 - day;
-  return guildAddDays(today, mondayDelta + weekOffset * 7);
+  const lastReset = snapToLastDailyReset(at);
+  const resetDate = guildDateFromInstant(lastReset);
+  const day = guildDayOfWeek(guildInstantFromLocal(resetDate, 12, 0));
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const mondayDate = guildAddDays(resetDate, mondayOffset);
+  const weekStartMs =
+    new Date(guildInstantFromLocal(mondayDate, IRONWOOD_DAILY_RESET_HOUR, 0)).getTime() +
+    weekOffset * 7 * GUILD_DAY_MS;
+  return guildDateFromInstant(new Date(weekStartMs));
 }
 
 export function guildFormatLabel(

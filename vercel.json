@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/discord?kind=weekly",
-      "schedule": "0 22 * * 0"
+      "schedule": "0 0 * * 1"
     },
     {
       "path": "/api/cron/discord?kind=reminder",

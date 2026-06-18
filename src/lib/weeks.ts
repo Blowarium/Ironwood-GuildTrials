@@ -8,7 +8,7 @@ import {
 } from "./guild-timezone";
 import { weekBoundsLocal } from "./trial-schedule";
 
-/** Monday 00:00 guild time (UTC+2) for the trial week containing `date`, plus `weekOffset` weeks. */
+/** Monday 02:00 guild time (UTC+2) for the trial week containing `date`, plus `weekOffset` weeks. */
 export function getWeekStart(date = new Date(), weekOffset = 0): string {
   return guildWeekStart(date, weekOffset);
 }

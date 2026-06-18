@@ -129,6 +129,23 @@ export type BuildingDepositsApplyResult = {
   errors: string[];
 };
 
+function stepMaterialsEqual(
+  a: Record<string, number> | undefined,
+  b: Record<string, number> | undefined,
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    if ((left[key] ?? 0) !== (right[key] ?? 0)) return false;
+  }
+  return true;
+}
+
+function stepCoinsEqual(a: number | undefined, b: number | undefined): boolean {
+  return (a ?? 0) === (b ?? 0);
+}
+
 export function planBuildingMaterialsApply(
   sync: IronwoodBuildingMaterialsSync | null | undefined,
   existing: PlannerMaterialDeposits | null | undefined,
@@ -173,6 +190,10 @@ export function planAllBuildingMaterialsApply(
 
     if (!hasMaterialSync && !hasCoinSync) continue;
 
+    const stepKey = upgradeStepKey(sync.buildingId, sync.fromLevel);
+    const previousStepMaterials = nextMaterials[stepKey];
+    const previousStepCoins = nextCoins[stepKey];
+
     if (hasMaterialSync) {
       nextMaterials = mergeBuildingMaterialsSync(nextMaterials, sync);
     }
@@ -180,7 +201,10 @@ export function planAllBuildingMaterialsApply(
       nextCoins = mergeBuildingCoinsSync(nextCoins, sync);
     }
 
-    const stepKey = upgradeStepKey(sync.buildingId, sync.fromLevel);
+    const materialsChanged = !stepMaterialsEqual(previousStepMaterials, nextMaterials[stepKey]);
+    const coinsChanged = !stepCoinsEqual(previousStepCoins, nextCoins[stepKey]);
+    if (!materialsChanged && !coinsChanged) continue;
+
     steps.push({
       buildingId: sync.buildingId,
       fromLevel: sync.fromLevel,

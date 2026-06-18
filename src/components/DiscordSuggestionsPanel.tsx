@@ -8,6 +8,7 @@ import {
   type DiscordPostKind,
 } from "@/lib/api-client";
 import { getStaffAuthToken } from "@/lib/staff-auth-client";
+import { formatDiscordCronScheduleLine } from "@/lib/discord-cron-schedule";
 import { formatWeekTabLabel, getWeekStart } from "@/lib/weeks";
 
 export function DiscordSuggestionsPanel({
@@ -106,7 +107,7 @@ export function DiscordSuggestionsPanel({
       )}
 
       <p className="mt-2 text-[10px] text-slate-500">
-        Cron (UTC): weekly Sun 22:00 · reminder Wed 10:00 (Mon 00:00 / Wed 12:00 guild time). Set{" "}
+        {formatDiscordCronScheduleLine()} Set{" "}
         <code className="text-slate-600">CRON_SECRET</code> and{" "}
         <code className="text-slate-600">DISCORD_PING_MODE</code> (role/everyone/none).
       </p>

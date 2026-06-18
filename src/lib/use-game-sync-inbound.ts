@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import {
+  persistPendingGameSync,
+  readStoredGameSyncResult,
+} from "./game-sync-session";
+import {
   isIronwoodGameSyncPayloadMessage,
   isIronwoodOrigin,
   isIronwoodTrialSyncHelperMessage,
@@ -34,7 +38,11 @@ export function useGameSyncInbound(options: {
 
   const acceptPayload = useCallback((payload: IronwoodGameSyncPayload) => {
     if (payload.importedAt && payload.importedAt === lastImportedAtRef.current) return;
+    const applied = readStoredGameSyncResult();
+    if (payload.importedAt && applied?.importedAt === payload.importedAt) return;
+
     lastImportedAtRef.current = payload.importedAt;
+    persistPendingGameSync(payload);
     markTrialSyncHelperInstalled();
     onReadyRef.current?.();
     onPayloadRef.current(payload);

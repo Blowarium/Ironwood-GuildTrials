@@ -83,6 +83,14 @@ import { StaffPasswordModal } from "./StaffPasswordModal";
 import { WelcomeGuideModal } from "./WelcomeGuideModal";
 import { GameDataSyncModal } from "./GameDataSyncModal";
 import { useGameSyncInbound } from "@/lib/use-game-sync-inbound";
+import {
+  persistDismissedGameSyncImportedAt,
+  persistGameSyncResult,
+  persistPendingGameSync,
+  readPendingGameSync,
+  readStoredGameSyncResult,
+  shouldShowStoredGameSyncResult,
+} from "@/lib/game-sync-session";
 import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
 import { GameSyncResultBanner } from "./GameSyncResultBanner";
 
@@ -121,6 +129,7 @@ export function GuildTrialsApp() {
   const [pendingGameSync, setPendingGameSync] = useState<IronwoodGameSyncPayload | null>(null);
   const [gameSyncResult, setGameSyncResult] = useState<GameSyncApplyResult | null>(null);
   const [gameSyncWeekStart, setGameSyncWeekStart] = useState<string | null>(null);
+  const [gameSyncImportedAt, setGameSyncImportedAt] = useState<string | null>(null);
   const [gameSyncHelperReady, setGameSyncHelperReady] = useState(false);
   const [gameSyncModalOpen, setGameSyncModalOpen] = useState(false);
   const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
@@ -180,11 +189,37 @@ export function GuildTrialsApp() {
     setGameSyncHelperReady(isTrialSyncHelperInstalled());
   }, []);
 
+  const restoreGameSyncSession = useCallback(() => {
+    const pending = readPendingGameSync();
+    if (pending) {
+      setPendingGameSync((current) => current ?? pending.payload);
+    }
+    const stored = readStoredGameSyncResult();
+    if (stored && shouldShowStoredGameSyncResult(stored)) {
+      setGameSyncResult(stored.result);
+      setGameSyncWeekStart(stored.weekStart);
+      setGameSyncImportedAt(stored.importedAt);
+    }
+  }, []);
+
+  useEffect(() => {
+    restoreGameSyncSession();
+  }, [restoreGameSyncSession]);
+
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") restoreGameSyncSession();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [restoreGameSyncSession]);
+
   useGameSyncInbound({
     onReady: useCallback(() => {
       setGameSyncHelperReady(true);
     }, []),
     onPayload: useCallback((payload: IronwoodGameSyncPayload) => {
+      persistPendingGameSync(payload);
       setPendingGameSync(payload);
     }, []),
   });
@@ -282,7 +317,6 @@ export function GuildTrialsApp() {
   const applyPendingGameSync = useCallback(async () => {
     if (!pendingGameSync || !currentUser || memberNames.length === 0) return;
     const payload = pendingGameSync;
-    setPendingGameSync(null);
     setSaving(true);
     setError(null);
     try {
@@ -302,8 +336,11 @@ export function GuildTrialsApp() {
         guildConfig?.planner_coin_deposits ?? null,
       );
 
+      persistGameSyncResult(payload.importedAt, targetWeek, result);
+      setPendingGameSync(null);
       setGameSyncResult(result);
       setGameSyncWeekStart(targetWeek);
+      setGameSyncImportedAt(payload.importedAt);
       setView("planner");
 
       const refreshed = await fetchWeekData(targetWeek);
@@ -314,6 +351,8 @@ export function GuildTrialsApp() {
       if (configData.config) setGuildConfig(configData.config);
     } catch {
       setError("Could not apply game data sync.");
+      persistPendingGameSync(payload);
+      setPendingGameSync(payload);
     } finally {
       setSaving(false);
     }
@@ -808,8 +847,12 @@ export function GuildTrialsApp() {
             result={gameSyncResult}
             weekStart={gameSyncWeekStart}
             onDismiss={() => {
+              if (gameSyncImportedAt) {
+                persistDismissedGameSyncImportedAt(gameSyncImportedAt);
+              }
               setGameSyncResult(null);
               setGameSyncWeekStart(null);
+              setGameSyncImportedAt(null);
             }}
           />
         )}

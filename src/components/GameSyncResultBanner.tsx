@@ -1,6 +1,7 @@
 "use client";
 
 import type { GameSyncApplyResult } from "@/lib/ironwood-game-sync";
+import { gameSyncResultHasVisibleContent } from "@/lib/game-sync-session";
 
 export function GameSyncResultBanner({
   result,
@@ -11,16 +12,7 @@ export function GameSyncResultBanner({
   weekStart: string;
   onDismiss: () => void;
 }) {
-  const total =
-    result.created.length +
-    result.updated.length +
-    result.unchanged.length +
-    result.errors.length +
-    result.completionsMarked.length +
-    result.completionsUnmarked.length +
-    result.completionErrors.length;
-
-  if (total === 0 && result.skipped.length === 0) return null;
+  if (!gameSyncResultHasVisibleContent(result)) return null;
 
   return (
     <div className="rounded-lg border border-violet-500/30 bg-violet-950/30 px-3 py-2 text-sm text-slate-200 sm:px-4 sm:py-3">

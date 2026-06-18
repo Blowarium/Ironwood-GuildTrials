@@ -4,22 +4,11 @@ import {
   guildDateFromInstant,
   guildDayOfWeek,
   guildInstantFromLocal,
-  guildTimeParts,
+  IRONWOOD_DAILY_RESET_HOUR,
+  snapToLastDailyReset,
 } from "./guild-timezone";
 
-/** Ironwood guild daily reset — 02:00 UTC+2. */
-export const IRONWOOD_DAILY_RESET_HOUR = 2;
-
-/** Most recent daily reset at or before `at` (guild clock). */
-export function snapToLastDailyReset(at: Date): Date {
-  const date = guildDateFromInstant(at);
-  const { hours, minutes } = guildTimeParts(at);
-  const pastResetToday =
-    hours > IRONWOOD_DAILY_RESET_HOUR ||
-    (hours === IRONWOOD_DAILY_RESET_HOUR && minutes >= 0);
-  const resetDate = pastResetToday ? date : guildAddDays(date, -1);
-  return new Date(guildInstantFromLocal(resetDate, IRONWOOD_DAILY_RESET_HOUR, 0));
-}
+export { IRONWOOD_DAILY_RESET_HOUR, GUILD_DAY_MS, snapToLastDailyReset };
 
 /** Next daily reset strictly after `at` (guild clock). */
 export function nextDailyResetAfter(at: Date): Date {
@@ -43,5 +32,3 @@ export function trialWeekResetKey(at: Date): number {
 export function formatDailyResetLabel(): string {
   return `${String(IRONWOOD_DAILY_RESET_HOUR).padStart(2, "0")}:00 UTC+2`;
 }
-
-export { GUILD_DAY_MS };

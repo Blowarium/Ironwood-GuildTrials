@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  readAutoSyncLaunchAt,
+  persistAutoSyncLaunchAt,
+} from "./game-sync-session";
+import {
   buildIronwoodTrialSyncLaunchUrl,
   buildPlannerGameSyncReturnUrl,
   TRIAL_SYNC_AUTO_INTERVAL_MS,
@@ -14,7 +18,7 @@ export function useGameSyncAutoRefresh(options: {
   syncBusy: boolean;
 }) {
   const { enabled, plannerHref, syncBusy } = options;
-  const [lastAutoSyncAt, setLastAutoSyncAt] = useState<Date | null>(null);
+  const [lastAutoSyncAt, setLastAutoSyncAt] = useState<Date | null>(() => readAutoSyncLaunchAt());
   const launchCooldownRef = useRef(false);
 
   const launchAutoSync = useCallback(() => {
@@ -22,7 +26,9 @@ export function useGameSyncAutoRefresh(options: {
 
     const returnUrl = buildPlannerGameSyncReturnUrl(plannerHref);
     window.open(buildIronwoodTrialSyncLaunchUrl(returnUrl), TRIAL_SYNC_HELPER_WINDOW_NAME);
-    setLastAutoSyncAt(new Date());
+    const now = new Date();
+    setLastAutoSyncAt(now);
+    persistAutoSyncLaunchAt(now);
     launchCooldownRef.current = true;
     window.setTimeout(() => {
       launchCooldownRef.current = false;

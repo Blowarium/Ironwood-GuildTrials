@@ -10,6 +10,7 @@ import {
   guildMidnight,
   guildTimeParts,
   guildAddDays,
+  IRONWOOD_DAILY_RESET_HOUR,
 } from "./guild-timezone";
 
 export const TRIAL_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -17,7 +18,9 @@ export const WEEK_DURATION_MS = 7 * TRIAL_DURATION_MS;
 export const GUILD_HOUR_MS = 60 * 60 * 1000;
 
 export function weekBoundsLocal(weekStartIso: string): { start: Date; end: Date } {
-  const start = guildMidnight(weekStartIso);
+  const start = new Date(
+    guildInstantFromLocal(weekStartIso, IRONWOOD_DAILY_RESET_HOUR, 0),
+  );
   const end = new Date(start.getTime() + WEEK_DURATION_MS);
   return { start, end };
 }
@@ -56,7 +59,7 @@ export function snapDisplayTimeValue(timeValue: string): string {
   return `${String(Math.max(0, Math.min(23, hour))).padStart(2, "0")}:00`;
 }
 
-/** Map 0–1 position on the week bar to a guild-local start timestamp (Mon 00:00 → next Mon 00:00). */
+/** Map 0–1 position on the week bar to a guild-local start timestamp (Mon 02:00 → next Mon 02:00). */
 export function buildStartAtFromWeekFraction(weekStartIso: string, fraction: number): string {
   const clamped = Math.max(0, Math.min(1, fraction));
   const { start } = weekBoundsLocal(weekStartIso);
