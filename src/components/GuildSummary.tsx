@@ -97,13 +97,15 @@ function SkillChipRow({
 
 function StatusLine({
   segments,
+  className,
 }: {
   segments: { text: string; className: string }[];
+  className?: string;
 }) {
   if (segments.length === 0) return null;
 
   return (
-    <p className="mt-0.5 text-[10px] text-slate-400 sm:mt-1 sm:text-xs">
+    <p className={className ?? "mt-0.5 text-[10px] text-slate-400 sm:mt-1 sm:text-xs"}>
       {segments.map((segment, index) => (
         <span key={segment.text}>
           {index > 0 && <span className="text-slate-600"> · </span>}
@@ -137,21 +139,21 @@ export function GuildSummary({
   const completedRunsCount = stats.skillsTrialRunsComplete.length;
   const inProgressCount = stats.skillsInProgress.length;
 
-  const inProgressStatusSegments: { text: string; className: string }[] = [];
+  const inProgressTrialSegments: { text: string; className: string }[] = [];
   if (activeCount > 0) {
-    inProgressStatusSegments.push({
+    inProgressTrialSegments.push({
       text: `${activeCount} active now`,
       className: "text-sky-300",
     });
   }
   if (scheduledCount > 0) {
-    inProgressStatusSegments.push({
+    inProgressTrialSegments.push({
       text: `${scheduledCount} scheduled`,
       className: "text-indigo-300",
     });
   }
   if (completedRunsCount > 0) {
-    inProgressStatusSegments.push({
+    inProgressTrialSegments.push({
       text: `${completedRunsCount} completed`,
       className: "text-emerald-300",
     });
@@ -162,19 +164,21 @@ export function GuildSummary({
     scheduledCount === 0 &&
     completedRunsCount === 0
   ) {
-    inProgressStatusSegments.push({
+    inProgressTrialSegments.push({
       text: "Awaiting completion mark",
       className: "text-slate-500",
     });
   }
+
+  const inProgressXpSegments: { text: string; className: string }[] = [];
   if (xpNeedsMore > 0) {
-    inProgressStatusSegments.push({
+    inProgressXpSegments.push({
       text: `${xpNeedsMore} may need more members`,
       className: "text-amber-300",
     });
   }
   if (xpEnough > 0) {
-    inProgressStatusSegments.push({
+    inProgressXpSegments.push({
       text: `${xpEnough} XP looks enough`,
       className: "text-emerald-400",
     });
@@ -218,7 +222,16 @@ export function GuildSummary({
           </p>
           {inProgressCount > 0 ? (
             <>
-              <StatusLine segments={inProgressStatusSegments} />
+              <div className="mt-0.5 space-y-0.5 sm:mt-1">
+                <StatusLine
+                  segments={inProgressTrialSegments}
+                  className="text-[10px] text-slate-400 sm:text-xs"
+                />
+                <StatusLine
+                  segments={inProgressXpSegments}
+                  className="text-[10px] text-slate-400 sm:text-xs"
+                />
+              </div>
               <div className="mt-1 space-y-0.5 sm:mt-1.5 sm:space-y-1">
                 <SkillChipRow
                   className=""
