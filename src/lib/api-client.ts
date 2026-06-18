@@ -98,12 +98,12 @@ export async function setSkillWeekComplete(payload: {
   weekStart: string;
   skill: Skill;
   completed: boolean;
-  markedBy?: Member;
+  markedBy: Member;
 }): Promise<{ completion?: SkillWeekCompletion | null; error?: string }> {
   const res = await fetch("/api/skill-completions", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(withStaffAuth({ ...payload, actorMember: payload.markedBy })),
   });
   const data = await res.json();
   if (!res.ok) return { error: data.error ?? "Could not update skill." };

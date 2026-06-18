@@ -266,6 +266,7 @@ function MobileWeeklyTimeline({
   xpCoverage,
   togglingSkill,
   currentUser,
+  canMarkSkillComplete,
   onToggleSkillComplete,
   onSlotClick,
   onSignupClick,
@@ -278,6 +279,7 @@ function MobileWeeklyTimeline({
   xpCoverage: SkillXpCoverage[];
   togglingSkill: Skill | null;
   currentUser: Member | "";
+  canMarkSkillComplete: boolean;
   onToggleSkillComplete: (skill: Skill, completed: boolean) => void;
   onSlotClick: (target: CellTarget) => void;
   onSignupClick: (signup: TrialSignup) => void;
@@ -332,7 +334,7 @@ function MobileWeeklyTimeline({
                   contributorCount={cov.contributorCount}
                   markedBy={cov.markedBy}
                   compact
-                  disabled={!currentUser || togglingSkill === skill}
+                  disabled={!canMarkSkillComplete || togglingSkill === skill}
                   onToggle={(completed) => onToggleSkillComplete(skill, completed)}
                 />
               )}
@@ -370,6 +372,7 @@ export function WeeklyTimeline({
   onDrop,
   canDragSignup,
   canOpenSignup,
+  canMarkSkillComplete,
 }: {
   weekStart: string;
   weekDays: string[];
@@ -385,6 +388,7 @@ export function WeeklyTimeline({
   onDrop: (target: CellTarget) => void;
   canDragSignup: (signup: TrialSignup) => boolean;
   canOpenSignup: (signup: TrialSignup) => boolean;
+  canMarkSkillComplete: boolean;
 }) {
   const coverageBySkill = new Map(skillCoverage.map((c) => [c.skill, c]));
   const xpBySkill = new Map(xpCoverage.map((c) => [c.skill, c]));
@@ -417,6 +421,7 @@ export function WeeklyTimeline({
           onSlotClick={onSlotClick}
           onSignupClick={onSignupClick}
           canOpenSignup={canOpenSignup}
+          canMarkSkillComplete={canMarkSkillComplete}
         />
       </div>
 
@@ -592,7 +597,7 @@ export function WeeklyTimeline({
                         contributorCount={cov.contributorCount}
                         markedBy={cov.markedBy}
                         compact
-                        disabled={!currentUser || togglingSkill === skill}
+                        disabled={!canMarkSkillComplete || togglingSkill === skill}
                         onToggle={(completed) => onToggleSkillComplete(skill, completed)}
                       />
                     )}

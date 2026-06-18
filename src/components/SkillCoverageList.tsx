@@ -1,6 +1,6 @@
 "use client";
 
-import type { Member, Skill } from "@/lib/constants";
+import type { Skill } from "@/lib/constants";
 import type { GuildStats } from "@/lib/stats";
 import {
   adequacyClass,
@@ -58,14 +58,14 @@ function RecapBox({
 export function SkillCoverageList({
   stats,
   xpCoverage,
-  currentUser,
   togglingSkill,
+  canMarkSkillComplete,
   onToggleComplete,
 }: {
   stats: GuildStats;
   xpCoverage: SkillXpCoverage[];
-  currentUser: Member | "";
   togglingSkill: Skill | null;
+  canMarkSkillComplete: boolean;
   onToggleComplete: (skill: Skill, completed: boolean) => void;
 }) {
   const xpBySkill = new Map(xpCoverage.map((x) => [x.skill, x]));
@@ -86,7 +86,9 @@ export function SkillCoverageList({
   return (
     <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-3">
       <h3 className="text-xs font-semibold text-white sm:text-sm">Skill status</h3>
-      <p className="hidden text-[10px] text-slate-500 sm:block">Mark done when the guild trial is finished</p>
+      <p className="hidden text-[10px] text-slate-500 sm:block">
+        Leaders and Officers mark done when the guild trial is finished
+      </p>
 
       <div className="mt-1.5 space-y-1 sm:mt-2 sm:space-y-2">
         <RecapBox
@@ -165,7 +167,7 @@ export function SkillCoverageList({
                 contributorCount={row.contributorCount}
                 markedBy={row.markedBy}
                 compact
-                disabled={!currentUser || togglingSkill === row.skill}
+                disabled={!canMarkSkillComplete || togglingSkill === row.skill}
                 onToggle={(completed) => onToggleComplete(row.skill, completed)}
               />
             </div>

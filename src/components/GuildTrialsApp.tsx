@@ -25,6 +25,7 @@ import {
   canDragSignup,
   canEditSignupFor,
   canManageRoles,
+  canMarkSkillCompleteFor,
   effectiveRole,
   isStaffRole,
 } from "@/lib/permissions";
@@ -153,6 +154,7 @@ export function GuildTrialsApp() {
   );
   const isStaff = isStaffRole(currentRole);
   const isLeader = canManageRoles(currentRole);
+  const canMarkSkillComplete = canMarkSkillCompleteFor(currentUser, rolesMap, staffUnlocked);
 
   const stats = useMemo(
     () => computeGuildStats(signups, completions, memberNames),
@@ -640,6 +642,10 @@ export function GuildTrialsApp() {
       setError("Select your character first to mark skills complete.");
       return;
     }
+    if (!canMarkSkillComplete) {
+      setError("Only Guild Leaders and Officers can mark skills done.");
+      return;
+    }
     setTogglingSkill(skill);
     setError(null);
     const { completion, error: err } = await setSkillWeekComplete({
@@ -949,6 +955,7 @@ export function GuildTrialsApp() {
                     skillCoverage={stats.skillCoverage}
                     xpCoverage={xpCoverage}
                     togglingSkill={togglingSkill}
+                    canMarkSkillComplete={canMarkSkillComplete}
                     onToggleSkillComplete={handleToggleSkillComplete}
                     onSlotClick={openCell}
                     onSignupClick={openSignup}
@@ -975,8 +982,8 @@ export function GuildTrialsApp() {
                 <SkillCoverageList
                   stats={stats}
                   xpCoverage={xpCoverage}
-                  currentUser={currentUser}
                   togglingSkill={togglingSkill}
+                  canMarkSkillComplete={canMarkSkillComplete}
                   onToggleComplete={handleToggleSkillComplete}
                 />
               </div>

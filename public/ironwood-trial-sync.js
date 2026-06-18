@@ -2347,20 +2347,11 @@
 
       var activeCount = countActiveAssignments(payload);
 
-      if (!hasSyncableGameData(payload, activeCount)) {
-        setStatus(
-          "Nothing new to sync.",
-          "No active trials, building deposits, or skill completions found.",
-        );
-        await sleep(3000);
-        overlay.remove();
-        sessionStorage.removeItem(SYNC_RUN_KEY);
-        return;
-      }
-
       setStatus(
         "Done! Returning to Guild Trials…",
-        syncResultSummary(payload, activeCount) + " for week " + payload.trialWeekStart,
+        hasSyncableGameData(payload, activeCount)
+          ? syncResultSummary(payload, activeCount) + " for week " + payload.trialWeekStart
+          : "No changes to apply for week " + payload.trialWeekStart,
       );
       sessionStorage.removeItem(SYNC_RUN_KEY);
       await sleep(600);

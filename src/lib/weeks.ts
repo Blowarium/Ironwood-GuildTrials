@@ -75,4 +75,4 @@ export function formatWeekTabLabel(weekStart: string): string {
 
 /** Trial window copy for the UI */
 export const TRIAL_WINDOW_NOTE =
-  "Goal: complete all 16 skill trials each week. Mark a skill done when finished — until then, more members can sign up. One 24h trial per member per week.";
+  "Goal: complete all 16 skill trials each week. Leaders and Officers mark a skill done when finished — until then, more members can sign up. One 24h trial per member per week.";

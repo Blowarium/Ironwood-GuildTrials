@@ -3,6 +3,14 @@ import { SKILLS, type Member, type Skill } from "@/lib/constants";
 import { ensureSchema, getDb } from "@/lib/db";
 import { devStore } from "@/lib/dev-store";
 import { assertActiveMember } from "@/lib/guild-members";
+import { buildRolesMap } from "@/lib/roles";
+import {
+  assertStaffAuth,
+  loadRolesMap,
+  parseActor,
+  parseStaffToken,
+  requireActor,
+} from "@/lib/server-auth";
 import type { SkillCompletionPayload, SkillWeekCompletion } from "@/lib/types";
 
 function isSkill(name: string): name is Skill {
@@ -24,27 +32,42 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Unknown skill." }, { status: 400 });
   }
 
+  const actor = parseActor(body.markedBy);
+  const actorResult = requireActor(actor);
+  if (!actorResult.ok) {
+    return NextResponse.json({ error: actorResult.error }, { status: actorResult.status });
+  }
+  const actorMember = actorResult.actor;
+  const staffToken = parseStaffToken(body.staffAuthToken);
+
   const db = getDb();
-  if (body.markedBy) {
-    const memberCheck = await assertActiveMember(db, body.markedBy);
-    if (memberCheck !== true) {
-      return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
-    }
+  const memberCheck = await assertActiveMember(db, actorMember);
+  if (memberCheck !== true) {
+    return NextResponse.json({ error: memberCheck.error }, { status: memberCheck.status });
   }
 
-  const markedBy = body.markedBy ?? null;
-
   if (!db) {
+    const rolesMap = buildRolesMap(devStore.listRoles(), devStore.listMemberNames());
+    const perm = assertStaffAuth(actorMember, rolesMap, staffToken);
+    if (perm !== true) {
+      return NextResponse.json({ error: perm.error }, { status: perm.status });
+    }
+
     const completion = devStore.setSkillCompletion(
       body.weekStart,
       body.skill,
       body.completed,
-      markedBy,
+      actorMember,
     );
     return NextResponse.json({ completion, mode: "dev" as const });
   }
 
   await ensureSchema();
+  const rolesMap = await loadRolesMap(db);
+  const perm = assertStaffAuth(actorMember, rolesMap, staffToken);
+  if (perm !== true) {
+    return NextResponse.json({ error: perm.error }, { status: perm.status });
+  }
 
   if (!body.completed) {
     await db`
@@ -56,7 +79,7 @@ export async function PUT(request: NextRequest) {
 
   const rows = (await db`
     INSERT INTO skill_week_completions (week_start, skill, completed, marked_by)
-    VALUES (${body.weekStart}::date, ${body.skill}, TRUE, ${markedBy})
+    VALUES (${body.weekStart}::date, ${body.skill}, TRUE, ${actorMember})
     ON CONFLICT (week_start, skill)
     DO UPDATE SET
       completed = TRUE,

@@ -101,7 +101,7 @@ export function WelcomeGuideModal({
                 on the grid or board to change day/skill.
               </li>
               <li>
-                When your guild finishes a skill&apos;s trial, someone marks{" "}
+                When your guild finishes a skill&apos;s trial, a Leader or Officer marks{" "}
                 <strong className="text-white">Mark done</strong> on that skill (all 16 should
                 complete each week).
               </li>

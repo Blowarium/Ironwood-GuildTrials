@@ -18,6 +18,7 @@ export function TrialPlannerGrid({
   currentUser,
   skillCoverage,
   togglingSkill,
+  canMarkSkillComplete,
   onToggleSkillComplete,
   onCellClick,
   onSignupClick,
@@ -31,6 +32,7 @@ export function TrialPlannerGrid({
   currentUser: Member | "";
   skillCoverage: SkillCoverageRow[];
   togglingSkill: Skill | null;
+  canMarkSkillComplete: boolean;
   onToggleSkillComplete: (skill: Skill, completed: boolean) => void;
   onCellClick: (target: CellTarget) => void;
   onSignupClick: (signup: TrialSignup) => void;
@@ -182,7 +184,7 @@ export function TrialPlannerGrid({
                       contributorCount={cov.contributorCount}
                       markedBy={cov.markedBy}
                       compact
-                      disabled={!currentUser || togglingSkill === skill}
+                      disabled={!canMarkSkillComplete || togglingSkill === skill}
                       onToggle={(completed) => onToggleSkillComplete(skill, completed)}
                     />
                   )}

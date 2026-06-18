@@ -49,6 +49,15 @@ export function canDragSignup(
   return canEditSignupFor(actor, signupMember, roles, staffUnlocked);
 }
 
+export function canMarkSkillCompleteFor(
+  actor: Member | "",
+  roles: RolesMap,
+  staffUnlocked = false,
+): boolean {
+  if (!actor) return false;
+  return isStaffRole(getMemberRole(roles, actor)) && staffUnlocked;
+}
+
 /** Role used for permission checks — staff without unlock counts as member. */
 export function effectiveRole(
   member: Member | "",

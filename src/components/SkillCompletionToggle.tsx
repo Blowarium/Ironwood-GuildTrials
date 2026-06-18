@@ -22,6 +22,7 @@ export function SkillCompletionToggle({
   markedBy,
   compact,
   disabled,
+  readOnlyTitle,
   onToggle,
 }: {
   skill: Skill;
@@ -30,9 +31,15 @@ export function SkillCompletionToggle({
   markedBy: string | null;
   compact?: boolean;
   disabled?: boolean;
+  readOnlyTitle?: string;
   onToggle: (completed: boolean) => void;
 }) {
   const isComplete = weekState === "complete";
+  const title =
+    readOnlyTitle ??
+    (disabled
+      ? "Only Guild Leaders and Officers can mark skills done"
+      : `Mark ${skill} trial complete for this week`);
 
   return (
     <div className={compact ? "flex flex-col items-end gap-1" : "space-y-1"}>
@@ -40,7 +47,7 @@ export function SkillCompletionToggle({
         className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1 transition hover:bg-slate-800/60 ${
           STATE_STYLES[weekState]
         } ${disabled ? "pointer-events-none opacity-50" : ""}`}
-        title={`Mark ${skill} trial complete for this week`}
+        title={title}
       >
         <input
           type="checkbox"

@@ -12,18 +12,25 @@ export function GameSyncResultBanner({
   weekStart: string;
   onDismiss: () => void;
 }) {
-  if (!gameSyncResultHasVisibleContent(result)) return null;
+  const hasContent = gameSyncResultHasVisibleContent(result);
 
   return (
     <div className="rounded-lg border border-violet-500/30 bg-violet-950/30 px-3 py-2 text-sm text-slate-200 sm:px-4 sm:py-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="font-medium text-violet-100">Game data sync applied</p>
+          <p className="font-medium text-violet-100">
+            {hasContent ? "Game data sync applied" : "Game data sync complete"}
+          </p>
           <p className="mt-1 text-xs text-slate-400">
             Week of {weekStart}
             {result.payloadSource ? ` · source ${result.payloadSource}` : ""}
           </p>
           <ul className="mt-2 space-y-0.5 text-xs text-slate-300">
+            {!hasContent && (
+              <li className="text-slate-500">
+                No signup, completion, or building deposit changes.
+              </li>
+            )}
             {result.created.length > 0 && (
               <li>
                 <span className="text-emerald-300">{result.created.length} scheduled</span>

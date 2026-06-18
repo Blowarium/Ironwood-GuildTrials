@@ -45,4 +45,5 @@ export interface SkillCompletionPayload {
   skill: Skill;
   completed: boolean;
   markedBy?: Member;
+  staffAuthToken?: string;
 }
