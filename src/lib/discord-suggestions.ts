@@ -1,8 +1,8 @@
 import type { Member, Skill } from "./constants";
 import type { SchedulePlan } from "./schedule-optimizer";
-import { formatTimeLabel } from "./trial-schedule";
+import { formatGuildHourLabel } from "./trial-schedule";
 import { buildTrialApplyLink, getAppBaseUrl } from "./trial-apply-link";
-import { formatDayLabel, formatWeekTabLabel } from "./weeks";
+import { formatGuildDayLabel, formatGuildWeekTabLabel } from "./weeks";
 import { rankLabel } from "./suggestion-labels";
 
 export type DiscordSuggestionPostKind = "weekly" | "reminder";
@@ -40,8 +40,8 @@ function suggestionLine(
   baseUrl: string,
 ): string {
   const link = buildTrialApplyLink(weekStart, member, baseUrl);
-  const day = formatDayLabel(plannedDate, true);
-  const time = formatTimeLabel(plannedStartAt, true);
+  const day = formatGuildDayLabel(plannedDate, true);
+  const time = formatGuildHourLabel(plannedStartAt);
   return `**${member}** — ${skill} · ${day} ${time} · [Schedule trial](${link})`;
 }
 
@@ -51,7 +51,7 @@ export function buildDiscordSuggestionMessages(
   kind: DiscordSuggestionPostKind,
   baseUrl = getAppBaseUrl(),
 ): string[] {
-  const weekLabel = formatWeekTabLabel(weekStart);
+  const weekLabel = formatGuildWeekTabLabel(weekStart);
   const suggestions =
     kind === "reminder"
       ? plan.suggestions
@@ -79,8 +79,8 @@ export function buildDiscordSuggestionMessages(
   if (scheduled.length > 0 && kind === "weekly") {
     lines.push("", "**Already scheduled**");
     for (const s of scheduled) {
-      const day = formatDayLabel(s.planned_date, true);
-      const time = s.planned_start_at ? formatTimeLabel(s.planned_start_at, true) : "";
+      const day = formatGuildDayLabel(s.planned_date, true);
+      const time = s.planned_start_at ? formatGuildHourLabel(s.planned_start_at) : "";
       lines.push(`• ${s.member_name} — ${s.skill} · ${day}${time ? ` ${time}` : ""}`);
     }
   }

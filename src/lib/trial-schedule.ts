@@ -5,7 +5,6 @@ import {
   GUILD_TIMEZONE,
   displayFormatLabel,
   guildDateFromInstant,
-  guildFormatLabel,
   guildInstantFromLocal,
   guildMidnight,
   guildTimeParts,
@@ -92,7 +91,7 @@ export function dateFromStartAt(iso: string): string {
 }
 
 export function formatTimeLabel(iso: string, short = false): string {
-  if (short) return formatGuildHourLabel(iso);
+  if (short) return formatDisplayHourLabel(iso);
   const d = new Date(iso);
   if (!Number.isNaN(d.getTime()) && d.getMinutes() === 0 && d.getSeconds() === 0) {
     return displayFormatLabel(iso, { hour: "numeric", hour12: false });
@@ -104,7 +103,14 @@ export function formatTimeLabel(iso: string, short = false): string {
   });
 }
 
-/** Guild-clock hour label, always `HH:00`. */
+/** Local-clock hour label for UI, always `HH:00`. */
+export function formatDisplayHourLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "00:00";
+  return `${String(d.getHours()).padStart(2, "0")}:00`;
+}
+
+/** Guild-clock hour label for server copy / Discord (UTC+2). */
 export function formatGuildHourLabel(iso: string): string {
   const { hours } = guildTimeParts(iso);
   return `${String(hours).padStart(2, "0")}:00`;
@@ -277,6 +283,16 @@ export function trialSegmentInWeek(
     leftPercent,
     widthPercent: Math.max(0.35, widthPercent),
   };
+}
+
+/** Local-calendar YYYY-MM-DD for `<input type="date">`. */
+export function displayDateInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /** Guild-clock HH:mm for `<input type="time">` when editing in guild time. */

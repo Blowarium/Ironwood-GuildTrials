@@ -8,15 +8,18 @@ import {
   type Skill,
 } from "@/lib/constants";
 import {
-  applyTimeToDate,
+  applyDisplayTimeToDate,
   buildStartAt,
+  dateFromStartAt,
   defaultStartAtForDate,
-  formatGuildHourLabel,
+  displayDateInputValue,
+  displayTimeInputValue,
+  formatDateTimeLabel,
   formatTimeLabel,
   getEffectiveStatus,
   snapStartAtToWholeHour,
-  timeInputValue,
 } from "@/lib/trial-schedule";
+import { formatDisplayTimeZoneShort } from "@/lib/guild-timezone";
 import { useDebouncedAutoSave } from "@/lib/use-auto-save";
 import type { TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
@@ -40,18 +43,26 @@ export interface CellTarget {
   member?: Member;
 }
 
-function initialTimeValue(
+function initialLocalSchedule(
   target: CellTarget,
   editingSignup: TrialSignup | null,
   plannedDate: string,
-): string {
-  if (editingSignup) return timeInputValue(editingSignup.planned_start_at);
-  if (target.plannedStartAt) return timeInputValue(target.plannedStartAt);
-  if (target.dayFraction != null) {
+): { localDate: string; timeValue: string } {
+  let startIso: string;
+  if (editingSignup) {
+    startIso = editingSignup.planned_start_at;
+  } else if (target.plannedStartAt) {
+    startIso = target.plannedStartAt;
+  } else if (target.dayFraction != null) {
     const h = Math.min(23, Math.floor(target.dayFraction * 24));
-    return timeInputValue(buildStartAt(plannedDate, h, 0));
+    startIso = buildStartAt(plannedDate, h, 0);
+  } else {
+    startIso = defaultStartAtForDate(plannedDate);
   }
-  return timeInputValue(defaultStartAtForDate(plannedDate));
+  return {
+    localDate: displayDateInputValue(startIso),
+    timeValue: displayTimeInputValue(startIso),
+  };
 }
 
 function CellAssignmentForm({
@@ -88,14 +99,16 @@ function CellAssignmentForm({
   const [member, setMember] = useState<Member | "">(
     editingSignup?.member_name ?? target.member ?? currentUser ?? "",
   );
-  const [plannedDate, setPlannedDate] = useState(
+  const initialSchedule = initialLocalSchedule(
+    target,
+    editingSignup,
     editingSignup?.planned_date ?? target.plannedDate,
   );
-  const [timeValue, setTimeValue] = useState(() =>
-    initialTimeValue(target, editingSignup, editingSignup?.planned_date ?? target.plannedDate),
-  );
+  const [localDate, setLocalDate] = useState(initialSchedule.localDate);
+  const [timeValue, setTimeValue] = useState(initialSchedule.timeValue);
 
-  const plannedStartAt = snapStartAtToWholeHour(applyTimeToDate(plannedDate, timeValue));
+  const plannedStartAt = snapStartAtToWholeHour(applyDisplayTimeToDate(localDate, timeValue));
+  const plannedDate = dateFromStartAt(plannedStartAt);
 
   const previewStatus = getEffectiveStatus({
     id: 0,
@@ -143,7 +156,7 @@ function CellAssignmentForm({
 
   const autoSave = useDebouncedAutoSave({
     enabled: !isNew && !!member && canEditThis,
-    deps: [member, skill, plannedDate, timeValue],
+    deps: [member, skill, localDate, timeValue],
     save: persistAssignment,
   });
 
@@ -175,9 +188,7 @@ function CellAssignmentForm({
         <h2 id="cell-modal-title" className="text-lg font-semibold text-white">
           {editingSignup ? "Edit trial assignment" : "Schedule trial"}
         </h2>
-        <p className="text-sm text-slate-400">
-          {formatDayLabel(plannedDate)} · {formatGuildHourLabel(plannedStartAt)} guild
-        </p>
+        <p className="text-sm text-slate-400">{formatDateTimeLabel(plannedStartAt)}</p>
         {isNew && (
           <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2 text-sm text-amber-100">
             Not on the planner yet. Review the details below, then add to the planner to confirm.
@@ -243,14 +254,16 @@ function CellAssignmentForm({
               <span className="text-xs text-slate-400">Day</span>
               <input
                 type="date"
-                value={plannedDate}
-                onChange={(e) => setPlannedDate(e.target.value)}
+                value={localDate}
+                onChange={(e) => setLocalDate(e.target.value)}
                 disabled={!member || !canEditThis}
                 className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-white disabled:opacity-60"
               />
             </label>
             <label className="block">
-              <span className="text-xs text-slate-400">Start hour (guild UTC+2)</span>
+              <span className="text-xs text-slate-400">
+                Start hour ({formatDisplayTimeZoneShort()})
+              </span>
               <select
                 value={timeValue}
                 onChange={(e) => setTimeValue(e.target.value)}
@@ -281,7 +294,7 @@ function CellAssignmentForm({
           <p className="text-[10px] text-slate-500">
             {isNew
               ? "Trials run 24h from start on the hour (:00). Nothing is saved until you add to the planner."
-              : "Trials run 24h from start time on the hour (:00). Status becomes Active at start and Completed when the window ends. Week grid and game sync use guild time (UTC+2)."}
+              : "Trials run 24h from start time on the hour (:00). Status becomes Active at start and Completed when the window ends. Times shown in your timezone; week grid and game sync use guild time (UTC+2)."}
           </p>
         </div>
 

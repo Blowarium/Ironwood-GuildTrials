@@ -38,7 +38,17 @@ export function formatWeekRange(weekStart: string): string {
   return `${fmt.format(start)} – ${fmt.format(new Date(end.getTime() - 1))}`;
 }
 
+/** Day label for a guild calendar date, shown in the user's local timezone. */
 export function formatDayLabel(iso: string, short = false): string {
+  return displayFormatLabel(guildInstantFromLocal(iso, 12, 0), {
+    weekday: short ? "short" : "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Day label on the guild clock (UTC+2) — Discord and server-side copy. */
+export function formatGuildDayLabel(iso: string, short = false): string {
   return guildFormatLabel(guildInstantFromLocal(iso, 12, 0), {
     weekday: short ? "short" : "long",
     month: "short",
@@ -68,6 +78,14 @@ export function findWeekOffsetForStart(weekStartIso: string, at = new Date()): n
 /** Tab label e.g. "Week of Jun 2" (guild Monday, shown in local date). */
 export function formatWeekTabLabel(weekStart: string): string {
   return `Week of ${displayFormatLabel(guildMidnight(weekStart), {
+    month: "short",
+    day: "numeric",
+  })}`;
+}
+
+/** Week tab label on the guild clock (UTC+2) — Discord and server-side copy. */
+export function formatGuildWeekTabLabel(weekStart: string): string {
+  return `Week of ${guildFormatLabel(guildMidnight(weekStart), {
     month: "short",
     day: "numeric",
   })}`;
