@@ -60,6 +60,8 @@ export interface PreferenceAssignmentStats {
 export interface SchedulePlan {
   suggestions: ScheduleSuggestion[];
   alreadyScheduled: TrialSignup[];
+  /** Unscheduled members the optimizer could not assign, with a short reason. */
+  unsuggested: { member: Member; reason: string }[];
   trialXpRequired: number;
   hallLevel: number;
   skillProgress: SkillXpProgress[];
@@ -321,6 +323,59 @@ function canSuggestMemberOnSkill(
   return classifySkillNeed(skill, skillState, required, completedSkills) === "covered";
 }
 
+function plannerGapSkills(
+  plannerSkillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+): Skill[] {
+  return SKILLS.filter((skill) => {
+    const need = classifySkillNeed(skill, plannerSkillState, required, completedSkills);
+    return need === "uncovered" || need === "needs_xp";
+  });
+}
+
+/** Why a member has no smart-schedule row this week. */
+export function explainNoSuggestionForMember(
+  member: Member,
+  profiles: ProfilesMap,
+  plannerSkillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+  preferenceOverflow: boolean,
+): string {
+  const profile = profiles.get(member);
+  const gapSkills = plannerGapSkills(plannerSkillState, required, completedSkills);
+  const lockedGapSkills = gapSkills.filter((skill) => isSkillLockedForMember(profile, skill));
+  const unlockedPrefs = memberPreferredSkills(profile).filter(
+    (skill) => !completedSkills.has(skill) && !isSkillLockedForMember(profile, skill),
+  );
+  const prefHint =
+    unlockedPrefs.slice(0, 3).join(", ") || "an unlocked skill in their profile";
+
+  if (preferenceOverflow) {
+    const hasUnlocked = SKILLS.some(
+      (skill) => !completedSkills.has(skill) && !isSkillLockedForMember(profile, skill),
+    );
+    return hasUnlocked
+      ? "No unlocked skill available (check locks and mark-done)."
+      : "Every trial skill is locked out in their profile.";
+  }
+
+  if (gapSkills.length > 0 && lockedGapSkills.length === gapSkills.length) {
+    return `Gap skills (${lockedGapSkills.join(", ")}) are locked in their profile. Unlock one of those, or wait until every skill is on the planner for a preference pick (${prefHint}).`;
+  }
+
+  if (gapSkills.length > 0 && lockedGapSkills.length > 0) {
+    return `Some planner gaps (${gapSkills.join(", ")}) are locked for them; remaining unlocked preferences (${prefHint}) already have enough scheduled XP while gaps remain.`;
+  }
+
+  if (gapSkills.length > 0) {
+    return `Planner still has gaps (${gapSkills.join(", ")}); no valid assignment was found for their profile.`;
+  }
+
+  return "No assignment available right now.";
+}
+
 /** 4 = uncovered, 3 = needs XP, 1 = covered backup, 0 = invalid */
 function assignmentPriorityTier(
   skill: Skill,
@@ -574,9 +629,22 @@ export function buildOptimalSchedule(
     required,
   );
 
+  const unsuggested = pool.map((member) => ({
+    member,
+    reason: explainNoSuggestionForMember(
+      member,
+      profiles,
+      plannerSkillState,
+      required,
+      completedSkills,
+      preferenceOverflow,
+    ),
+  }));
+
   return {
     suggestions: suggestions.sort((a, b) => a.member.localeCompare(b.member)),
     alreadyScheduled,
+    unsuggested: unsuggested.sort((a, b) => a.member.localeCompare(b.member)),
     trialXpRequired: required,
     hallLevel,
     skillProgress,

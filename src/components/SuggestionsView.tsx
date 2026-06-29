@@ -318,21 +318,7 @@ export function SuggestionsView({
   const prefsCount = membersWithRankedProfiles(profilesMap, memberNames);
   const mySuggestion = plan.suggestions.find((s) => s.member === currentUser);
   const myExistingSignup = plan.alreadyScheduled.find((s) => s.member_name === currentUser);
-  const scheduledMembers = useMemo(
-    () => new Set(signups.map((s) => s.member_name)),
-    [signups],
-  );
-  const suggestedMembers = useMemo(
-    () => new Set(plan.suggestions.map((s) => s.member)),
-    [plan.suggestions],
-  );
-  const unsuggestedMembers = useMemo(
-    () =>
-      memberNames.filter(
-        (m) => !scheduledMembers.has(m) && !suggestedMembers.has(m),
-      ),
-    [memberNames, scheduledMembers, suggestedMembers],
-  );
+  const unsuggestedMembers = plan.unsuggested;
 
   const showScheduled = sourceEnabled.scheduled;
   const showSuggested = sourceEnabled.suggested;
@@ -451,12 +437,9 @@ export function SuggestionsView({
         )}
         {canUseStaffTools && unsuggestedMembers.length > 0 && (
           <p className="mt-2 text-xs text-amber-300/90 sm:text-sm">
-            No suggestion for {unsuggestedMembers.join(", ")} —{" "}
-            {plan.stats.allSkillsOnPlannerOrDone
-              ? "usually every trial skill is locked out in their profile."
-              : plan.stats.skillsMissingFromPlanner.length > 0
-                ? `planner still needs someone on ${plan.stats.skillsMissingFromPlanner.join(", ")} (or mark done) before preference suggestions; until then only gap-filling assignments are offered.`
-                : "planner still has trial XP gaps — more helpers may be suggested once earlier ones are applied."}
+            {unsuggestedMembers.length} member
+            {unsuggestedMembers.length === 1 ? "" : "s"} not in scheduled or suggested lists
+            below — see &quot;No suggestion yet&quot; for details.
           </p>
         )}
       </div>
@@ -696,6 +679,30 @@ export function SuggestionsView({
           </>
         )}
       </section>
+
+      {unsuggestedMembers.length > 0 && (
+        <section>
+          <h3 className="mb-1 text-xs font-medium text-slate-400 sm:mb-2 sm:text-sm">
+            No suggestion yet ({unsuggestedMembers.length})
+          </h3>
+          <p className="mb-2 hidden text-xs text-slate-500 sm:block">
+            These roster members are not on the planner and did not receive a smart suggestion.
+            Scheduled ({plan.alreadyScheduled.length}) + suggested ({plan.suggestions.length}) +
+            below ({unsuggestedMembers.length}) = {plan.totalMembers} roster members.
+          </p>
+          <div className="space-y-1.5">
+            {unsuggestedMembers.map(({ member, reason }) => (
+              <div
+                key={member}
+                className="rounded-lg border border-amber-500/25 bg-amber-950/20 px-3 py-2"
+              >
+                <p className="text-xs font-medium text-amber-100 sm:text-sm">{member}</p>
+                <p className="mt-0.5 text-[11px] text-amber-200/85 sm:text-xs">{reason}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
