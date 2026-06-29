@@ -207,8 +207,8 @@ function allSkillsMarkedComplete(completedSkills: ReadonlySet<Skill>): boolean {
   return SKILLS.every((sk) => completedSkills.has(sk));
 }
 
-/** Pref skill with scheduled coverage and projected XP but not marked done yet. */
-function isBlockedPreferenceSkill(
+/** Top pref with scheduled coverage and projected XP but not marked done yet. */
+function isBlockedTopPreferenceSkill(
   member: Member,
   skill: Skill,
   profiles: ProfilesMap,
@@ -217,9 +217,11 @@ function isBlockedPreferenceSkill(
   completedSkills: ReadonlySet<Skill>,
 ): boolean {
   const preferred = memberPreferredSkills(profiles.get(member));
-  if (!preferred.includes(skill)) return false;
-  if (completedSkills.has(skill)) return false;
-  const st = skillState.get(skill)!;
+  if (preferred.length === 0) return false;
+  const top = preferred[0]!;
+  if (skill !== top) return false;
+  if (completedSkills.has(top)) return false;
+  const st = skillState.get(top)!;
   return st.memberCount > 0 && st.contributed >= required;
 }
 
@@ -261,7 +263,7 @@ function canAssignMemberToSkill(
   if (!allPreferredSkillsSatisfied(member, profiles, completedSkills)) {
     if (skillMarkedDone) return false;
     if (
-      isBlockedPreferenceSkill(member, skill, profiles, skillState, required, completedSkills)
+      isBlockedTopPreferenceSkill(member, skill, profiles, skillState, required, completedSkills)
     ) {
       return false;
     }
@@ -416,7 +418,8 @@ function applyAssignment(
  * Skills marked done for the week are treated as complete. A skill with scheduled
  * coverage and projected XP but not marked done still counts as open — suggestions
  * prioritize uncovered skills and XP gaps first, then backup slots on other unmarked
- * trials (without stacking a member onto a preferred skill that already has coverage).
+ * trials. A member is never steered to their #1 preferred skill when someone is already
+ * scheduled there with enough projected XP unless that trial is marked done.
  *
  * Within each need tier, profile preference rank is primary; XP/h breaks ties only.
  */
