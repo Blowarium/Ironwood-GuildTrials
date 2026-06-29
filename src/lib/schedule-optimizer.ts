@@ -258,6 +258,8 @@ function pickPreferenceOverflowSkill(
   profiles: ProfilesMap,
   completedSkills: ReadonlySet<Skill>,
   skillState: Map<Skill, SkillState>,
+  plannerSkillState: Map<Skill, SkillState>,
+  required: number,
 ): Skill | null {
   const profile = profiles.get(member);
   const candidates: Skill[] = [];
@@ -278,17 +280,31 @@ function pickPreferenceOverflowSkill(
   }
 
   const topRank = getPreferenceRankFromProfile(profile, candidates[0]!);
-  const topTier = candidates.filter(
+  let topTier = candidates.filter(
     (skill) => getPreferenceRankFromProfile(profile, skill) === topRank,
   );
 
   if (topTier.length === 1) return topTier[0]!;
 
-  // Default/neutral profiles tie every skill at rank 1 — spread by load, then best member XP.
+  const plannerGaps = topTier.filter(
+    (skill) => plannerSkillState.get(skill)!.contributed < required,
+  );
+  if (plannerGaps.length > 0) {
+    topTier = plannerGaps;
+  }
+
+  if (topTier.length === 1) return topTier[0]!;
+
   return topTier.reduce((best, skill) => {
     const bestLoad = skillState.get(best)!.memberCount;
     const skillLoad = skillState.get(skill)!.memberCount;
     if (skillLoad !== bestLoad) return skillLoad < bestLoad ? skill : best;
+
+    const bestProjected = skillState.get(best)!.contributed;
+    const skillProjected = skillState.get(skill)!.contributed;
+    if (skillProjected !== bestProjected) {
+      return skillProjected < bestProjected ? skill : best;
+    }
 
     const bestXp = memberContributionForSkill(profile, best);
     const skillXp = memberContributionForSkill(profile, skill);
@@ -589,7 +605,14 @@ export function buildOptimalSchedule(
 
   if (preferenceOverflow) {
     for (const member of [...pool].sort((a, b) => a.localeCompare(b))) {
-      const skill = pickPreferenceOverflowSkill(member, profiles, completedSkills, skillState);
+      const skill = pickPreferenceOverflowSkill(
+        member,
+        profiles,
+        completedSkills,
+        skillState,
+        plannerSkillState,
+        required,
+      );
       if (skill) assign(member, skill);
     }
   } else {

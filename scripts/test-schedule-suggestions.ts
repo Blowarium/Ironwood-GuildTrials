@@ -166,3 +166,121 @@ if (overflowPlan.suggestions.length !== unscheduledCount) {
 }
 
 console.log("OK");
+
+// Production-like overflow: all skills on planner but XP gaps — don't pile on Woodcutting.
+function xpPerHourFromTrialContribution(trialXp: number): number {
+  return trialXp / 0.05 / 24;
+}
+
+function makeNeutralProfile(member: string, xp = 50000) {
+  return normalizeProfile({
+    member_name: member,
+    skills: SKILLS.map((skill) => ({
+      skill,
+      xp_per_hour: xp,
+      preference_rank: 1,
+      ironwood_action_id: null,
+      skill_locked: false,
+    })),
+    updated_at: new Date().toISOString(),
+    updated_by: null,
+    preferences_customized: false,
+  });
+}
+
+const prodProfiles = buildProfilesMap([
+  makeProfile("AmudoBun", amudoPrefs, 34225 / 24 / 0.05),
+  makeProfile("pomu", ["Woodcutting"], xpPerHourFromTrialContribution(43119)),
+  makeProfile("LecheurDeCul", ["Enchanting"], 0),
+  makeProfile("neppocc", ["Delving"], xpPerHourFromTrialContribution(37200)),
+  makeProfile("TiMasse", ["Woodcutting"], 50000),
+  makeNeutralProfile("Beastin"),
+  makeNeutralProfile("Brandon2383"),
+  makeNeutralProfile("GeoPapPiano"),
+  makeNeutralProfile("Mattn", 0),
+  makeProfile("Tagra", ["Woodcutting", "Mining", "Farming"], 50000),
+  makeProfile("hasteful", ["Fishing", "Woodcutting"], 50000),
+  ...MEMBERS.filter(
+    (m) =>
+      ![
+        "AmudoBun",
+        "pomu",
+        "LecheurDeCul",
+        "neppocc",
+        "TiMasse",
+        "Beastin",
+        "Brandon2383",
+        "GeoPapPiano",
+        "Mattn",
+        "Tagra",
+        "hasteful",
+      ].includes(m),
+  ).map((m) => makeProfile(m, [...SKILLS].slice(0, 8) as Skill[], 50000)),
+]);
+
+const prodScheduled: { member: string; skill: Skill }[] = [
+  { member: "Waterwraith", skill: "Alchemy" },
+  { member: "Abrams", skill: "Cooking" },
+  { member: "SouthernComfort", skill: "Defense" },
+  { member: "neppocc", skill: "Delving" },
+  { member: "LecheurDeCul", skill: "Enchanting" },
+  { member: "Visionaire", skill: "Exploring" },
+  { member: "Boemibal", skill: "Exploring" },
+  { member: "Begitte", skill: "Farming" },
+  { member: "Bombura", skill: "Fishing" },
+  { member: "Blowarium", skill: "Imbuing" },
+  { member: "LotusChan", skill: "Mining" },
+  { member: "pikachu1986", skill: "One-handed" },
+  { member: "NutshellToo", skill: "Smelting" },
+  { member: "Buttstaff", skill: "Smithing" },
+  { member: "Acol", skill: "Two-handed" },
+  { member: "Esclss", skill: "Ranged" },
+  { member: "pomu", skill: "Woodcutting" },
+];
+
+const prodSignups = prodScheduled.map((row, i) => ({
+  id: 200 + i,
+  week_start: weekStart,
+  member_name: row.member,
+  skill: row.skill,
+  planned_date: weekDays[i % 7]!,
+  status: "planned" as const,
+  planned_start_at: `${weekDays[i % 7]}T12:00:00.000Z`,
+  last_edited_by: row.member,
+  created_at: "",
+  updated_at: "",
+}));
+
+const prodPlan = buildOptimalSchedule(
+  prodProfiles,
+  prodSignups,
+  weekDays,
+  hallLevel,
+  [...MEMBERS, "pomu", "Mattn"],
+  new Set(),
+);
+
+const woodcuttingSuggestions = prodPlan.suggestions.filter((s) => s.skill === "Woodcutting");
+const enchantingSuggestions = prodPlan.suggestions.filter((s) => s.skill === "Enchanting");
+const delvingSuggestions = prodPlan.suggestions.filter((s) => s.skill === "Delving");
+
+console.log(
+  "Prod-like overflow WC/Ench/Delv:",
+  woodcuttingSuggestions.length,
+  enchantingSuggestions.length,
+  delvingSuggestions.length,
+);
+for (const s of prodPlan.suggestions) {
+  console.log(`  ${s.member} -> ${s.skill}`);
+}
+
+if (woodcuttingSuggestions.length > 3) {
+  console.error("FAIL: too many Woodcutting overflow suggestions");
+  process.exit(1);
+}
+if (enchantingSuggestions.length === 0 || delvingSuggestions.length === 0) {
+  console.error("FAIL: should suggest helpers on Enchanting and Delving XP gaps");
+  process.exit(1);
+}
+
+console.log("OK prod-like overflow");
