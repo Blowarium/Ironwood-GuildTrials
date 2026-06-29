@@ -392,14 +392,10 @@ export function SuggestionsView({
         <h2 className="text-sm font-semibold text-white sm:text-lg">Smart schedule</h2>
         <p className="mt-0.5 hidden text-sm text-slate-400 sm:mt-1 sm:block">
           Suggests assignments for members not yet signed up this week. Existing planner
-          signups are respected — if someone already scheduled a skill, others are steered
-          to their next open preference instead of stacking the same trial. Skills marked
-          done count as finished; scheduled coverage alone does not — unmarked skills still
-          need members before overflow to lower preferences. After gaps are filled, remaining
-          members get backup slots on other unmarked trials (never your #1 pref when someone
-          is already scheduled there with enough projected XP). Locked-out skills are never
-          suggested. All 16 trials get coverage, then trial XP at hall level {plan.hallLevel}{" "}
-          is filled before overflow placements.
+          signups and mark-done are respected. Priority order: cover unassigned skills, fill
+          trial XP gaps, then backup slots — never stacking you onto a ranked skill that already
+          has enough scheduled XP while other trials still need people. Locked-out skills are
+          never suggested.
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <Stat

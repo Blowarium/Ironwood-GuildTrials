@@ -1,0 +1,111 @@
+/**
+ * Sanity check — run: npx tsx scripts/test-schedule-suggestions.ts
+ */
+import { SKILLS, MEMBERS, type Skill } from "../src/lib/constants";
+import { buildOptimalSchedule } from "../src/lib/schedule-optimizer";
+import { buildProfilesMap, normalizeProfile } from "../src/lib/member-profile";
+import { getWeekDays, getWeekStart } from "../src/lib/weeks";
+
+const weekStart = getWeekStart(new Date(), 0);
+const weekDays = getWeekDays(weekStart);
+const hallLevel = 5;
+
+function makeProfile(
+  member: string,
+  prefOrder: Skill[],
+  xp = 50000,
+  locked: Skill[] = [],
+) {
+  const rankBySkill = new Map(prefOrder.map((s, i) => [s, i + 1]));
+  return normalizeProfile({
+    member_name: member,
+    skills: SKILLS.map((skill) => ({
+      skill,
+      xp_per_hour: locked.includes(skill) ? null : xp,
+      preference_rank: rankBySkill.get(skill) ?? null,
+      ironwood_action_id: null,
+      skill_locked: locked.includes(skill),
+    })),
+    updated_at: new Date().toISOString(),
+    updated_by: null,
+    preferences_customized: true,
+  });
+}
+
+const amudoPrefs: Skill[] = [
+  "Cooking",
+  "Smithing",
+  "Mining",
+  "Woodcutting",
+  "Farming",
+  "Alchemy",
+  "Delving",
+  "Ranged",
+];
+
+const profiles = buildProfilesMap([
+  makeProfile("pomu", ["Woodcutting", "Mining", "Fishing"], 67734 / 24 / 0.05),
+  makeProfile("AmudoBun", amudoPrefs, 34225 / 24 / 0.05),
+  ...MEMBERS.filter((m) => m !== "AmudoBun").map((m) =>
+    makeProfile(m, [...SKILLS].slice(0, 8) as Skill[], 50000),
+  ),
+]);
+
+const scheduled: { member: string; skill: Skill }[] = [
+  { member: "pomu", skill: "Woodcutting" },
+  { member: "Waterwraith", skill: "Alchemy" },
+  { member: "Abrams", skill: "Cooking" },
+  { member: "SouthernComfort", skill: "Defense" },
+  { member: "LecheurDeCul", skill: "Enchanting" },
+  { member: "Visionaire", skill: "Exploring" },
+  { member: "Begitte", skill: "Farming" },
+  { member: "Bombura", skill: "Fishing" },
+  { member: "Blowarium", skill: "Imbuing" },
+  { member: "LotusChan", skill: "Mining" },
+  { member: "pikachu1986", skill: "One-handed" },
+  { member: "NutshellToo", skill: "Smelting" },
+  { member: "Buttstaff", skill: "Smithing" },
+  { member: "Acol", skill: "Two-handed" },
+  { member: "Boemibal", skill: "Exploring" },
+];
+
+const signups = scheduled.map((row, i) => ({
+  id: i + 1,
+  week_start: weekStart,
+  member_name: row.member,
+  skill: row.skill,
+  planned_date: weekDays[i % 7]!,
+  status: "planned" as const,
+  planned_start_at: `${weekDays[i % 7]}T12:00:00.000Z`,
+  last_edited_by: row.member,
+  created_at: "",
+  updated_at: "",
+}));
+
+const allMembers = [...MEMBERS, "pomu"];
+const plan = buildOptimalSchedule(
+  profiles,
+  signups,
+  weekDays,
+  hallLevel,
+  allMembers,
+  new Set(),
+);
+
+const amudo = plan.suggestions.find((s) => s.member === "AmudoBun");
+console.log("Suggestions:", plan.suggestions.length);
+console.log(
+  "AmudoBun →",
+  amudo ? `${amudo.skill} (pref ${amudo.preferenceRank})` : "NONE",
+);
+
+if (amudo?.skill === "Woodcutting") {
+  console.error("FAIL: AmudoBun should not get Woodcutting");
+  process.exit(1);
+}
+if (amudo && amudo.skill !== "Delving" && amudo.skill !== "Ranged" && amudo.skill !== "Enchanting") {
+  console.error(`FAIL: unexpected skill ${amudo.skill}`);
+  process.exit(1);
+}
+
+console.log("OK");

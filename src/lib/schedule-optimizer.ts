@@ -77,6 +77,9 @@ export interface SchedulePlan {
 
 type SkillState = { contributed: number; memberCount: number };
 
+/** Guild-wide trial gap for a skill (ignores member preferences). */
+type SkillNeed = "done" | "uncovered" | "needs_xp" | "covered";
+
 /** Rank 1 → 16, rank 16 → 1. Higher = better preference fit. */
 function preferenceBonus(rank: number | null): number {
   if (rank == null || rank < 1) return 0;
@@ -97,14 +100,12 @@ function pickDay(weekDays: string[], dayLoad: Map<string, number>): string {
   return best;
 }
 
-/** Stagger start times within a day (every 2h) to reduce overlap on the timeline. */
 function pickStartAt(day: string, dayLoad: Map<string, number>): string {
   const count = dayLoad.get(day) ?? 0;
   const hour = Math.min(22, 6 + (count % 9) * 2);
   return buildStartAt(day, hour, 0);
 }
 
-/** Align suggestion timing with the matching guild event active window that week. */
 function pickSuggestionTiming(
   weekStart: string,
   weekDays: string[],
@@ -168,10 +169,53 @@ function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
     .map((s) => s.skill);
 }
 
+function classifySkillNeed(
+  skill: Skill,
+  skillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+): SkillNeed {
+  if (completedSkills.has(skill)) return "done";
+  const st = skillState.get(skill)!;
+  if (st.memberCount === 0) return "uncovered";
+  if (st.contributed < required) return "needs_xp";
+  return "covered";
+}
+
+/** True while any skill still needs a first signup or more trial XP. */
+function guildHasPriorityWork(
+  skillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+): boolean {
+  return SKILLS.some((skill) => {
+    const need = classifySkillNeed(skill, skillState, required, completedSkills);
+    return need === "uncovered" || need === "needs_xp";
+  });
+}
+
+function skillHasAdequateXp(st: SkillState, required: number): boolean {
+  return st.memberCount > 0 && st.contributed >= required;
+}
+
+/** Member ranks this skill and signups already project enough XP — don't stack them here. */
+function isHandledPreferenceForMember(
+  member: Member,
+  skill: Skill,
+  profiles: ProfilesMap,
+  skillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+): boolean {
+  if (completedSkills.has(skill)) return false;
+  const preferred = memberPreferredSkills(profiles.get(member));
+  if (!preferred.includes(skill)) return false;
+  return skillHasAdequateXp(skillState.get(skill)!, required);
+}
+
 /**
- * Highest-ranked preferred skill this member should take next, given who is already
- * scheduled. Coverage (no one on the skill yet) wins over stacking XP on a skill
- * someone else is already doing.
+ * Highest-ranked preferred skill that still needs coverage or XP (ignores covered prefs).
+ * Useful for UI hints — not used to hard-block other assignments.
  */
 export function preferredAssignmentSkill(
   member: Member,
@@ -182,51 +226,13 @@ export function preferredAssignmentSkill(
 ): Skill | null {
   const preferred = memberPreferredSkills(profiles.get(member));
   for (const skill of preferred) {
-    if (completedSkills.has(skill)) continue;
-    if (skillState.get(skill)!.memberCount === 0) return skill;
-  }
-  for (const skill of preferred) {
-    if (completedSkills.has(skill)) continue;
-    if (skillState.get(skill)!.contributed < required) return skill;
+    const need = classifySkillNeed(skill, skillState, required, completedSkills);
+    if (need === "uncovered" || need === "needs_xp") return skill;
   }
   return null;
 }
 
-/** True when every ranked preference is marked done for the week. */
-function allPreferredSkillsSatisfied(
-  member: Member,
-  profiles: ProfilesMap,
-  completedSkills: ReadonlySet<Skill>,
-): boolean {
-  const preferred = memberPreferredSkills(profiles.get(member));
-  if (preferred.length === 0) return true;
-  return preferred.every((skill) => completedSkills.has(skill));
-}
-
-function allSkillsMarkedComplete(completedSkills: ReadonlySet<Skill>): boolean {
-  return SKILLS.every((sk) => completedSkills.has(sk));
-}
-
-/** Top pref with scheduled coverage and projected XP but not marked done yet. */
-function isBlockedTopPreferenceSkill(
-  member: Member,
-  skill: Skill,
-  profiles: ProfilesMap,
-  skillState: Map<Skill, SkillState>,
-  required: number,
-  completedSkills: ReadonlySet<Skill>,
-): boolean {
-  const preferred = memberPreferredSkills(profiles.get(member));
-  if (preferred.length === 0) return false;
-  const top = preferred[0]!;
-  if (skill !== top) return false;
-  if (completedSkills.has(top)) return false;
-  const st = skillState.get(top)!;
-  return st.memberCount > 0 && st.contributed >= required;
-}
-
-
-function canAssignMemberToSkill(
+function canSuggestMemberOnSkill(
   member: Member,
   skill: Skill,
   profiles: ProfilesMap,
@@ -236,70 +242,48 @@ function canAssignMemberToSkill(
 ): boolean {
   if (isSkillLockedForMember(profiles.get(member), skill)) return false;
 
-  const st = skillState.get(skill)!;
-  const skillMarkedDone = completedSkills.has(skill);
-  const preferred = memberPreferredSkills(profiles.get(member));
+  const need = classifySkillNeed(skill, skillState, required, completedSkills);
+  if (need === "done") return false;
 
-  if (preferred.length === 0) {
-    if (skillMarkedDone) return allSkillsMarkedComplete(completedSkills);
-    if (st.memberCount === 0) return true;
-    if (st.contributed < required) return true;
-    // Backup on unmarked skills that already have projected XP from signups.
-    if (!skillMarkedDone) return true;
-    return allSkillsMarkedComplete(completedSkills);
+  if (need === "uncovered" || need === "needs_xp") return true;
+
+  // Covered but not marked done — backup slots only after guild priority work is finished.
+  if (guildHasPriorityWork(skillState, required, completedSkills)) return false;
+  if (
+    isHandledPreferenceForMember(
+      member,
+      skill,
+      profiles,
+      skillState,
+      required,
+      completedSkills,
+    )
+  ) {
+    return false;
   }
-
-  const nextPref = preferredAssignmentSkill(
-    member,
-    profiles,
-    skillState,
-    required,
-    completedSkills,
-  );
-  if (nextPref != null) {
-    if (!isSkillLockedForMember(profiles.get(member), nextPref)) {
-      return skill === nextPref;
-    }
-    // Locked next pref — continue to backup rules below.
-  }
-
-  if (!allPreferredSkillsSatisfied(member, profiles, completedSkills)) {
-    if (skillMarkedDone) return false;
-    if (
-      isBlockedTopPreferenceSkill(member, skill, profiles, skillState, required, completedSkills)
-    ) {
-      return false;
-    }
-    if (st.memberCount === 0) return true;
-    if (st.contributed < required) return true;
-    // Backup on unmarked skills with projected XP — not on blocked prefs above.
-    return true;
-  }
-
-  if (skillMarkedDone) return allSkillsMarkedComplete(completedSkills);
-  if (st.memberCount === 0) return true;
-  if (st.contributed < required) return true;
-  // All prefs marked done — seat on any remaining unmarked trial.
-  return !skillMarkedDone;
+  return true;
 }
 
-/** 3 = uncovered, 2 = needs XP, 1 = covered but unmarked, 0 = marked done */
-function assignmentNeedTier(
+/** 4 = uncovered, 3 = needs XP, 1 = covered backup, 0 = invalid */
+function assignmentPriorityTier(
   skill: Skill,
-  st: SkillState,
+  skillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
 ): number {
-  if (completedSkills.has(skill)) return 0;
-  if (st.memberCount === 0) return 3;
-  if (st.contributed < required) return 2;
-  return 1;
+  const need = classifySkillNeed(skill, skillState, required, completedSkills);
+  switch (need) {
+    case "uncovered":
+      return 4;
+    case "needs_xp":
+      return 3;
+    case "covered":
+      return 1;
+    default:
+      return 0;
+  }
 }
 
-/**
- * Score a member→skill pairing. Preference rank dominates within the same need tier;
- * XP/h only breaks ties. Uncovered skills beat XP gaps; XP gaps beat already-complete skills.
- */
 function scoreAssignment(
   member: Member,
   skill: Skill,
@@ -309,7 +293,7 @@ function scoreAssignment(
   completedSkills: ReadonlySet<Skill>,
 ): number {
   if (
-    !canAssignMemberToSkill(
+    !canSuggestMemberOnSkill(
       member,
       skill,
       profiles,
@@ -322,60 +306,15 @@ function scoreAssignment(
   }
 
   const st = skillState.get(skill)!;
-  const needTier = assignmentNeedTier(skill, st, required, completedSkills);
-  if (needTier === 0) return -1;
+  const tier = assignmentPriorityTier(skill, skillState, required, completedSkills);
+  if (tier === 0) return -1;
 
   const rank = getPreferenceRankFromProfile(profiles.get(member), skill);
   const pref = preferenceBonus(rank);
   const xp = memberContributionForSkill(profiles.get(member), skill);
-
   const remaining = Math.max(0, required - st.contributed);
-  return needTier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
-}
 
-/** Seat stranded members — ignores next-pref routing but keeps locks and mark-done rules. */
-function pickForcedSuggestionSkill(
-  member: Member,
-  profiles: ProfilesMap,
-  skillState: Map<Skill, SkillState>,
-  required: number,
-  completedSkills: ReadonlySet<Skill>,
-): Skill | null {
-  const unlocked = SKILLS.filter(
-    (skill) =>
-      !completedSkills.has(skill) &&
-      !isSkillLockedForMember(profiles.get(member), skill),
-  );
-  if (unlocked.length === 0) return null;
-
-  const withoutBlockedTop = unlocked.filter(
-    (skill) =>
-      !isBlockedTopPreferenceSkill(
-        member,
-        skill,
-        profiles,
-        skillState,
-        required,
-        completedSkills,
-      ),
-  );
-  const candidates = withoutBlockedTop.length > 0 ? withoutBlockedTop : unlocked;
-
-  let best: Skill | null = null;
-  let bestScore = -1;
-  for (const skill of candidates) {
-    const st = skillState.get(skill)!;
-    const tier = assignmentNeedTier(skill, st, required, completedSkills);
-    if (tier === 0) continue;
-    const pref = preferenceBonus(getPreferenceRankFromProfile(profiles.get(member), skill));
-    const loadPenalty = st.memberCount;
-    const score = tier * 1_000_000 + pref * 1_000 - loadPenalty;
-    if (score > bestScore) {
-      bestScore = score;
-      best = skill;
-    }
-  }
-  return best;
+  return tier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
 }
 
 function computeAssignmentPrefStats(
@@ -454,22 +393,15 @@ function applyAssignment(
 /**
  * Build suggested assignments for unscheduled members.
  *
- * Each step picks the best member→skill pair globally:
- * 1. Cover every skill (at least one member each)
- * 2. Fill trial XP gaps until all skills meet the hall requirement
- * 3. Seat any remaining members on their best available preference
+ * Respects existing planner signups and mark-done flags, then each step picks the
+ * best member→skill pair globally:
  *
- * Scheduled planner signups are applied first — each unscheduled member is steered
- * to their highest preferred skill that still needs coverage; once a skill has
- * someone scheduled, other members move to their next open preference.
+ * 1. Cover every unmarked skill (no signup yet)
+ * 2. Fill trial XP gaps on unmarked skills (projected XP below hall requirement)
+ * 3. Seat remaining members on backup slots for covered-but-unmarked trials — never
+ *    on a ranked preference that already has sufficient scheduled XP
  *
- * Skills marked done for the week are treated as complete. A skill with scheduled
- * coverage and projected XP but not marked done still counts as open — suggestions
- * prioritize uncovered skills and XP gaps first, then backup slots on other unmarked
- * trials. A member is never steered to their #1 preferred skill when someone is already
- * scheduled there with enough projected XP unless that trial is marked done.
- *
- * Within each need tier, profile preference rank is primary; XP/h breaks ties only.
+ * Within each tier, preference rank is primary; XP/h breaks ties.
  */
 export function buildOptimalSchedule(
   profiles: ProfilesMap,
@@ -536,17 +468,6 @@ export function buildOptimalSchedule(
 
     if (!bestMember || !bestSkill) break;
     assign(bestMember, bestSkill);
-  }
-
-  for (const member of [...pool]) {
-    const skill = pickForcedSuggestionSkill(
-      member,
-      profiles,
-      skillState,
-      required,
-      completedSkills,
-    );
-    if (skill) assign(member, skill);
   }
 
   const membersWithPreferences = membersWithRankedProfiles(profiles, members);
