@@ -108,4 +108,39 @@ if (amudo && amudo.skill !== "Delving" && amudo.skill !== "Ranged" && amudo.skil
   process.exit(1);
 }
 
+// Overflow: all 16 skills on planner → top preference wins
+const overflowMembers = allMembers.filter((m) => !scheduled.map((s) => s.member).includes(m));
+const overflowAssignees = [...MEMBERS, "pomu"].filter((m) => m !== "AmudoBun");
+const fullScheduled = SKILLS.map((skill, i) => ({
+  id: 100 + i,
+  week_start: weekStart,
+  member_name: overflowAssignees[i]!,
+  skill,
+  planned_date: weekDays[i % 7]!,
+  status: "planned" as const,
+  planned_start_at: `${weekDays[i % 7]}T12:00:00.000Z`,
+  last_edited_by: overflowAssignees[i]!,
+  created_at: "",
+  updated_at: "",
+}));
+
+const overflowPlan = buildOptimalSchedule(
+  profiles,
+  fullScheduled,
+  weekDays,
+  hallLevel,
+  allMembers,
+  new Set(),
+);
+
+const amudoOverflow = overflowPlan.suggestions.find((s) => s.member === "AmudoBun");
+console.log(
+  "Overflow AmudoBun →",
+  amudoOverflow ? `${amudoOverflow.skill} (pref ${amudoOverflow.preferenceRank})` : "NONE",
+);
+if (amudoOverflow?.skill !== "Cooking") {
+  console.error("FAIL: overflow should suggest AmudoBun top pref Cooking");
+  process.exit(1);
+}
+
 console.log("OK");

@@ -392,10 +392,10 @@ export function SuggestionsView({
         <h2 className="text-sm font-semibold text-white sm:text-lg">Smart schedule</h2>
         <p className="mt-0.5 hidden text-sm text-slate-400 sm:mt-1 sm:block">
           Suggests assignments for members not yet signed up this week. Existing planner
-          signups and mark-done are respected. Priority order: cover unassigned skills, fill
-          trial XP gaps, then backup slots — never stacking you onto a ranked skill that already
-          has enough scheduled XP while other trials still need people. Locked-out skills are
-          never suggested.
+          signups and mark-done are respected. Until every skill is mark-done or on the
+          planner, priority goes to unassigned skills and XP gaps. Once all 16 are covered
+          that way, leftover members get their highest-ranked preference. Locked-out skills
+          are never suggested.
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <Stat

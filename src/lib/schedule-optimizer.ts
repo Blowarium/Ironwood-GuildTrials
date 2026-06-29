@@ -169,6 +169,15 @@ function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
     .map((s) => s.skill);
 }
 
+/** Every skill is mark-done or has at least one signup on the planner (suggestions do not count). */
+function plannerCoversAllSkills(
+  existingSignups: TrialSignup[],
+  completedSkills: ReadonlySet<Skill>,
+): boolean {
+  const scheduledSkills = new Set(existingSignups.map((s) => s.skill as Skill));
+  return SKILLS.every((skill) => completedSkills.has(skill) || scheduledSkills.has(skill));
+}
+
 function classifySkillNeed(
   skill: Skill,
   skillState: Map<Skill, SkillState>,
@@ -239,15 +248,22 @@ function canSuggestMemberOnSkill(
   skillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
+  preferenceOverflow: boolean,
 ): boolean {
   if (isSkillLockedForMember(profiles.get(member), skill)) return false;
 
   const need = classifySkillNeed(skill, skillState, required, completedSkills);
   if (need === "done") return false;
 
+  if (preferenceOverflow) {
+    const preferred = memberPreferredSkills(profiles.get(member));
+    if (preferred.length === 0) return true;
+    return preferred.includes(skill);
+  }
+
   if (need === "uncovered" || need === "needs_xp") return true;
 
-  // Covered but not marked done — backup slots only after guild priority work is finished.
+  // Covered but not marked done — backup slots only while planner gaps remain.
   if (guildHasPriorityWork(skillState, required, completedSkills)) return false;
   if (
     isHandledPreferenceForMember(
@@ -291,6 +307,7 @@ function scoreAssignment(
   skillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
+  preferenceOverflow: boolean,
 ): number {
   if (
     !canSuggestMemberOnSkill(
@@ -300,20 +317,25 @@ function scoreAssignment(
       skillState,
       required,
       completedSkills,
+      preferenceOverflow,
     )
   ) {
     return -1;
   }
 
   const st = skillState.get(skill)!;
-  const tier = assignmentPriorityTier(skill, skillState, required, completedSkills);
-  if (tier === 0) return -1;
-
   const rank = getPreferenceRankFromProfile(profiles.get(member), skill);
   const pref = preferenceBonus(rank);
   const xp = memberContributionForSkill(profiles.get(member), skill);
-  const remaining = Math.max(0, required - st.contributed);
 
+  if (preferenceOverflow) {
+    return pref * 1_000_000_000 + xp;
+  }
+
+  const tier = assignmentPriorityTier(skill, skillState, required, completedSkills);
+  if (tier === 0) return -1;
+
+  const remaining = Math.max(0, required - st.contributed);
   return tier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
 }
 
@@ -398,8 +420,8 @@ function applyAssignment(
  *
  * 1. Cover every unmarked skill (no signup yet)
  * 2. Fill trial XP gaps on unmarked skills (projected XP below hall requirement)
- * 3. Seat remaining members on backup slots for covered-but-unmarked trials — never
- *    on a ranked preference that already has sufficient scheduled XP
+ * 3. When every skill is mark-done or has a planner signup, seat leftover members on
+ *    their highest-ranked preference (even if someone is already scheduled there)
  *
  * Within each tier, preference rank is primary; XP/h breaks ties.
  */
@@ -414,6 +436,7 @@ export function buildOptimalSchedule(
   const required = trialXpRequired(hallLevel);
   const alreadyScheduled = [...existingSignups];
   const scheduledMembers = new Set(existingSignups.map((s) => s.member_name));
+  const preferenceOverflow = plannerCoversAllSkills(existingSignups, completedSkills);
   const skillState = initSkillState(existingSignups, profiles);
 
   const dayLoad = new Map<string, number>();
@@ -453,6 +476,7 @@ export function buildOptimalSchedule(
           skillState,
           required,
           completedSkills,
+          preferenceOverflow,
         );
         if (score < 0) continue;
         if (
