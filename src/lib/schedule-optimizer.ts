@@ -69,8 +69,15 @@ export interface SchedulePlan {
   stats: {
     suggested: PreferenceAssignmentStats;
     scheduled: PreferenceAssignmentStats;
+    /** Skills with a planner signup or mark-done (excludes suggestions-only). */
+    skillsCoveredOnPlanner: number;
+    /** Skills with coverage after applying suggestions to the model. */
     skillsCoveredAfterPlan: number;
+    /** Trial XP met from planner signups only. */
+    skillsXpCompleteOnPlanner: number;
     skillsXpCompleteAfterPlan: number;
+    /** True when every skill has a planner signup or is mark-done. */
+    allSkillsOnPlannerOrDone: boolean;
     membersWithPreferences: number;
   };
 }
@@ -533,8 +540,15 @@ export function buildOptimalSchedule(
 
   const membersWithPreferences = membersWithRankedProfiles(profiles, members);
   const skillProgress = buildSkillProgress(skillState, required);
+  const scheduledProgress = buildSkillProgress(plannerSkillState, required);
+  const skillsCoveredOnPlanner = SKILLS.filter(
+    (skill) =>
+      completedSkills.has(skill) || plannerSkillState.get(skill)!.memberCount > 0,
+  ).length;
   const skillsCoveredAfterPlan = skillProgress.filter((s) => s.memberCount > 0).length;
+  const skillsXpCompleteOnPlanner = scheduledProgress.filter((s) => s.remaining <= 0).length;
   const skillsXpCompleteAfterPlan = skillProgress.filter((s) => s.remaining <= 0).length;
+  const allSkillsOnPlannerOrDone = plannerCoversAllSkills(existingSignups, completedSkills);
 
   const suggestedStats = computeAssignmentPrefStats(
     suggestions.map((s) => ({ member: s.member, skill: s.skill })),
@@ -558,8 +572,11 @@ export function buildOptimalSchedule(
     stats: {
       suggested: suggestedStats,
       scheduled: scheduledStats,
+      skillsCoveredOnPlanner,
       skillsCoveredAfterPlan,
+      skillsXpCompleteOnPlanner,
       skillsXpCompleteAfterPlan,
+      allSkillsOnPlannerOrDone,
       membersWithPreferences,
     },
   };

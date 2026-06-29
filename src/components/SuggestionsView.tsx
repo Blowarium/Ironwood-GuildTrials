@@ -406,9 +406,20 @@ export function SuggestionsView({
             label="Scheduled"
             value={memberFraction(plan.stats.scheduled.count, plan.totalMembers)}
           />
-          <Stat label="Skills covered" value={`${plan.stats.skillsCoveredAfterPlan}/16`} />
           <Stat
-            label="XP complete (plan)"
+            label="Skills on planner"
+            value={`${plan.stats.skillsCoveredOnPlanner}/16`}
+          />
+          <Stat
+            label="XP complete · planner"
+            value={`${plan.stats.skillsXpCompleteOnPlanner}/16`}
+          />
+          <Stat
+            label="Skills if suggestions applied"
+            value={`${plan.stats.skillsCoveredAfterPlan}/16`}
+          />
+          <Stat
+            label="XP complete · with suggestions"
             value={`${plan.stats.skillsXpCompleteAfterPlan}/16`}
           />
           <Stat
@@ -441,7 +452,7 @@ export function SuggestionsView({
         {canUseStaffTools && unsuggestedMembers.length > 0 && (
           <p className="mt-2 text-xs text-amber-300/90 sm:text-sm">
             No suggestion for {unsuggestedMembers.join(", ")} —{" "}
-            {plan.stats.skillsCoveredAfterPlan >= 16
+            {plan.stats.allSkillsOnPlannerOrDone
               ? "usually every trial skill is locked out in their profile."
               : "planner still needs a signup on every skill (or mark done) before preference suggestions apply; check for skills with no row on the planner yet."}
           </p>
