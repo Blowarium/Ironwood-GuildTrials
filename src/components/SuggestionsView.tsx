@@ -378,7 +378,8 @@ export function SuggestionsView({
           signups are respected — if someone already scheduled a skill, others are steered
           to their next open preference instead of stacking the same trial. Skills marked
           done count as finished; scheduled coverage alone does not — unmarked skills still
-          need members before overflow to lower preferences. Locked-out skills are never
+          need members before overflow to lower preferences. After gaps are filled, remaining
+          members get backup slots on other unmarked trials. Locked-out skills are never
           suggested. All 16 trials get coverage, then trial XP at hall level {plan.hallLevel}{" "}
           is filled before overflow placements.
         </p>

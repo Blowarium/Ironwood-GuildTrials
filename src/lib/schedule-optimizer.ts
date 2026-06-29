@@ -223,24 +223,13 @@ function isBlockedPreferenceSkill(
   return st.memberCount > 0 && st.contributed >= required;
 }
 
-function allTrialsComplete(skillState: Map<Skill, SkillState>, required: number): boolean {
-  return SKILLS.every((sk) => {
-    const st = skillState.get(sk)!;
-    return st.memberCount > 0 && st.contributed >= required;
-  });
-}
 
-/**
- * Seat a member only on their next open preferred skill, or on other skills once all
- * preferred trials are covered and XP-complete from existing signups.
- */
 function canAssignMemberToSkill(
   member: Member,
   skill: Skill,
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
-  trialsComplete: boolean,
   completedSkills: ReadonlySet<Skill>,
 ): boolean {
   if (isSkillLockedForMember(profiles.get(member), skill)) return false;
@@ -253,7 +242,9 @@ function canAssignMemberToSkill(
     if (skillMarkedDone) return allSkillsMarkedComplete(completedSkills);
     if (st.memberCount === 0) return true;
     if (st.contributed < required) return true;
-    return trialsComplete && allSkillsMarkedComplete(completedSkills);
+    // Backup on unmarked skills that already have projected XP from signups.
+    if (!skillMarkedDone) return true;
+    return allSkillsMarkedComplete(completedSkills);
   }
 
   const nextPref = preferredAssignmentSkill(
@@ -276,12 +267,15 @@ function canAssignMemberToSkill(
     }
     if (st.memberCount === 0) return true;
     if (st.contributed < required) return true;
-    return false;
+    // Backup on unmarked skills with projected XP — not on blocked prefs above.
+    return true;
   }
 
   if (skillMarkedDone) return allSkillsMarkedComplete(completedSkills);
-  if (trialsComplete) return true;
-  return st.memberCount === 0 || st.contributed < required;
+  if (st.memberCount === 0) return true;
+  if (st.contributed < required) return true;
+  // All prefs marked done — seat on any remaining unmarked trial.
+  return !skillMarkedDone;
 }
 
 /** 3 = uncovered, 2 = needs XP, 1 = covered but unmarked, 0 = marked done */
@@ -307,7 +301,6 @@ function scoreAssignment(
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
-  trialsComplete: boolean,
   completedSkills: ReadonlySet<Skill>,
 ): number {
   if (
@@ -317,7 +310,6 @@ function scoreAssignment(
       profiles,
       skillState,
       required,
-      trialsComplete,
       completedSkills,
     )
   ) {
@@ -423,7 +415,8 @@ function applyAssignment(
  *
  * Skills marked done for the week are treated as complete. A skill with scheduled
  * coverage and projected XP but not marked done still counts as open — suggestions
- * prioritize those gaps before overflow to lower-priority preferences.
+ * prioritize uncovered skills and XP gaps first, then backup slots on other unmarked
+ * trials (without stacking a member onto a preferred skill that already has coverage).
  *
  * Within each need tier, profile preference rank is primary; XP/h breaks ties only.
  */
@@ -464,7 +457,6 @@ export function buildOptimalSchedule(
 
   let safety = 500;
   while (pool.length > 0 && safety-- > 0) {
-    const trialsComplete = allTrialsComplete(skillState, required);
     let bestMember: Member | null = null;
     let bestSkill: Skill | null = null;
     let bestScore = -1;
@@ -477,7 +469,6 @@ export function buildOptimalSchedule(
           profiles,
           skillState,
           required,
-          trialsComplete,
           completedSkills,
         );
         if (score < 0) continue;
