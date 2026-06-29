@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import type { Member, Skill } from "@/lib/constants";
 import type { GuildConfig } from "@/lib/guild-config";
 import { buildProfilesMap, getPreferenceRankFromProfile, getXpPerHourForSkill, membersWithRankedProfiles, type MemberProfile, type ProfilesMap } from "@/lib/member-profile";
-import { buildOptimalSchedule, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
+import { buildOptimalSchedule, completedSkillsFromCompletions, type ScheduleSuggestion } from "@/lib/schedule-optimizer";
 import type { SkillXpProgress } from "@/lib/trial-xp";
 import { formatXp, soloCompletesTrial, trialXpContribution } from "@/lib/trial-xp";
-import type { TrialSignup } from "@/lib/types";
+import type { SkillWeekCompletion, TrialSignup } from "@/lib/types";
 import { formatDayLabel } from "@/lib/weeks";
 import { formatTimeLabel } from "@/lib/trial-schedule";
 import { rankClass, rankLabel } from "@/lib/suggestion-labels";
@@ -249,6 +249,7 @@ function SkillProgressCard({
 
 export function SuggestionsView({
   signups,
+  completions,
   profiles,
   weekDays,
   weekStart,
@@ -263,6 +264,7 @@ export function SuggestionsView({
   canManageDiscord,
 }: {
   signups: TrialSignup[];
+  completions: SkillWeekCompletion[];
   profiles: import("@/lib/member-profile").MemberProfile[];
   weekDays: string[];
   weekStart: string;
@@ -293,9 +295,22 @@ export function SuggestionsView({
 
   const hallLevel = guildConfig?.trial_hall_level ?? 0;
 
+  const completedSkills = useMemo(
+    () => completedSkillsFromCompletions(completions),
+    [completions],
+  );
+
   const plan = useMemo(
-    () => buildOptimalSchedule(profilesMap, signups, weekDays, hallLevel, memberNames),
-    [profilesMap, signups, weekDays, hallLevel, memberNames],
+    () =>
+      buildOptimalSchedule(
+        profilesMap,
+        signups,
+        weekDays,
+        hallLevel,
+        memberNames,
+        completedSkills,
+      ),
+    [profilesMap, signups, weekDays, hallLevel, memberNames, completedSkills],
   );
 
   const prefsCount = membersWithRankedProfiles(profilesMap, memberNames);
@@ -361,10 +376,11 @@ export function SuggestionsView({
         <p className="mt-0.5 hidden text-sm text-slate-400 sm:mt-1 sm:block">
           Suggests assignments for members not yet signed up this week. Existing planner
           signups are respected — if someone already scheduled a skill, others are steered
-          to their next open preference instead of stacking the same trial. Each member is
-          seated on their highest-ranked preferred skill that still needs coverage, then XP
-          gaps are filled. Locked-out skills are never suggested. All 16 trials get coverage,
-          then trial XP at hall level {plan.hallLevel} is filled before overflow placements.
+          to their next open preference instead of stacking the same trial. Skills marked
+          done count as finished; scheduled coverage alone does not — unmarked skills still
+          need members before overflow to lower preferences. Locked-out skills are never
+          suggested. All 16 trials get coverage, then trial XP at hall level {plan.hallLevel}{" "}
+          is filled before overflow placements.
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <Stat

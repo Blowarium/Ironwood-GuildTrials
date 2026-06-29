@@ -9,8 +9,8 @@ import {
   emptySkillRows,
   type MemberProfile,
 } from "./member-profile";
-import { buildOptimalSchedule, type SchedulePlan } from "./schedule-optimizer";
-import type { TrialSignup } from "./types";
+import { buildOptimalSchedule, completedSkillsFromCompletions, type SchedulePlan } from "./schedule-optimizer";
+import type { SkillWeekCompletion, TrialSignup } from "./types";
 import { getWeekDays } from "./weeks";
 
 async function fetchProfileFromDb(
@@ -51,6 +51,7 @@ function buildPlan(
   members: Member[],
   profiles: MemberProfile[],
   signups: TrialSignup[],
+  completions: SkillWeekCompletion[],
   weekStart: string,
   hallLevel: number,
 ): SchedulePlan {
@@ -60,6 +61,7 @@ function buildPlan(
     getWeekDays(weekStart),
     hallLevel,
     members,
+    completedSkillsFromCompletions(completions),
   );
 }
 
@@ -74,9 +76,10 @@ export async function loadSchedulePlanForWeek(weekStart: string): Promise<{
     const members = devStore.listMemberNames();
     const profiles = devStore.listProfiles();
     const signups = devStore.list(weekStart);
+    const completions = devStore.listCompletions(weekStart);
     const hallLevel = devStore.getGuildConfig().trial_hall_level ?? 0;
     return {
-      plan: buildPlan(members, profiles, signups, weekStart, hallLevel),
+      plan: buildPlan(members, profiles, signups, completions, weekStart, hallLevel),
       members,
       weekStart,
     };
@@ -98,10 +101,16 @@ export async function loadSchedulePlanForWeek(weekStart: string): Promise<{
     WHERE week_start = ${weekStart}::date
   `) as TrialSignup[];
 
+  const completionRows = (await db`
+    SELECT week_start::text, skill, completed, marked_by, updated_at::text
+    FROM skill_week_completions
+    WHERE week_start = ${weekStart}::date
+  `) as SkillWeekCompletion[];
+
   const hallLevel = await fetchGuildConfigFromDb(db);
 
   return {
-    plan: buildPlan(members, profiles, signupRows, weekStart, hallLevel),
+    plan: buildPlan(members, profiles, signupRows, completionRows, weekStart, hallLevel),
     members,
     weekStart,
   };

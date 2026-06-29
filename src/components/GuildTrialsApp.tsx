@@ -31,7 +31,7 @@ import {
 } from "@/lib/permissions";
 import { hasLocalStaffAuth } from "@/lib/staff-auth-client";
 import type { ScheduleSuggestion } from "@/lib/schedule-optimizer";
-import { buildOptimalSchedule } from "@/lib/schedule-optimizer";
+import { buildOptimalSchedule, completedSkillsFromCompletions } from "@/lib/schedule-optimizer";
 import { buildRolesMap, getMemberRole, type RolesMap } from "@/lib/roles";
 import { computeSkillXpCoverage } from "@/lib/skill-xp-coverage";
 import { syncSignups, buildStartAtFromWeekFraction, dateFromStartAt } from "@/lib/trial-schedule";
@@ -511,12 +511,14 @@ export function GuildTrialsApp() {
     }
 
     const hallLevel = guildConfig?.trial_hall_level ?? 0;
+    const completedSkills = completedSkillsFromCompletions(completions);
     const plan = buildOptimalSchedule(
       profilesMap,
       signups,
       weekDays,
       hallLevel,
       memberNames,
+      completedSkills,
     );
     const suggestion = plan.suggestions.find((s) => s.member === targetMember);
 
@@ -555,6 +557,7 @@ export function GuildTrialsApp() {
     guildConfig,
     profilesMap,
     signups,
+    completions,
     weekDays,
     memberNames,
   ]);
@@ -908,6 +911,7 @@ export function GuildTrialsApp() {
         ) : view === "suggestions" ? (
           <SuggestionsView
             signups={signups}
+            completions={completions}
             profiles={profiles}
             weekDays={weekDays}
             weekStart={weekStart}
