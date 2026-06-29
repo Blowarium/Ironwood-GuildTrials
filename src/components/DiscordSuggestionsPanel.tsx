@@ -57,7 +57,7 @@ export function DiscordSuggestionsPanel({
       }
       const label = kind === "weekly" ? "Weekly suggestions" : "Mid-week reminder";
       setMessage(
-        `${label} posted for ${formatWeekTabLabel(result.weekStart ?? weekStart)} — ${result.suggestionCount ?? 0} suggestion(s), ${result.messageCount ?? 1} message(s).`,
+        `${label} posted for ${formatWeekTabLabel(result.weekStart ?? weekStart)} — ${result.suggestionCount ?? 0} member link(s), ${result.messageCount ?? 1} message(s).`,
       );
     },
     [currentUser, staffUnlocked, weekStart],
@@ -69,8 +69,9 @@ export function DiscordSuggestionsPanel({
     <div className="mobile-panel rounded-xl border border-indigo-500/30 bg-indigo-950/20 sm:p-4">
       <h3 className="text-sm font-semibold text-white">Discord announcements</h3>
       <p className="mt-1 text-xs text-slate-400">
-        Post smart suggestions with a personal link that opens the schedule dialog on the weekly
-        planner. Requires a Discord bot on the server (
+        Post a personal link for each unscheduled member. The link opens the schedule dialog with
+        the suggestion computed at click time (signups and mark-done may change during the week).
+        Requires a Discord bot on the server (
         <code className="text-slate-500">DISCORD_BOT_TOKEN</code>,{" "}
         <code className="text-slate-500">DISCORD_CHANNEL_ID</code>).
       </p>

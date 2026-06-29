@@ -29,17 +29,17 @@ export async function postDiscordSuggestionsForWeek(
     };
   }
 
-  const { plan } = await loadSchedulePlanForWeek(weekStart);
-  const summary = buildDiscordSuggestionSummary(plan);
+  const { plan, members } = await loadSchedulePlanForWeek(weekStart);
+  const summary = buildDiscordSuggestionSummary(plan, members);
 
-  if (kind === "reminder" && summary.suggestionCount === 0) {
+  if (kind === "reminder" && summary.unscheduledCount === 0) {
     return {
       ok: false,
-      error: "No unscheduled members with suggestions — nothing to remind.",
+      error: "Everyone is already scheduled this week — nothing to remind.",
     };
   }
 
-  const chunks = buildDiscordSuggestionMessages(plan, weekStart, kind);
+  const chunks = buildDiscordSuggestionMessages(plan, members, weekStart, kind);
   const posted = await postDiscordMessages(
     config,
     chunks,

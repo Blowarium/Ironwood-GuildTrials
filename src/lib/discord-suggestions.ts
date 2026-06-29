@@ -1,9 +1,8 @@
-import type { Member, Skill } from "./constants";
+import type { Member } from "./constants";
 import type { SchedulePlan } from "./schedule-optimizer";
 import { formatGuildHourLabel } from "./trial-schedule";
 import { buildTrialApplyLink, getAppBaseUrl } from "./trial-apply-link";
 import { formatGuildDayLabel, formatGuildWeekTabLabel } from "./weeks";
-import { rankLabel } from "./suggestion-labels";
 
 export type DiscordSuggestionPostKind = "weekly" | "reminder";
 
@@ -31,53 +30,53 @@ function chunkLines(lines: string[]): string[] {
   return chunks.length ? chunks : [""];
 }
 
-function suggestionLine(
+function memberScheduleLine(
   member: Member,
-  skill: Skill,
-  plannedDate: string,
-  plannedStartAt: string,
   weekStart: string,
   baseUrl: string,
 ): string {
   const link = buildTrialApplyLink(weekStart, member, baseUrl);
-  const day = formatGuildDayLabel(plannedDate, true);
-  const time = formatGuildHourLabel(plannedStartAt);
-  return `**${member}** — ${skill} · ${day} ${time} · [Schedule trial](${link})`;
+  return `**${member}** — [Schedule your trial](${link})`;
+}
+
+function unscheduledMembers(plan: SchedulePlan, members: readonly Member[]): Member[] {
+  const scheduledMembers = new Set(plan.alreadyScheduled.map((s) => s.member_name));
+  return [...members]
+    .filter((m) => !scheduledMembers.has(m))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export function buildDiscordSuggestionMessages(
   plan: SchedulePlan,
+  members: readonly Member[],
   weekStart: string,
   kind: DiscordSuggestionPostKind,
   baseUrl = getAppBaseUrl(),
 ): string[] {
   const weekLabel = formatGuildWeekTabLabel(weekStart);
-  const suggestions =
-    kind === "reminder"
-      ? plan.suggestions
-      : plan.suggestions;
+  const unscheduled = unscheduledMembers(plan, members);
 
   const header =
     kind === "weekly"
-      ? `**Guild Trials — ${weekLabel}**\nSmart suggestions for members not yet on the planner. Open your link to pick a day & start time:`
-      : `**Guild Trials reminder — ${weekLabel}**\nThese members still need a trial slot this week:`;
+      ? `**Guild Trials — ${weekLabel}**\nMembers not yet on the planner this week — use your personal link below. The suggested skill and time are calculated **when you open the link**, based on current signups and mark-done status (not frozen at post time).`
+      : `**Guild Trials reminder — ${weekLabel}**\nThese members still need a trial slot. Open your link for the **current** suggestion:`;
 
   const lines: string[] = [header, ""];
 
-  if (suggestions.length === 0) {
-    lines.push("_Everyone with a profile is already scheduled — nice work!_");
+  if (unscheduled.length === 0) {
+    lines.push("_Everyone is already scheduled this week — nice work!_");
   } else {
-    for (const s of suggestions) {
-      lines.push(
-        suggestionLine(s.member, s.skill, s.plannedDate, s.plannedStartAt, weekStart, baseUrl) +
-          ` _(${rankLabel(s.preferenceRank)})_`,
-      );
+    for (const member of unscheduled) {
+      lines.push(memberScheduleLine(member, weekStart, baseUrl));
     }
   }
 
   const scheduled = plan.alreadyScheduled;
   if (scheduled.length > 0 && kind === "weekly") {
-    lines.push("", "**Already scheduled**");
+    lines.push(
+      "",
+      `**Already on the planner** (${scheduled.length} — snapshot when this was posted)`,
+    );
     for (const s of scheduled) {
       const day = formatGuildDayLabel(s.planned_date, true);
       const time = s.planned_start_at ? formatGuildHourLabel(s.planned_start_at) : "";
@@ -85,11 +84,13 @@ export function buildDiscordSuggestionMessages(
     }
   }
 
-  const suggestedMembers = new Set(suggestions.map((s) => s.member));
-  const scheduledMembers = new Set(scheduled.map((s) => s.member_name));
-  const needsProfile = plan.totalMembers - suggestedMembers.size - scheduledMembers.size;
-  if (needsProfile > 0 && kind === "weekly") {
-    lines.push("", "_Some members need a profile with top skills & XP/h before a suggestion can be made._");
+  const suggestedNow = new Set(plan.suggestions.map((s) => s.member));
+  const withoutSuggestion = unscheduled.filter((m) => !suggestedNow.has(m));
+  if (withoutSuggestion.length > 0) {
+    lines.push(
+      "",
+      `_Note: ${withoutSuggestion.length} member${withoutSuggestion.length === 1 ? "" : "s"} may need profile updates (top skills, XP/h, or fewer locked-out skills) before a suggestion can be made._`,
+    );
   }
 
   lines.push("", `Planner: ${baseUrl}`);
@@ -97,12 +98,19 @@ export function buildDiscordSuggestionMessages(
   return chunkLines(lines);
 }
 
-export function buildDiscordSuggestionSummary(plan: SchedulePlan): {
+export function buildDiscordSuggestionSummary(
+  plan: SchedulePlan,
+  members: readonly Member[],
+): {
   suggestionCount: number;
   scheduledCount: number;
+  unscheduledCount: number;
 } {
+  const unscheduled = unscheduledMembers(plan, members);
   return {
-    suggestionCount: plan.suggestions.length,
+    /** Unscheduled members included in the post (each gets a personal link). */
+    suggestionCount: unscheduled.length,
     scheduledCount: plan.alreadyScheduled.length,
+    unscheduledCount: unscheduled.length,
   };
 }
