@@ -133,6 +133,7 @@ const overflowPlan = buildOptimalSchedule(
   new Set(),
 );
 
+console.log("Overflow suggestions:", overflowPlan.suggestions.length);
 const amudoOverflow = overflowPlan.suggestions.find((s) => s.member === "AmudoBun");
 console.log(
   "Overflow AmudoBun →",
@@ -140,6 +141,14 @@ console.log(
 );
 if (amudoOverflow?.skill !== "Cooking") {
   console.error("FAIL: overflow should suggest AmudoBun top pref Cooking");
+  process.exit(1);
+}
+
+const unscheduledCount = allMembers.length - fullScheduled.length;
+if (overflowPlan.suggestions.length !== unscheduledCount) {
+  console.error(
+    `FAIL: expected ${unscheduledCount} overflow suggestions, got ${overflowPlan.suggestions.length}`,
+  );
   process.exit(1);
 }
 

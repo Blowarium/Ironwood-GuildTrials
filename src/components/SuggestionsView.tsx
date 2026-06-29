@@ -440,8 +440,10 @@ export function SuggestionsView({
         )}
         {canUseStaffTools && unsuggestedMembers.length > 0 && (
           <p className="mt-2 text-xs text-amber-300/90 sm:text-sm">
-            No suggestion for {unsuggestedMembers.join(", ")} — usually all trial skills are
-            locked out in their profile, or every remaining trial is marked done this week.
+            No suggestion for {unsuggestedMembers.join(", ")} —{" "}
+            {plan.stats.skillsCoveredAfterPlan >= 16
+              ? "usually every trial skill is locked out in their profile."
+              : "planner still needs a signup on every skill (or mark done) before preference suggestions apply; check for skills with no row on the planner yet."}
           </p>
         )}
       </div>

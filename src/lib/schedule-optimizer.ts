@@ -191,14 +191,14 @@ function classifySkillNeed(
   return "covered";
 }
 
-/** True while any skill still needs a first signup or more trial XP. */
-function guildHasPriorityWork(
-  skillState: Map<Skill, SkillState>,
+/** True while any skill still needs a first planner signup or more trial XP (planner signups only). */
+function plannerHasPriorityWork(
+  plannerSkillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
 ): boolean {
   return SKILLS.some((skill) => {
-    const need = classifySkillNeed(skill, skillState, required, completedSkills);
+    const need = classifySkillNeed(skill, plannerSkillState, required, completedSkills);
     return need === "uncovered" || need === "needs_xp";
   });
 }
@@ -207,24 +207,24 @@ function skillHasAdequateXp(st: SkillState, required: number): boolean {
   return st.memberCount > 0 && st.contributed >= required;
 }
 
-/** Member ranks this skill and signups already project enough XP — don't stack them here. */
+/** Member ranks this skill and planner signups already project enough XP — don't stack them here. */
 function isHandledPreferenceForMember(
   member: Member,
   skill: Skill,
   profiles: ProfilesMap,
-  skillState: Map<Skill, SkillState>,
+  plannerSkillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
 ): boolean {
   if (completedSkills.has(skill)) return false;
   const preferred = memberPreferredSkills(profiles.get(member));
   if (!preferred.includes(skill)) return false;
-  return skillHasAdequateXp(skillState.get(skill)!, required);
+  return skillHasAdequateXp(plannerSkillState.get(skill)!, required);
 }
 
 /**
- * Highest-ranked preferred skill that still needs coverage or XP (ignores covered prefs).
- * Useful for UI hints — not used to hard-block other assignments.
+ * Highest-ranked preferred skill that still needs coverage or XP on the planner.
+ * Useful for UI hints.
  */
 export function preferredAssignmentSkill(
   member: Member,
@@ -241,63 +241,85 @@ export function preferredAssignmentSkill(
   return null;
 }
 
+/** Highest-ranked unlocked, unmarked skill for preference overflow. */
+function pickPreferenceOverflowSkill(
+  member: Member,
+  profiles: ProfilesMap,
+  completedSkills: ReadonlySet<Skill>,
+): Skill | null {
+  for (const skill of memberPreferredSkills(profiles.get(member))) {
+    if (completedSkills.has(skill)) continue;
+    if (isSkillLockedForMember(profiles.get(member), skill)) continue;
+    return skill;
+  }
+
+  for (const skill of SKILLS) {
+    if (completedSkills.has(skill)) continue;
+    if (isSkillLockedForMember(profiles.get(member), skill)) continue;
+    return skill;
+  }
+
+  return null;
+}
+
 function canSuggestMemberOnSkill(
   member: Member,
   skill: Skill,
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
+  plannerSkillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
   preferenceOverflow: boolean,
 ): boolean {
   if (isSkillLockedForMember(profiles.get(member), skill)) return false;
-
-  const need = classifySkillNeed(skill, skillState, required, completedSkills);
-  if (need === "done") return false;
+  if (completedSkills.has(skill)) return false;
 
   if (preferenceOverflow) {
-    const preferred = memberPreferredSkills(profiles.get(member));
-    if (preferred.length === 0) return true;
-    return preferred.includes(skill);
+    return true;
   }
 
-  if (need === "uncovered" || need === "needs_xp") return true;
+  const plannerNeed = classifySkillNeed(skill, plannerSkillState, required, completedSkills);
+  const liveNeed = classifySkillNeed(skill, skillState, required, completedSkills);
 
-  // Covered but not marked done — backup slots only while planner gaps remain.
-  if (guildHasPriorityWork(skillState, required, completedSkills)) return false;
+  if (plannerNeed === "uncovered" || plannerNeed === "needs_xp") {
+    return liveNeed === "uncovered" || liveNeed === "needs_xp";
+  }
+
+  if (plannerHasPriorityWork(plannerSkillState, required, completedSkills)) return false;
+
   if (
     isHandledPreferenceForMember(
       member,
       skill,
       profiles,
-      skillState,
+      plannerSkillState,
       required,
       completedSkills,
     )
   ) {
     return false;
   }
-  return true;
+
+  return liveNeed === "covered";
 }
 
 /** 4 = uncovered, 3 = needs XP, 1 = covered backup, 0 = invalid */
 function assignmentPriorityTier(
   skill: Skill,
   skillState: Map<Skill, SkillState>,
+  plannerSkillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
+  preferenceOverflow: boolean,
 ): number {
-  const need = classifySkillNeed(skill, skillState, required, completedSkills);
-  switch (need) {
-    case "uncovered":
-      return 4;
-    case "needs_xp":
-      return 3;
-    case "covered":
-      return 1;
-    default:
-      return 0;
-  }
+  if (preferenceOverflow) return 1;
+
+  const plannerNeed = classifySkillNeed(skill, plannerSkillState, required, completedSkills);
+  if (plannerNeed === "uncovered") return 4;
+  if (plannerNeed === "needs_xp") return 3;
+  if (plannerNeed === "covered") return 1;
+  return 0;
 }
 
 function scoreAssignment(
@@ -305,6 +327,7 @@ function scoreAssignment(
   skill: Skill,
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
+  plannerSkillState: Map<Skill, SkillState>,
   required: number,
   completedSkills: ReadonlySet<Skill>,
   preferenceOverflow: boolean,
@@ -315,6 +338,7 @@ function scoreAssignment(
       skill,
       profiles,
       skillState,
+      plannerSkillState,
       required,
       completedSkills,
       preferenceOverflow,
@@ -332,7 +356,14 @@ function scoreAssignment(
     return pref * 1_000_000_000 + xp;
   }
 
-  const tier = assignmentPriorityTier(skill, skillState, required, completedSkills);
+  const tier = assignmentPriorityTier(
+    skill,
+    skillState,
+    plannerSkillState,
+    required,
+    completedSkills,
+    preferenceOverflow,
+  );
   if (tier === 0) return -1;
 
   const remaining = Math.max(0, required - st.contributed);
@@ -415,15 +446,12 @@ function applyAssignment(
 /**
  * Build suggested assignments for unscheduled members.
  *
- * Respects existing planner signups and mark-done flags, then each step picks the
- * best member→skill pair globally:
+ * Phase 1 — while the planner still has gaps (uncovered skill or XP shortfall on signups):
+ * steer members to those trials; never stack onto a ranked skill that already has enough
+ * scheduled XP while planner work remains.
  *
- * 1. Cover every unmarked skill (no signup yet)
- * 2. Fill trial XP gaps on unmarked skills (projected XP below hall requirement)
- * 3. When every skill is mark-done or has a planner signup, seat leftover members on
- *    their highest-ranked preference (even if someone is already scheduled there)
- *
- * Within each tier, preference rank is primary; XP/h breaks ties.
+ * Phase 2 — when every skill is mark-done or has a planner signup: seat each leftover
+ * member on their highest-ranked unlocked skill (even if someone is already scheduled there).
  */
 export function buildOptimalSchedule(
   profiles: ProfilesMap,
@@ -437,6 +465,7 @@ export function buildOptimalSchedule(
   const alreadyScheduled = [...existingSignups];
   const scheduledMembers = new Set(existingSignups.map((s) => s.member_name));
   const preferenceOverflow = plannerCoversAllSkills(existingSignups, completedSkills);
+  const plannerSkillState = initSkillState(existingSignups, profiles);
   const skillState = initSkillState(existingSignups, profiles);
 
   const dayLoad = new Map<string, number>();
@@ -461,37 +490,45 @@ export function buildOptimalSchedule(
     pool = pool.filter((m) => m !== member);
   }
 
-  let safety = 500;
-  while (pool.length > 0 && safety-- > 0) {
-    let bestMember: Member | null = null;
-    let bestSkill: Skill | null = null;
-    let bestScore = -1;
+  if (preferenceOverflow) {
+    for (const member of [...pool].sort((a, b) => a.localeCompare(b))) {
+      const skill = pickPreferenceOverflowSkill(member, profiles, completedSkills);
+      if (skill) assign(member, skill);
+    }
+  } else {
+    let safety = 500;
+    while (pool.length > 0 && safety-- > 0) {
+      let bestMember: Member | null = null;
+      let bestSkill: Skill | null = null;
+      let bestScore = -1;
 
-    for (const member of pool) {
-      for (const skill of SKILLS) {
-        const score = scoreAssignment(
-          member,
-          skill,
-          profiles,
-          skillState,
-          required,
-          completedSkills,
-          preferenceOverflow,
-        );
-        if (score < 0) continue;
-        if (
-          score > bestScore ||
-          (score === bestScore && bestMember != null && member.localeCompare(bestMember) < 0)
-        ) {
-          bestScore = score;
-          bestMember = member;
-          bestSkill = skill;
+      for (const member of pool) {
+        for (const skill of SKILLS) {
+          const score = scoreAssignment(
+            member,
+            skill,
+            profiles,
+            skillState,
+            plannerSkillState,
+            required,
+            completedSkills,
+            false,
+          );
+          if (score < 0) continue;
+          if (
+            score > bestScore ||
+            (score === bestScore && bestMember != null && member.localeCompare(bestMember) < 0)
+          ) {
+            bestScore = score;
+            bestMember = member;
+            bestSkill = skill;
+          }
         }
       }
-    }
 
-    if (!bestMember || !bestSkill) break;
-    assign(bestMember, bestSkill);
+      if (!bestMember || !bestSkill) break;
+      assign(bestMember, bestSkill);
+    }
   }
 
   const membersWithPreferences = membersWithRankedProfiles(profiles, members);
@@ -516,7 +553,7 @@ export function buildOptimalSchedule(
     trialXpRequired: required,
     hallLevel,
     skillProgress,
-    scheduledSkillProgress: buildSkillProgress(initSkillState(existingSignups, profiles), required),
+    scheduledSkillProgress: buildSkillProgress(plannerSkillState, required),
     totalMembers: members.length,
     stats: {
       suggested: suggestedStats,
