@@ -257,20 +257,45 @@ function pickPreferenceOverflowSkill(
   member: Member,
   profiles: ProfilesMap,
   completedSkills: ReadonlySet<Skill>,
+  skillState: Map<Skill, SkillState>,
 ): Skill | null {
-  for (const skill of memberPreferredSkills(profiles.get(member))) {
+  const profile = profiles.get(member);
+  const candidates: Skill[] = [];
+
+  for (const skill of memberPreferredSkills(profile)) {
     if (completedSkills.has(skill)) continue;
-    if (isSkillLockedForMember(profiles.get(member), skill)) continue;
-    return skill;
+    if (isSkillLockedForMember(profile, skill)) continue;
+    candidates.push(skill);
   }
 
-  for (const skill of SKILLS) {
-    if (completedSkills.has(skill)) continue;
-    if (isSkillLockedForMember(profiles.get(member), skill)) continue;
-    return skill;
+  if (candidates.length === 0) {
+    for (const skill of SKILLS) {
+      if (completedSkills.has(skill)) continue;
+      if (isSkillLockedForMember(profile, skill)) continue;
+      return skill;
+    }
+    return null;
   }
 
-  return null;
+  const topRank = getPreferenceRankFromProfile(profile, candidates[0]!);
+  const topTier = candidates.filter(
+    (skill) => getPreferenceRankFromProfile(profile, skill) === topRank,
+  );
+
+  if (topTier.length === 1) return topTier[0]!;
+
+  // Default/neutral profiles tie every skill at rank 1 — spread by load, then best member XP.
+  return topTier.reduce((best, skill) => {
+    const bestLoad = skillState.get(best)!.memberCount;
+    const skillLoad = skillState.get(skill)!.memberCount;
+    if (skillLoad !== bestLoad) return skillLoad < bestLoad ? skill : best;
+
+    const bestXp = memberContributionForSkill(profile, best);
+    const skillXp = memberContributionForSkill(profile, skill);
+    if (skillXp !== bestXp) return skillXp > bestXp ? skill : best;
+
+    return SKILLS.indexOf(skill) < SKILLS.indexOf(best) ? skill : best;
+  });
 }
 
 function canSuggestMemberOnSkill(
@@ -564,7 +589,7 @@ export function buildOptimalSchedule(
 
   if (preferenceOverflow) {
     for (const member of [...pool].sort((a, b) => a.localeCompare(b))) {
-      const skill = pickPreferenceOverflowSkill(member, profiles, completedSkills);
+      const skill = pickPreferenceOverflowSkill(member, profiles, completedSkills, skillState);
       if (skill) assign(member, skill);
     }
   } else {
