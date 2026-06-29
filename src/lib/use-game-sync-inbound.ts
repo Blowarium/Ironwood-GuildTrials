@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   persistPendingGameSync,
+  readPendingGameSync,
   readStoredGameSyncResult,
 } from "./game-sync-session";
 import {
@@ -38,8 +39,16 @@ export function useGameSyncInbound(options: {
 
   const acceptPayload = useCallback((payload: IronwoodGameSyncPayload) => {
     if (payload.importedAt && payload.importedAt === lastImportedAtRef.current) return;
+
+    const pending = readPendingGameSync();
     const applied = readStoredGameSyncResult();
-    if (payload.importedAt && applied?.importedAt === payload.importedAt) return;
+    if (
+      payload.importedAt &&
+      applied?.importedAt === payload.importedAt &&
+      !pending
+    ) {
+      return;
+    }
 
     lastImportedAtRef.current = payload.importedAt;
     persistPendingGameSync(payload);
@@ -101,7 +110,14 @@ export function useGameSyncInbound(options: {
     function onPageShow() {
       readPayloadFromCurrentUrl();
     }
+    function onUrlHandoff() {
+      readPayloadFromCurrentUrl();
+    }
     window.addEventListener("pageshow", onPageShow);
-    return () => window.removeEventListener("pageshow", onPageShow);
+    window.addEventListener("igt-game-sync-url-updated", onUrlHandoff);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("igt-game-sync-url-updated", onUrlHandoff);
+    };
   }, [readPayloadFromCurrentUrl]);
 }

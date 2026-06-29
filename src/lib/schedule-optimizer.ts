@@ -158,6 +158,41 @@ function memberPreferredSkills(profile: MemberProfile | undefined): Skill[] {
     .map((s) => s.skill);
 }
 
+/**
+ * Highest-ranked preferred skill this member should take next, given who is already
+ * scheduled. Coverage (no one on the skill yet) wins over stacking XP on a skill
+ * someone else is already doing.
+ */
+export function preferredAssignmentSkill(
+  member: Member,
+  profiles: ProfilesMap,
+  skillState: Map<Skill, SkillState>,
+  required: number,
+): Skill | null {
+  const preferred = memberPreferredSkills(profiles.get(member));
+  for (const skill of preferred) {
+    if (skillState.get(skill)!.memberCount === 0) return skill;
+  }
+  for (const skill of preferred) {
+    if (skillState.get(skill)!.contributed < required) return skill;
+  }
+  return null;
+}
+
+function allPreferredSkillsSatisfied(
+  member: Member,
+  profiles: ProfilesMap,
+  skillState: Map<Skill, SkillState>,
+  required: number,
+): boolean {
+  const preferred = memberPreferredSkills(profiles.get(member));
+  if (preferred.length === 0) return true;
+  return preferred.every((skill) => {
+    const st = skillState.get(skill)!;
+    return st.memberCount > 0 && st.contributed >= required;
+  });
+}
+
 function allTrialsComplete(skillState: Map<Skill, SkillState>, required: number): boolean {
   return SKILLS.every((sk) => {
     const st = skillState.get(sk)!;
@@ -166,8 +201,8 @@ function allTrialsComplete(skillState: Map<Skill, SkillState>, required: number)
 }
 
 /**
- * Don't seat a member on a lower-ranked skill while a higher-ranked pref trial
- * still needs coverage or trial XP.
+ * Seat a member only on their next open preferred skill, or on other skills once all
+ * preferred trials are covered and XP-complete from existing signups.
  */
 function canAssignMemberToSkill(
   member: Member,
@@ -175,18 +210,27 @@ function canAssignMemberToSkill(
   profiles: ProfilesMap,
   skillState: Map<Skill, SkillState>,
   required: number,
+  trialsComplete: boolean,
 ): boolean {
   if (isSkillLockedForMember(profiles.get(member), skill)) return false;
 
   const preferred = memberPreferredSkills(profiles.get(member));
-  if (preferred.length === 0) return true;
-  if (preferred.includes(skill)) return true;
-
-  for (const ps of preferred) {
-    const st = skillState.get(ps)!;
-    if (st.memberCount === 0 || st.contributed < required) return false;
+  if (preferred.length === 0) {
+    const st = skillState.get(skill)!;
+    if (trialsComplete) return true;
+    return st.memberCount === 0 || st.contributed < required;
   }
-  return true;
+
+  const nextPref = preferredAssignmentSkill(member, profiles, skillState, required);
+  if (nextPref != null) {
+    return skill === nextPref;
+  }
+
+  if (!allPreferredSkillsSatisfied(member, profiles, skillState, required)) return false;
+
+  const st = skillState.get(skill)!;
+  if (trialsComplete) return true;
+  return st.memberCount === 0 || st.contributed < required;
 }
 
 /** 2 = uncovered, 1 = needs XP, 0 = complete */
@@ -208,7 +252,9 @@ function scoreAssignment(
   required: number,
   trialsComplete: boolean,
 ): number {
-  if (!canAssignMemberToSkill(member, skill, profiles, skillState, required)) return -1;
+  if (!canAssignMemberToSkill(member, skill, profiles, skillState, required, trialsComplete)) {
+    return -1;
+  }
 
   const st = skillState.get(skill)!;
   const needTier = assignmentNeedTier(st, required);
@@ -306,6 +352,10 @@ function applyAssignment(
  * 1. Cover every skill (at least one member each)
  * 2. Fill trial XP gaps until all skills meet the hall requirement
  * 3. Seat any remaining members on their best available preference
+ *
+ * Scheduled planner signups are applied first — each unscheduled member is steered
+ * to their highest preferred skill that still needs coverage; once a skill has
+ * someone scheduled, other members move to their next open preference.
  *
  * Within each need tier, profile preference rank is primary; XP/h breaks ties only.
  */

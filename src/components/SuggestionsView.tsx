@@ -359,11 +359,12 @@ export function SuggestionsView({
       <div className="mobile-panel rounded-xl border border-slate-700/50 bg-[#131f36] sm:p-4">
         <h2 className="text-sm font-semibold text-white sm:text-lg">Smart schedule</h2>
         <p className="mt-0.5 hidden text-sm text-slate-400 sm:mt-1 sm:block">
-          Suggests assignments for members not yet signed up this week. Each member is seated on
-          their highest-ranked preferred skill that still helps complete the week — profile
-          preferences come first, XP/h only breaks ties. Locked-out skills are never suggested.
-          All 16 trials get coverage, then trial XP at hall level {plan.hallLevel} is filled before
-          anyone is placed on a lower-ranked skill.
+          Suggests assignments for members not yet signed up this week. Existing planner
+          signups are respected — if someone already scheduled a skill, others are steered
+          to their next open preference instead of stacking the same trial. Each member is
+          seated on their highest-ranked preferred skill that still needs coverage, then XP
+          gaps are filled. Locked-out skills are never suggested. All 16 trials get coverage,
+          then trial XP at hall level {plan.hallLevel} is filled before overflow placements.
         </p>
         <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <Stat

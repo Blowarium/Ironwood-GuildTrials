@@ -40,7 +40,7 @@ export const TRIAL_SYNC_PLANNER_WINDOW_NAME = "igt-guild-trials-planner";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.18.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = "1.19.0";
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -88,10 +88,10 @@ export type IronwoodTrialSyncMemberSource = {
   skillId: string | number;
   skillName: string | null;
   exp: number;
-  endDate: string;
-  inferredStartAt: string;
+  endDate: string | null;
+  inferredStartAt?: string | null;
   actionId?: number | null;
-  method: "component" | "dom";
+  method: "component" | "dom" | "api" | "dom-rows" | "dom-text" | "dom-columns" | string;
 };
 
 export type IronwoodTrialSyncSkillSource = {
@@ -191,12 +191,10 @@ export function countTimedMembersInPayload(
   payload: IronwoodTrialSyncPayload,
   now = new Date(),
 ): number {
-  const nowMs = now.getTime();
   let count = 0;
   for (const skillRow of payload.skills) {
     for (const member of skillRow.members) {
-      const endMs = new Date(member.endDate).getTime();
-      if (!Number.isNaN(endMs) && endMs > nowMs) count++;
+      if (resolveActiveTrialAssignment(member, now)) count++;
     }
   }
   return count;
@@ -250,6 +248,37 @@ export function inferTrialStartAtFromEndDate(endDate: string): string {
   const endMs = new Date(endDate).getTime();
   if (Number.isNaN(endMs)) return new Date(0).toISOString();
   return snapStartAtToWholeHour(new Date(endMs - TRIAL_DURATION_MS).toISOString());
+}
+
+/**
+ * Resolve an in-game trial slot to planner start time.
+ * Matches Ironwood helper logic: missing/invalid endDate still counts as active;
+ * start comes from inferredStartAt or endDate − 24h (whole-hour snap).
+ */
+export function resolveActiveTrialAssignment(
+  member: Pick<IronwoodTrialSyncMemberSource, "endDate" | "inferredStartAt">,
+  now = new Date(),
+): { plannedStartAt: string; plannedDate: string } | null {
+  const nowMs = now.getTime();
+  const endMs = member.endDate ? new Date(member.endDate).getTime() : NaN;
+  const active = Number.isNaN(endMs) || endMs > nowMs;
+  if (!active) return null;
+
+  let plannedStartAt: string | null = null;
+  if (member.inferredStartAt) {
+    plannedStartAt = snapStartAtToWholeHour(member.inferredStartAt);
+  } else if (member.endDate && !Number.isNaN(endMs)) {
+    plannedStartAt = inferTrialStartAtFromEndDate(member.endDate);
+  } else {
+    plannedStartAt = snapStartAtToWholeHour(new Date(nowMs).toISOString());
+  }
+
+  if (!plannedStartAt || Number.isNaN(new Date(plannedStartAt).getTime())) return null;
+
+  return {
+    plannedStartAt,
+    plannedDate: guildDateFromInstant(plannedStartAt),
+  };
 }
 
 /** Monday week_start for planner, from guild.trial.startDate. */
@@ -423,13 +452,14 @@ export function normalizeIronwoodTrialSyncPayload(input: {
 
       const members: IronwoodTrialSyncMemberSource[] = membersRaw.map((m) => {
         if (!mapGameDisplayNameToMember(m.displayName)) unmatchedNames.push(m.displayName);
+        const inferredStartAt = m.endDate ? inferTrialStartAtFromEndDate(m.endDate) : null;
         return {
           displayName: m.displayName,
           skillId: m.skillId,
           skillName,
           exp: m.exp,
-          endDate: m.endDate,
-          inferredStartAt: inferTrialStartAtFromEndDate(m.endDate),
+          endDate: m.endDate ?? null,
+          inferredStartAt,
           actionId: (m as { actionId?: number }).actionId ?? null,
           method,
         };
@@ -684,13 +714,12 @@ function startTimesMatch(a: string, b: string): boolean {
   return trialSyncStartTimesMatch(a, b);
 }
 
-/** Active in-game trial slots (endDate still in the future). One row per member. */
+/** Active in-game trial slots. One row per member. */
 export function collectActiveTrialAssignments(
   payload: IronwoodTrialSyncPayload,
   now = new Date(),
   roster?: readonly string[],
 ): IronwoodTrialSyncAssignment[] {
-  const nowMs = now.getTime();
   const byMember = new Map<Member, IronwoodTrialSyncAssignment>();
 
   for (const skillRow of payload.skills) {
@@ -701,39 +730,16 @@ export function collectActiveTrialAssignments(
       const memberName = mapGameDisplayNameToMember(member.displayName, roster);
       if (!memberName) continue;
 
-      if (
-        member.skillId != null &&
-        skillRow.skillId != null &&
-        String(member.skillId) !== String(skillRow.skillId)
-      ) {
-        const memberMethod = (member as { method?: string }).method;
-        const skillIdIsName =
-          typeof member.skillId === "string" &&
-          !/^\d+$/.test(String(member.skillId).trim());
-        if (
-          memberMethod === "dom-columns" ||
-          memberMethod === "dom" ||
-          memberMethod === "dom-text" ||
-          skillIdIsName
-        ) {
-          /* DOM payloads carry skill on the row; ignore string/numeric id mismatch */
-        } else {
-          continue;
-        }
-      }
+      const resolved = resolveActiveTrialAssignment(member, now);
+      if (!resolved) continue;
 
-      const endMs = new Date(member.endDate).getTime();
-      if (Number.isNaN(endMs) || endMs <= nowMs) continue;
-
-      const plannedStartAt = inferTrialStartAtFromEndDate(member.endDate);
-      if (Number.isNaN(new Date(plannedStartAt).getTime())) continue;
       byMember.set(memberName, {
         memberName,
         skill,
-        plannedDate: guildDateFromInstant(plannedStartAt),
-        plannedStartAt,
+        plannedDate: resolved.plannedDate,
+        plannedStartAt: resolved.plannedStartAt,
         gameExp: member.exp,
-        endDate: member.endDate,
+        endDate: member.endDate ?? "",
       });
     }
   }

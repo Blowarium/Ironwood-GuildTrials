@@ -178,6 +178,17 @@
         } catch (focusErr) {
           /* ignore */
         }
+        try {
+          if (
+            targets[ti].location &&
+            new URL(targets[ti].location.href).origin === targetOrigin
+          ) {
+            targets[ti].history.replaceState({}, "", destination);
+            targets[ti].dispatchEvent(new Event("igt-game-sync-url-updated"));
+          }
+        } catch (urlHandoffErr) {
+          /* ignore */
+        }
       } catch (postErr) {
         /* try next target */
       }
