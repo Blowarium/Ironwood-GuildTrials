@@ -69,12 +69,16 @@ export function persistGameSyncResult(
   result: GameSyncApplyResult,
 ): void {
   clearPendingGameSync();
-  writeJson(RESULT_KEY, {
+  const stored: StoredGameSyncResult = {
     importedAt,
     weekStart,
     appliedAt: new Date().toISOString(),
     result,
-  } satisfies StoredGameSyncResult);
+  };
+  writeJson(RESULT_KEY, stored);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("igt-game-sync-applied", { detail: stored }));
+  }
 }
 
 export function readStoredGameSyncResult(): StoredGameSyncResult | null {

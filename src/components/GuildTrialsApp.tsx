@@ -92,6 +92,7 @@ import {
   readPendingGameSync,
   readStoredGameSyncResult,
   shouldShowStoredGameSyncResult,
+  type StoredGameSyncResult,
 } from "@/lib/game-sync-session";
 import { TrialProbeResultBanner } from "./TrialProbeResultBanner";
 import { GameSyncResultBanner } from "./GameSyncResultBanner";
@@ -132,6 +133,7 @@ export function GuildTrialsApp() {
   const [gameSyncResult, setGameSyncResult] = useState<GameSyncApplyResult | null>(null);
   const [gameSyncWeekStart, setGameSyncWeekStart] = useState<string | null>(null);
   const [gameSyncImportedAt, setGameSyncImportedAt] = useState<string | null>(null);
+  const [gameSyncAppliedAt, setGameSyncAppliedAt] = useState<string | null>(null);
   const [gameSyncHelperReady, setGameSyncHelperReady] = useState(false);
   const [gameSyncModalOpen, setGameSyncModalOpen] = useState(false);
   const [trialProbeReport, setTrialProbeReport] = useState<IronwoodTrialProbeReport | null>(null);
@@ -192,22 +194,40 @@ export function GuildTrialsApp() {
     setGameSyncHelperReady(isTrialSyncHelperInstalled());
   }, []);
 
-  const restoreGameSyncSession = useCallback(() => {
+  const restoreGameSyncSession = useCallback((options?: { forceShow?: boolean }) => {
     const pending = readPendingGameSync();
     if (pending) {
       setPendingGameSync((current) => current ?? pending.payload);
     }
     const stored = readStoredGameSyncResult();
-    if (stored && shouldShowStoredGameSyncResult(stored)) {
-      setGameSyncResult(stored.result);
-      setGameSyncWeekStart(stored.weekStart);
-      setGameSyncImportedAt(stored.importedAt);
-    }
+    if (!stored) return;
+    if (!options?.forceShow && !shouldShowStoredGameSyncResult(stored)) return;
+    setGameSyncResult(stored.result);
+    setGameSyncWeekStart(stored.weekStart);
+    setGameSyncImportedAt(stored.importedAt);
+    setGameSyncAppliedAt(stored.appliedAt ?? stored.importedAt);
+  }, []);
+
+  const showGameSyncBanner = useCallback((stored: StoredGameSyncResult) => {
+    setGameSyncResult(stored.result);
+    setGameSyncWeekStart(stored.weekStart);
+    setGameSyncImportedAt(stored.importedAt);
+    setGameSyncAppliedAt(stored.appliedAt ?? stored.importedAt);
   }, []);
 
   useEffect(() => {
     restoreGameSyncSession();
   }, [restoreGameSyncSession]);
+
+  useEffect(() => {
+    function onGameSyncApplied(event: Event) {
+      const stored = (event as CustomEvent<StoredGameSyncResult>).detail;
+      if (!stored?.appliedAt || !stored.result) return;
+      showGameSyncBanner(stored);
+    }
+    window.addEventListener("igt-game-sync-applied", onGameSyncApplied);
+    return () => window.removeEventListener("igt-game-sync-applied", onGameSyncApplied);
+  }, [showGameSyncBanner]);
 
   useEffect(() => {
     function onVisible() {
@@ -340,10 +360,9 @@ export function GuildTrialsApp() {
       );
 
       persistGameSyncResult(payload.importedAt, targetWeek, result);
+      const stored = readStoredGameSyncResult();
+      if (stored) showGameSyncBanner(stored);
       setPendingGameSync(null);
-      setGameSyncResult(result);
-      setGameSyncWeekStart(targetWeek);
-      setGameSyncImportedAt(payload.importedAt);
       setView("planner");
 
       const refreshed = await fetchWeekData(targetWeek);
@@ -359,7 +378,7 @@ export function GuildTrialsApp() {
     } finally {
       setSaving(false);
     }
-  }, [pendingGameSync, currentUser, memberNames, guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits]);
+  }, [pendingGameSync, currentUser, memberNames, guildConfig?.planner_material_deposits, guildConfig?.planner_coin_deposits, showGameSyncBanner]);
 
   useEffect(() => {
     if (!pendingGameSync || !identityReady || !currentUser || !membersLoaded) return;
@@ -852,10 +871,11 @@ export function GuildTrialsApp() {
             onDismiss={() => setTrialProbeReport(null)}
           />
         )}
-        {gameSyncResult && gameSyncWeekStart && (
+        {gameSyncResult && gameSyncWeekStart && gameSyncAppliedAt && (
           <GameSyncResultBanner
             result={gameSyncResult}
             weekStart={gameSyncWeekStart}
+            appliedAt={gameSyncAppliedAt}
             onDismiss={() => {
               if (gameSyncImportedAt) {
                 persistDismissedGameSyncImportedAt(gameSyncImportedAt);
@@ -863,6 +883,7 @@ export function GuildTrialsApp() {
               setGameSyncResult(null);
               setGameSyncWeekStart(null);
               setGameSyncImportedAt(null);
+              setGameSyncAppliedAt(null);
             }}
           />
         )}

@@ -2,14 +2,17 @@
 
 import type { GameSyncApplyResult } from "@/lib/ironwood-game-sync";
 import { gameSyncResultHasVisibleContent } from "@/lib/game-sync-session";
+import { formatDateTimeLabel } from "@/lib/trial-schedule";
 
 export function GameSyncResultBanner({
   result,
   weekStart,
+  appliedAt,
   onDismiss,
 }: {
   result: GameSyncApplyResult;
   weekStart: string;
+  appliedAt: string;
   onDismiss: () => void;
 }) {
   const hasContent = gameSyncResultHasVisibleContent(result);
@@ -24,6 +27,8 @@ export function GameSyncResultBanner({
           <p className="mt-1 text-xs text-slate-400">
             Week of {weekStart}
             {result.payloadSource ? ` · source ${result.payloadSource}` : ""}
+            {" · applied "}
+            {formatDateTimeLabel(appliedAt)}
           </p>
           <ul className="mt-2 space-y-0.5 text-xs text-slate-300">
             {!hasContent && (
