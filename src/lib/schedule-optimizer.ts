@@ -78,6 +78,8 @@ export interface SchedulePlan {
     skillsXpCompleteAfterPlan: number;
     /** True when every skill has a planner signup or is mark-done. */
     allSkillsOnPlannerOrDone: boolean;
+    /** Unmarked skills with no planner signup yet. */
+    skillsMissingFromPlanner: Skill[];
     membersWithPreferences: number;
   };
 }
@@ -287,10 +289,18 @@ function canSuggestMemberOnSkill(
   }
 
   const plannerNeed = classifySkillNeed(skill, plannerSkillState, required, completedSkills);
-  const liveNeed = classifySkillNeed(skill, skillState, required, completedSkills);
 
-  if (plannerNeed === "uncovered" || plannerNeed === "needs_xp") {
-    return liveNeed === "uncovered" || liveNeed === "needs_xp";
+  if (plannerNeed === "uncovered") {
+    // One suggestion per uncovered planner skill until someone is actually scheduled there.
+    return (
+      plannerSkillState.get(skill)!.memberCount === 0 &&
+      skillState.get(skill)!.memberCount === 0
+    );
+  }
+
+  if (plannerNeed === "needs_xp") {
+    // Stack helpers while planner signups alone still fall short of trial XP.
+    return plannerSkillState.get(skill)!.contributed < required;
   }
 
   if (plannerHasPriorityWork(plannerSkillState, required, completedSkills)) return false;
@@ -308,7 +318,7 @@ function canSuggestMemberOnSkill(
     return false;
   }
 
-  return liveNeed === "covered";
+  return classifySkillNeed(skill, skillState, required, completedSkills) === "covered";
 }
 
 /** 4 = uncovered, 3 = needs XP, 1 = covered backup, 0 = invalid */
@@ -549,6 +559,9 @@ export function buildOptimalSchedule(
   const skillsXpCompleteOnPlanner = scheduledProgress.filter((s) => s.remaining <= 0).length;
   const skillsXpCompleteAfterPlan = skillProgress.filter((s) => s.remaining <= 0).length;
   const allSkillsOnPlannerOrDone = plannerCoversAllSkills(existingSignups, completedSkills);
+  const skillsMissingFromPlanner = SKILLS.filter(
+    (skill) => !completedSkills.has(skill) && plannerSkillState.get(skill)!.memberCount === 0,
+  );
 
   const suggestedStats = computeAssignmentPrefStats(
     suggestions.map((s) => ({ member: s.member, skill: s.skill })),
@@ -577,6 +590,7 @@ export function buildOptimalSchedule(
       skillsXpCompleteOnPlanner,
       skillsXpCompleteAfterPlan,
       allSkillsOnPlannerOrDone,
+      skillsMissingFromPlanner,
       membersWithPreferences,
     },
   };

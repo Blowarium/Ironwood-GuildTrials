@@ -46,7 +46,11 @@ const amudoPrefs: Skill[] = [
 const profiles = buildProfilesMap([
   makeProfile("pomu", ["Woodcutting", "Mining", "Fishing"], 67734 / 24 / 0.05),
   makeProfile("AmudoBun", amudoPrefs, 34225 / 24 / 0.05),
-  ...MEMBERS.filter((m) => m !== "AmudoBun").map((m) =>
+  makeProfile("neppocc", ["Delving", "Mining", "Woodcutting"], 37200 / 24 / 0.05),
+  makeProfile("LecheurDeCul", ["Enchanting", "Imbuing", "Alchemy"], 0),
+  ...MEMBERS.filter(
+    (m) => !["AmudoBun", "neppocc", "LecheurDeCul"].includes(m),
+  ).map((m) =>
     makeProfile(m, [...SKILLS].slice(0, 8) as Skill[], 50000),
   ),
 ]);
@@ -67,6 +71,7 @@ const scheduled: { member: string; skill: Skill }[] = [
   { member: "Buttstaff", skill: "Smithing" },
   { member: "Acol", skill: "Two-handed" },
   { member: "Boemibal", skill: "Exploring" },
+  { member: "neppocc", skill: "Delving" },
 ];
 
 const signups = scheduled.map((row, i) => ({
@@ -103,8 +108,16 @@ if (amudo?.skill === "Woodcutting") {
   console.error("FAIL: AmudoBun should not get Woodcutting");
   process.exit(1);
 }
-if (amudo && amudo.skill !== "Delving" && amudo.skill !== "Ranged" && amudo.skill !== "Enchanting") {
-  console.error(`FAIL: unexpected skill ${amudo.skill}`);
+
+const unscheduled = allMembers.length - signups.length;
+if (plan.suggestions.length !== unscheduled) {
+  console.error(
+    `FAIL: expected ${unscheduled} gap-filling suggestions, got ${plan.suggestions.length}`,
+  );
+  process.exit(1);
+}
+if (!amudo) {
+  console.error("FAIL: AmudoBun should receive a gap-filling suggestion");
   process.exit(1);
 }
 

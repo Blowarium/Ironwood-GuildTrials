@@ -454,7 +454,9 @@ export function SuggestionsView({
             No suggestion for {unsuggestedMembers.join(", ")} —{" "}
             {plan.stats.allSkillsOnPlannerOrDone
               ? "usually every trial skill is locked out in their profile."
-              : "planner still needs a signup on every skill (or mark done) before preference suggestions apply; check for skills with no row on the planner yet."}
+              : plan.stats.skillsMissingFromPlanner.length > 0
+                ? `planner still needs someone on ${plan.stats.skillsMissingFromPlanner.join(", ")} (or mark done) before preference suggestions; until then only gap-filling assignments are offered.`
+                : "planner still has trial XP gaps — more helpers may be suggested once earlier ones are applied."}
           </p>
         )}
       </div>
