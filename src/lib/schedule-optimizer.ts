@@ -257,7 +257,10 @@ function canAssignMemberToSkill(
     completedSkills,
   );
   if (nextPref != null) {
-    return skill === nextPref;
+    if (!isSkillLockedForMember(profiles.get(member), nextPref)) {
+      return skill === nextPref;
+    }
+    // Locked next pref — continue to backup rules below.
   }
 
   if (!allPreferredSkillsSatisfied(member, profiles, completedSkills)) {
@@ -328,6 +331,51 @@ function scoreAssignment(
 
   const remaining = Math.max(0, required - st.contributed);
   return needTier * 1_000_000_000_000 + pref * 1_000_000_000 + xp * 1_000 + remaining;
+}
+
+/** Seat stranded members — ignores next-pref routing but keeps locks and mark-done rules. */
+function pickForcedSuggestionSkill(
+  member: Member,
+  profiles: ProfilesMap,
+  skillState: Map<Skill, SkillState>,
+  required: number,
+  completedSkills: ReadonlySet<Skill>,
+): Skill | null {
+  const unlocked = SKILLS.filter(
+    (skill) =>
+      !completedSkills.has(skill) &&
+      !isSkillLockedForMember(profiles.get(member), skill),
+  );
+  if (unlocked.length === 0) return null;
+
+  const withoutBlockedTop = unlocked.filter(
+    (skill) =>
+      !isBlockedTopPreferenceSkill(
+        member,
+        skill,
+        profiles,
+        skillState,
+        required,
+        completedSkills,
+      ),
+  );
+  const candidates = withoutBlockedTop.length > 0 ? withoutBlockedTop : unlocked;
+
+  let best: Skill | null = null;
+  let bestScore = -1;
+  for (const skill of candidates) {
+    const st = skillState.get(skill)!;
+    const tier = assignmentNeedTier(skill, st, required, completedSkills);
+    if (tier === 0) continue;
+    const pref = preferenceBonus(getPreferenceRankFromProfile(profiles.get(member), skill));
+    const loadPenalty = st.memberCount;
+    const score = tier * 1_000_000 + pref * 1_000 - loadPenalty;
+    if (score > bestScore) {
+      bestScore = score;
+      best = skill;
+    }
+  }
+  return best;
 }
 
 function computeAssignmentPrefStats(
@@ -488,6 +536,17 @@ export function buildOptimalSchedule(
 
     if (!bestMember || !bestSkill) break;
     assign(bestMember, bestSkill);
+  }
+
+  for (const member of [...pool]) {
+    const skill = pickForcedSuggestionSkill(
+      member,
+      profiles,
+      skillState,
+      required,
+      completedSkills,
+    );
+    if (skill) assign(member, skill);
   }
 
   const membersWithPreferences = membersWithRankedProfiles(profiles, members);

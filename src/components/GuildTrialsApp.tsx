@@ -912,6 +912,7 @@ export function GuildTrialsApp() {
           <SuggestionsView
             signups={signups}
             completions={completions}
+            members={memberNames}
             profiles={profiles}
             weekDays={weekDays}
             weekStart={weekStart}

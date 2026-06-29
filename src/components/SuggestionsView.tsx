@@ -250,6 +250,7 @@ function SkillProgressCard({
 export function SuggestionsView({
   signups,
   completions,
+  members,
   profiles,
   weekDays,
   weekStart,
@@ -265,6 +266,7 @@ export function SuggestionsView({
 }: {
   signups: TrialSignup[];
   completions: SkillWeekCompletion[];
+  members: Member[];
   profiles: import("@/lib/member-profile").MemberProfile[];
   weekDays: string[];
   weekStart: string;
@@ -289,8 +291,8 @@ export function SuggestionsView({
   );
 
   const memberNames = useMemo(
-    () => profiles.map((p) => p.member_name).sort((a, b) => a.localeCompare(b)),
-    [profiles],
+    () => [...members].sort((a, b) => a.localeCompare(b)),
+    [members],
   );
 
   const hallLevel = guildConfig?.trial_hall_level ?? 0;
@@ -316,6 +318,21 @@ export function SuggestionsView({
   const prefsCount = membersWithRankedProfiles(profilesMap, memberNames);
   const mySuggestion = plan.suggestions.find((s) => s.member === currentUser);
   const myExistingSignup = plan.alreadyScheduled.find((s) => s.member_name === currentUser);
+  const scheduledMembers = useMemo(
+    () => new Set(signups.map((s) => s.member_name)),
+    [signups],
+  );
+  const suggestedMembers = useMemo(
+    () => new Set(plan.suggestions.map((s) => s.member)),
+    [plan.suggestions],
+  );
+  const unsuggestedMembers = useMemo(
+    () =>
+      memberNames.filter(
+        (m) => !scheduledMembers.has(m) && !suggestedMembers.has(m),
+      ),
+    [memberNames, scheduledMembers, suggestedMembers],
+  );
 
   const showScheduled = sourceEnabled.scheduled;
   const showSuggested = sourceEnabled.suggested;
@@ -424,6 +441,12 @@ export function SuggestionsView({
           >
             Apply all suggestions to planner
           </button>
+        )}
+        {canUseStaffTools && unsuggestedMembers.length > 0 && (
+          <p className="mt-2 text-xs text-amber-300/90 sm:text-sm">
+            No suggestion for {unsuggestedMembers.join(", ")} — usually all trial skills are
+            locked out in their profile, or every remaining trial is marked done this week.
+          </p>
         )}
       </div>
 
