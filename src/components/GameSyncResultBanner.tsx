@@ -31,6 +31,22 @@ export function GameSyncResultBanner({
                 No signup, completion, or building deposit changes.
               </li>
             )}
+            {result.payloadMembersDetected != null && result.payloadMembersDetected > 0 && (
+              <li className="text-slate-400">
+                {result.payloadMembersDetected} assignment
+                {result.payloadMembersDetected === 1 ? "" : "s"} detected from game data
+                {result.assignmentsDetected != null
+                  ? ` (${result.assignmentsDetected} schedulable)`
+                  : ""}
+              </li>
+            )}
+            {result.assignmentsDetected != null &&
+              result.assignmentsDetected >
+                result.created.length + result.updated.length + result.unchanged.length && (
+                <li className="text-amber-300/90">
+                  Some in-game assignments were not applied — check skipped/errors below.
+                </li>
+              )}
             {result.created.length > 0 && (
               <li>
                 <span className="text-emerald-300">{result.created.length} scheduled</span>

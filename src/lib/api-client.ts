@@ -3,8 +3,10 @@ import type { GuildConfig } from "./guild-config";
 import {
   applyTrialSyncSkillCompletionHints,
   collectActiveTrialAssignments,
+  countRawMembersInPayload,
   mapGameDisplayNameToMember,
   planSkillCompletionSync,
+  resolvePayloadTrialWeekStart,
   type IronwoodTrialSyncPayload,
   trialSyncStartTimesMatch,
   type TrialSyncApplyResult,
@@ -253,7 +255,7 @@ export async function applyIronwoodGameSync(
   existingMaterialDeposits: PlannerMaterialDeposits | null = null,
   existingCoinDeposits: PlannerCoinDeposits | null = null,
 ): Promise<TrialSyncApplyResult> {
-  const weekStart = payload.trialWeekStart;
+  const weekStart = resolvePayloadTrialWeekStart(payload);
   const normalizedPayload = applyTrialSyncSkillCompletionHints(payload);
   const assignments = collectActiveTrialAssignments(normalizedPayload, new Date(), roster);
   const byMember = new Map(
@@ -267,6 +269,8 @@ export async function applyIronwoodGameSync(
     skipped: [],
     errors: [],
     payloadSource: payload.source,
+    payloadMembersDetected: countRawMembersInPayload(normalizedPayload),
+    assignmentsDetected: assignments.length,
     completionsMarked: [],
     completionsUnmarked: [],
     completionErrors: [],
@@ -287,7 +291,7 @@ export async function applyIronwoodGameSync(
 
   for (const skillRow of normalizedPayload.skills) {
     for (const member of skillRow.members) {
-      if (!mapGameDisplayNameToMember(member.displayName, roster)) {
+      if (!mapGameDisplayNameToMember(member.displayName, roster.length > 0 ? roster : undefined)) {
         skip(member.displayName, "Not in guild roster");
       }
     }

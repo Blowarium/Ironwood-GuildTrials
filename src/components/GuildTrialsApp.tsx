@@ -47,6 +47,7 @@ import {
   markTrialSyncHelperInstalled,
   buildPlannerGameSyncReturnUrl,
   readTrialProbeFromLocation,
+  resolvePayloadTrialWeekStart,
   setGuildMemberNames,
   type IronwoodGameSyncPayload,
   type IronwoodTrialProbeReport,
@@ -323,7 +324,7 @@ export function GuildTrialsApp() {
     setError(null);
     try {
       setGuildMemberNames(memberNames);
-      const targetWeek = payload.trialWeekStart;
+      const targetWeek = resolvePayloadTrialWeekStart(payload);
       const offset = findWeekOffsetForStart(targetWeek);
       if (offset != null) setWeekOffset(offset);
 

@@ -13,6 +13,7 @@ import type {
 } from "./ironwood-building-sync";
 import { TRIAL_DURATION_MS, snapStartAtToWholeHour, weekBoundsLocal } from "./trial-schedule";
 import type { TrialSignup, SkillWeekCompletion } from "./types";
+import trialSyncVersion from "./trial-sync-version.json";
 
 let guildMemberNames: readonly string[] = [...MEMBERS];
 
@@ -40,7 +41,18 @@ export const TRIAL_SYNC_PLANNER_WINDOW_NAME = "igt-guild-trials-planner";
 export const TRIAL_SYNC_PROBE_RUN_SCRIPT_PATH = "/ironwood-trial-sync-probe-run.js";
 export const TRIAL_PROBE_URL_PARAM = "trialProbe";
 export const TRIAL_PROBE_LAUNCH_PARAM = "igtTrialProbe";
-export const TRIAL_SYNC_SCRIPT_VERSION = "1.19.0";
+export const TRIAL_SYNC_SCRIPT_VERSION = trialSyncVersion.version;
+
+/** Major.minor label for UI (1.19.0 → 1.19). */
+export function formatTrialSyncVersionLabel(
+  version: string = TRIAL_SYNC_SCRIPT_VERSION,
+): string {
+  const parts = version.split(".");
+  if (parts.length === 3 && parts[2] === "0") {
+    return `${parts[0]}.${parts[1]}`;
+  }
+  return version;
+}
 
 /** Same 16-skill order as Ironwood `z.lA` / sidebar. */
 export const IRONWOOD_TRIAL_SKILL_ORDER = SKILLS;
@@ -162,6 +174,10 @@ export type TrialSyncApplyResult = {
   errors: Array<{ member: Member; error: string }>;
   /** Payload source used for sync (dom-rows, dom-text, api, etc.). */
   payloadSource?: string;
+  /** Member rows captured in the sync payload (before roster/active filtering). */
+  payloadMembersDetected?: number;
+  /** Active assignments the planner attempted to apply. */
+  assignmentsDetected?: number;
   /** Skills marked done because in-game trial XP met the requirement. */
   completionsMarked: Skill[];
   /** Skills unmarked because in-game trial XP no longer meets the requirement. */
@@ -286,6 +302,14 @@ export function resolveIronwoodTrialWeekStart(trialStartDate: string): string {
   const at = new Date(trialStartDate);
   if (Number.isNaN(at.getTime())) return guildWeekStart();
   return guildWeekStart(at);
+}
+
+/** Planner week key from sync payload — prefers trialStartDate over captured week label. */
+export function resolvePayloadTrialWeekStart(payload: IronwoodTrialSyncPayload): string {
+  if (payload.trialStartDate) {
+    return resolveIronwoodTrialWeekStart(payload.trialStartDate);
+  }
+  return payload.trialWeekStart;
 }
 
 export function isIronwoodTrialSkillComplete(currentExp: number, requiredExp: number): boolean {
@@ -448,7 +472,7 @@ export function normalizeIronwoodTrialSyncPayload(input: {
       const membersRaw: IronwoodGuildTrialMemberRaw[] =
         "members" in skillRow && Array.isArray(skillRow.members)
           ? skillRow.members
-          : Object.values(trial.members).filter((m) => m.skillId === skillId);
+          : Object.values(trial.members).filter((m) => String(m.skillId) === String(skillId));
 
       const members: IronwoodTrialSyncMemberSource[] = membersRaw.map((m) => {
         if (!mapGameDisplayNameToMember(m.displayName)) unmatchedNames.push(m.displayName);
@@ -714,12 +738,21 @@ function startTimesMatch(a: string, b: string): boolean {
   return trialSyncStartTimesMatch(a, b);
 }
 
+export function countRawMembersInPayload(payload: IronwoodTrialSyncPayload): number {
+  let count = 0;
+  for (const skillRow of payload.skills) {
+    count += skillRow.members.length;
+  }
+  return count;
+}
+
 /** Active in-game trial slots. One row per member. */
 export function collectActiveTrialAssignments(
   payload: IronwoodTrialSyncPayload,
   now = new Date(),
   roster?: readonly string[],
 ): IronwoodTrialSyncAssignment[] {
+  const memberRoster = roster && roster.length > 0 ? roster : getGuildMemberNames();
   const byMember = new Map<Member, IronwoodTrialSyncAssignment>();
 
   for (const skillRow of payload.skills) {
@@ -727,7 +760,7 @@ export function collectActiveTrialAssignments(
     if (!skill) continue;
 
     for (const member of skillRow.members) {
-      const memberName = mapGameDisplayNameToMember(member.displayName, roster);
+      const memberName = mapGameDisplayNameToMember(member.displayName, memberRoster);
       if (!memberName) continue;
 
       const resolved = resolveActiveTrialAssignment(member, now);

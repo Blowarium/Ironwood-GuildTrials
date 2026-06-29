@@ -10,7 +10,7 @@
 
   var TRIAL_MS = 24 * 60 * 60 * 1000;
   var GUILD_OFFSET_MS = 2 * 60 * 60 * 1000;
-  var GUILD_DAY_MS = 24 * 60 * 60 * 1000;
+  var GUILD_DAILY_RESET_HOUR = 2;
   var GUILD_PATH = "/guild";
   var SYNC_RUN_KEY = "igt-trial-sync-run";
   var SYNC_RETURN_KEY = "igt-trial-sync-return";
@@ -36,6 +36,8 @@
 
   var scriptEl = document.currentScript;
   var scriptUrl = scriptEl && scriptEl.src ? new URL(scriptEl.src) : null;
+  var SCRIPT_VERSION =
+    (scriptUrl && scriptUrl.searchParams.get("v")) || "1.21.0";
   var params = new URLSearchParams(location.search);
   var returnUrl =
     (scriptUrl && scriptUrl.searchParams.get("return")) ||
@@ -257,6 +259,8 @@
       if (fresh.requiredExp != null) payload.requiredExp = fresh.requiredExp;
       if ((!payload.skills || !payload.skills.length) && fresh.skills && fresh.skills.length) {
         payload.skills = fresh.skills;
+      } else if (fresh.skills && fresh.skills.length) {
+        mergePayloadMembers(payload, fresh);
       }
     }
 
@@ -846,6 +850,144 @@
     return "Week " + (payload.trialWeekStart || "unknown");
   }
 
+  function countAssignableMembersInPayload(payload, nowMs) {
+    if (!payload || !payload.skills) return 0;
+    if (nowMs == null) nowMs = Date.now();
+    var count = 0;
+    for (var i = 0; i < payload.skills.length; i++) {
+      var members = payload.skills[i].members || [];
+      for (var j = 0; j < members.length; j++) {
+        var endMs = new Date(members[j].endDate).getTime();
+        if (Number.isNaN(endMs) || endMs > nowMs) count++;
+      }
+    }
+    return count;
+  }
+
+  function mergePayloadMembers(target, donor) {
+    if (!target || !donor || !donor.skills || !donor.skills.length) return target;
+    if (!target.skills) target.skills = [];
+
+    var bySkill = {};
+    for (var i = 0; i < target.skills.length; i++) {
+      bySkill[target.skills[i].skill] = target.skills[i];
+    }
+
+    for (var di = 0; di < donor.skills.length; di++) {
+      var dRow = donor.skills[di];
+      if (!dRow.members || !dRow.members.length) continue;
+
+      var tRow = bySkill[dRow.skill];
+      if (!tRow) {
+        tRow = {
+          skill: dRow.skill,
+          skillId: dRow.skillId || dRow.skill,
+          currentExp: dRow.currentExp || 0,
+          requiredExp: dRow.requiredExp || 0,
+          complete: !!dRow.complete,
+          members: dRow.members.slice(),
+        };
+        target.skills.push(tRow);
+        bySkill[dRow.skill] = tRow;
+        continue;
+      }
+
+      if (!tRow.members) tRow.members = [];
+      var seen = {};
+      for (var mi = 0; mi < tRow.members.length; mi++) {
+        seen[normalizeMemberKey(tRow.members[mi].displayName)] = true;
+      }
+      for (var mj = 0; mj < dRow.members.length; mj++) {
+        var dm = dRow.members[mj];
+        var key = normalizeMemberKey(dm.displayName);
+        if (seen[key]) continue;
+        seen[key] = true;
+        tRow.members.push(dm);
+      }
+    }
+
+    return target;
+  }
+
+  function ensureTrialMembersOnPayload(payload, guild, skillData) {
+    if (!payload || !payload.skills || !guild || !guild.trial || !guild.trial.members) {
+      return payload;
+    }
+
+    var trial = guild.trial;
+    var bySkill = {};
+    for (var i = 0; i < payload.skills.length; i++) {
+      bySkill[payload.skills[i].skill] = payload.skills[i];
+      if (payload.skills[i].skillId != null) {
+        bySkill[String(payload.skills[i].skillId)] = payload.skills[i];
+      }
+    }
+
+    Object.values(trial.members).forEach(function (m) {
+      if (!m || !m.displayName) return;
+      var skillName = skillNameFromId(skillData, m.skillId);
+      if (!skillName) return;
+
+      var row = bySkill[skillName] || bySkill[String(m.skillId)];
+      if (!row) {
+        row = {
+          skill: skillName,
+          skillId: m.skillId,
+          currentExp: 0,
+          requiredExp: trial.requiredExp || 0,
+          complete: false,
+          members: [],
+        };
+        payload.skills.push(row);
+        bySkill[skillName] = row;
+        bySkill[String(m.skillId)] = row;
+      }
+
+      if (!row.members) row.members = [];
+      var memberKey = normalizeMemberKey(m.displayName);
+      for (var ri = 0; ri < row.members.length; ri++) {
+        if (normalizeMemberKey(row.members[ri].displayName) === memberKey) return;
+      }
+      row.members.push(mapMemberRecord(m, skillName, "trial.members"));
+    });
+
+    payload.skills.sort(function (a, b) {
+      return SKILL_ORDER.indexOf(a.skill) - SKILL_ORDER.indexOf(b.skill);
+    });
+    return payload;
+  }
+
+  function finalizeTrialPayload(payload) {
+    if (!payload) return payload;
+    applyPayloadTrialWeekFromGuild(payload);
+    return payload;
+  }
+
+  function attachDomAssignmentsToPayload(payload) {
+    if (!payload) return payload;
+    if (!payload.skills) payload.skills = [];
+
+    var donors = [
+      normalizeFromDomRows(),
+      normalizeFromVisibleText(),
+      normalizeFromDomScoped(),
+      normalizeFromDomColumns(),
+    ];
+    for (var di = 0; di < donors.length; di++) {
+      if (donors[di] && countMembersInPayload(donors[di]) > 0) {
+        mergePayloadMembers(payload, donors[di]);
+      }
+    }
+
+    var guild = readGuildFromAnySource();
+    if (!guild || !guild.trial) {
+      var capturedGuild = guildFromCaptureRaw();
+      if (capturedGuild) guild = capturedGuild;
+    }
+    ensureTrialMembersOnPayload(payload, guild, findSkillDataMap());
+    return finalizeTrialPayload(payload);
+  }
+
   function payloadScore(payload) {
     if (!payload || !payload.skills) return -1;
     var members = countMembersInPayload(payload);
@@ -858,6 +1000,8 @@
       }
       return progressScore > 0 ? progressScore : -1;
     }
+
+    var assignable = countAssignableMembersInPayload(payload);
     var timed = countMembersWithTimedEndDate(payload);
     var sourceBonus =
       payload.source === "component"
@@ -873,7 +1017,7 @@
                 : payload.source === "dom-columns"
                   ? 0
                   : 0;
-    return timed * 25 + members * 5 + sourceBonus;
+    return assignable * 40 + timed * 15 + members * 8 + sourceBonus;
   }
 
   function trialMembersForSkill(trial, skillId) {
@@ -1097,8 +1241,15 @@
   }
 
   function resolveMemberSchedule(parsed) {
-    if (!parsed || !parsed.endDate) {
+    if (!parsed) {
       return { endDate: null, inferredStartAt: null };
+    }
+    if (!parsed.endDate) {
+      var fallbackEnd = new Date(Date.now() + TRIAL_MS).toISOString();
+      return {
+        endDate: fallbackEnd,
+        inferredStartAt: parsed.inferredStartAt || inferStart(fallbackEnd),
+      };
     }
     var endDate = parsed.endDate;
     return {
@@ -1107,20 +1258,35 @@
     };
   }
 
-  function guildWeekStartFromInstant(iso) {
+  function snapToLastDailyReset(at) {
+    var date = guildDateFromInstant(at);
+    var parts = guildTimeParts(at);
+    var pastResetToday =
+      parts.hours > GUILD_DAILY_RESET_HOUR ||
+      (parts.hours === GUILD_DAILY_RESET_HOUR && parts.minutes >= 0);
+    var resetDate = pastResetToday ? date : guildAddDays(date, -1);
+    return new Date(guildInstantFromLocal(resetDate, GUILD_DAILY_RESET_HOUR, 0));
+  }
+
+  function guildDayOfWeek(iso) {
     var t = new Date(iso).getTime() + GUILD_OFFSET_MS;
-    var d = new Date(t);
-    var y = d.getUTCFullYear();
-    var m = d.getUTCMonth();
-    var day = d.getUTCDate();
-    var dow = d.getUTCDay();
-    var mondayDelta = dow === 0 ? -6 : 1 - dow;
-    var mondayUtc = Date.UTC(y, m, day + mondayDelta, 0, 0, 0);
-    var gd = new Date(mondayUtc);
-    var yy = gd.getUTCFullYear();
-    var mm = String(gd.getUTCMonth() + 1).padStart(2, "0");
-    var dd = String(gd.getUTCDate()).padStart(2, "0");
-    return yy + "-" + mm + "-" + dd;
+    return new Date(t).getUTCDay();
+  }
+
+  function guildWeekStartFromInstant(iso) {
+    var at = new Date(iso);
+    if (Number.isNaN(at.getTime())) {
+      return guildWeekStartFromInstant(new Date().toISOString());
+    }
+    var lastReset = snapToLastDailyReset(at);
+    var resetDate = guildDateFromInstant(lastReset);
+    var day = guildDayOfWeek(guildInstantFromLocal(resetDate, 12, 0));
+    var mondayOffset = day === 0 ? -6 : 1 - day;
+    var mondayDate = guildAddDays(resetDate, mondayOffset);
+    var weekStartMs = new Date(
+      guildInstantFromLocal(mondayDate, GUILD_DAILY_RESET_HOUR, 0),
+    ).getTime();
+    return guildDateFromInstant(new Date(weekStartMs));
   }
 
   function calcCreditProgress(skills, requiredExp, creditReward) {
@@ -1798,8 +1964,6 @@
       seenMemberKeys[memberKey] = true;
 
       var schedule = resolveMemberSchedule(parsed);
-      if (!schedule.endDate) continue;
-
       membersBySkill[skillName].push({
         displayName: parsed.displayName,
         skillName: skillName,
@@ -2025,7 +2189,6 @@
         var parsed = parseMemberButton(clickables[bi].textContent || "");
         if (!parsed) continue;
         var schedule = resolveMemberSchedule(parsed);
-        if (!schedule.endDate) continue;
         members.push({
           displayName: parsed.displayName,
           skillName: block.skillName,
@@ -2090,7 +2253,6 @@
         var parsed = parseMemberContextFromLines(lines, li);
         if (!parsed) continue;
         var schedule = resolveMemberSchedule(parsed);
-        if (!schedule.endDate) continue;
         members.push({
           displayName: parsed.displayName,
           skillName: skill,
@@ -2133,13 +2295,13 @@
 
   function readTrialPayloadFromPage() {
     var fromDomRows = normalizeFromDomRows();
-    if (fromDomRows && countMembersWithTimedEndDate(fromDomRows) > 0) {
-      return fromDomRows;
+    if (fromDomRows && countMembersInPayload(fromDomRows) > 0) {
+      return finalizeTrialPayload(fromDomRows);
     }
 
     var fromDomText = normalizeFromVisibleText();
-    if (fromDomText && countMembersWithTimedEndDate(fromDomText) > 0) {
-      return fromDomText;
+    if (fromDomText && countMembersInPayload(fromDomText) > 0) {
+      return finalizeTrialPayload(fromDomText);
     }
 
     var candidates = [];
@@ -2186,6 +2348,16 @@
         bestScore = score;
         best = candidates[ci];
       }
+    }
+
+    if (best) {
+      for (var mergeIdx = 0; mergeIdx < candidates.length; mergeIdx++) {
+        if (candidates[mergeIdx] !== best) {
+          mergePayloadMembers(best, candidates[mergeIdx]);
+        }
+      }
+      ensureTrialMembersOnPayload(best, guild, skillData);
+      finalizeTrialPayload(best);
     }
 
     return best;
@@ -2275,13 +2447,25 @@
       }
       if (payload && payloadHasUsableTrialData(payload)) {
         var memberCount = countMembersInPayload(payload);
-        setStatus(
-          "Trial data ready",
-          memberCount > 0
-            ? memberCount + " assignment(s) via " + (payload.source || "unknown") + "."
-            : "Skill progress via " + (payload.source || "unknown") + " (no active assignments).",
-        );
-        return payload;
+        if (memberCount > 0) {
+          setStatus(
+            "Trial data ready",
+            memberCount +
+              " assignment(s) via " +
+              (payload.source || "unknown") +
+              ".",
+          );
+          return finalizeTrialPayload(payload);
+        }
+        if (trialAttempt >= 59) {
+          setStatus(
+            "Trial data ready",
+            "Skill progress via " +
+              (payload.source || "unknown") +
+              " (no active assignments).",
+          );
+          return finalizeTrialPayload(payload);
+        }
       }
 
       var cmp = findGuildTrialsComponent();
@@ -2314,14 +2498,14 @@
         "Trial data ready (partial)",
         "Using last readable trial snapshot.",
       );
-      return fallbackPayload;
+      return attachDomAssignmentsToPayload(fallbackPayload);
     }
 
     setStatus(
       "Continuing without trial assignments",
       "Building deposits and skill completions will still sync if available.",
     );
-    return buildMinimalGameSyncPayload();
+    return attachDomAssignmentsToPayload(buildMinimalGameSyncPayload());
   }
 
   function countActiveAssignments(payload) {
@@ -2355,6 +2539,8 @@
       }
 
       payload = await refreshTrialCompletionsAfterBuildings(payload, host);
+
+      payload = attachDomAssignmentsToPayload(payload);
 
       var activeCount = countActiveAssignments(payload);
 
